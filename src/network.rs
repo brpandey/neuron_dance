@@ -114,14 +114,13 @@ impl Network {
     {
         let mut z: Array2<f64>;
         let mut a: Array2<f64>;
-        let mut func_names_iter_acc = self.activations.iter();
         let mut acc = x.to_owned();
 
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*X + B, A = RELU(Z), A = Sigmoid(Z) or Z = W*A + B values
-        for (w, b) in self.weights.iter().zip(self.biases.iter()) {
+        for ((w, b), act) in self.weights.iter().zip(self.biases.iter()).zip(self.activations.iter()) {
             z = w.dot(&acc) + b;
-            a = Network::apply_nonlinear(&mut z, &mut func_names_iter_acc).unwrap();
+            a = Network::apply_nonlinear(&mut z, act);
 
             acc = a;
             //            f(z, &acc);
@@ -136,9 +135,6 @@ impl Network {
         // starting with last layer first
 
         let mut deltas: (VecDeque<Array2<f64>>, VecDeque<Array2<f64>>) = (VecDeque::new(), VecDeque::new()); // (bias_deltas, weight_deltas)
-
-        //        let mut bias_deltas: Vec<Array2<f64>> = self.biases.iter().map(|b| Array::zeros(b.raw_dim())).collect();
-//        let mut weight_deltas: Vec<Array2<f64>> = self.biases.iter().map(|w| Array::zeros(w.raw_dim())).collect();
 
         // Reverse iterators
         let (mut funcs_riter, mut weights_riter) = (self.activations.iter().rev(),
@@ -266,15 +262,8 @@ impl Network {
         max_acc_index
     }
 
-    pub fn apply_nonlinear<'a, I>(z: &mut Array2<f64>, func_names: &mut I) -> Option<Array2<f64>>
-    where
-        I: Iterator<Item = &'a Functions>
-    {
-        if let Some(func_name) = func_names.next() {
-            return Some(z.mapv(|v| Activations::apply(func_name, v)));
-        }
-
-        None
+    pub fn apply_nonlinear(z: &mut Array2<f64>, func_type: &Functions) -> Array2<f64> {
+        z.mapv(|v| Activations::apply(func_type, v))
     }
 
     pub fn apply_nonlinear_derivative<'a, I>(z_values: &mut Vec<Array2<f64>>, rev_func_names: &mut I) -> Option<Array2<f64>>
@@ -297,7 +286,7 @@ impl Network {
 }
 
 
-
+#[derive(Debug, Copy, Clone)]
 pub enum Functions {
     Sigmoid,
     Relu,
