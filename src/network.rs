@@ -8,6 +8,9 @@ use rand::Rng;
 use ndarray_rand::{RandomExt};
 use rand::seq::SliceRandom;
 
+use crate::computation::ForwardComputation;
+use crate::activation::{Activations, Function};
+
 static EPOCHS: usize = 1000;
 
 pub struct Network {
@@ -15,7 +18,7 @@ pub struct Network {
     sizes: Vec<usize>,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
-    activations: Vec<Functions>,
+    activations: Vec<Function>,
     learning_rate: f64,
     total_layers: usize,
 }
@@ -23,7 +26,7 @@ pub struct Network {
 impl Network {
     // e.g. [2,3,1] or [3,3,1]
     // Vec["relu", "sigmoid"]
-    pub fn new(sizes: Vec<usize>, activations: Vec<Functions>, learning_rate: f64) -> Self {
+    pub fn new(sizes: Vec<usize>, activations: Vec<Function>, learning_rate: f64) -> Self {
         let (mut weights, mut biases) : (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
@@ -87,31 +90,25 @@ impl Network {
     }
 
     pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, learning_rate: f64) {
-        let (mut z_values, mut a_values) = self.forward_pass(x_iteration); // transpose x single
-        let deltas = self.backward_pass(&mut z_values, &mut a_values, y_iteration);
+        let mut forward = self.forward_pass(x_iteration);
+        let deltas = self.backward_pass(&mut forward, y_iteration);
         self.update_iteration(deltas, learning_rate);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
-    pub fn forward_pass(&self, x: ArrayView2<f64>) -> (Vec<Array2<f64>>, Vec<Array2<f64>>) {
-        let (mut z_values, mut a_values) = (Vec::new(), vec![x.to_owned()]);
+  pub fn forward_pass(&self, x: ArrayView2<f64>) -> ForwardComputation {
+      let mut fc = ForwardComputation::new(x.to_owned(), self.activations.clone());
+      let mut opt_comp = Some(&mut fc);
+      self.predict(x, &mut opt_comp);
 
-        // capture intermediate values
-        let store = |z: Array2<f64>, a: &Array2<f64>| {
-            z_values.push(z);
-            a_values.push(a.to_owned());
-        };
+      fc
+  }
 
-        let mut option_func = Some(Box::new(store));
-        self.predict(x, &mut option_func);
-
-        (z_values, a_values)
-    }
-
-    pub fn predict<F>(&self, x: ArrayView2<f64>, f: &mut Option<Box<F>>) -> Array2<f64>
-    where
-        F: FnMut(Array2<f64>, &Array2<f64>) + ?Sized
-    {
+    pub fn predict(&self, x: ArrayView2<f64>, f: &mut Option<&mut ForwardComputation>) -> Array2<f64> {
+//    pub fn predict<F>(&self, x: ArrayView2<f64>, f: &mut Option<Box<F>>) -> Array2<f64>
+//    where
+//        F: FnMut(Array2<f64>, &Array2<f64>) + ?Sized
+//    {
         let mut z: Array2<f64>;
         let mut a: Array2<f64>;
         let mut acc = x.to_owned();
@@ -124,28 +121,27 @@ impl Network {
 
             acc = a;
             //            f(z, &acc);
-            f.as_mut().map(|fun| fun(z, &acc));
+            f.as_mut().map(|fc| fc.store_intermediate(z, &acc)); // map(|fun| fun(z, &acc));
         }
 
         acc // return last computed activation values
     }
 
-    pub fn backward_pass(&self, z_values: &mut Vec<Array2<f64>>, a_values: &mut Vec<Array2<f64>>, y: &Array2<f64>) -> (VecDeque<Array2<f64>>, VecDeque<Array2<f64>>) {
+    pub fn backward_pass(&self, fc: &mut ForwardComputation, y: &Array2<f64>) -> (VecDeque<Array2<f64>>, VecDeque<Array2<f64>>) {
+//    pub fn backward_pass(&self, z_values: &mut Vec<Array2<f64>>, a_values: &mut Vec<Array2<f64>>, y: &Array2<f64>) -> (VecDeque<Array2<f64>>, VecDeque<Array2<f64>>) {
         // Store the partial cost derivative for biases and weights from each layer,
         // starting with last layer first
 
         let mut deltas: (VecDeque<Array2<f64>>, VecDeque<Array2<f64>>) = (VecDeque::new(), VecDeque::new()); // (bias_deltas, weight_deltas)
 
         // Reverse iterators
-        let (mut funcs_riter, mut weights_riter) = (self.activations.iter().rev(),
-                                                    self.weights.iter().rev());
+        let mut weights_riter = self.weights.iter().rev();
 
-        let a_last = a_values.pop().unwrap();
-        let dc_da = Network::cost_derivative(&a_last, &y);
-        let da_dz = Network::apply_nonlinear_derivative(z_values, &mut funcs_riter).unwrap();
-        let mut acc: Array2<f64> =  dc_da * da_dz; // dC_dZ2 
+        let dc_da = Network::cost_derivative(fc, &y);
+        let da_dz = Network::apply_nonlinear_derivative(fc).unwrap();
+        let mut acc: Array2<f64> =  dc_da * da_dz; // dC_dZ2
 
-        Network::calculate_deltas(&acc, a_values, (&mut deltas.0, &mut deltas.1));
+        Network::calculate_deltas(&acc, fc, (&mut deltas.0, &mut deltas.1));
 
         let mut w;
         let mut dzj_dai; // j is layer after the layer i, e.g. j is 2 and i is 1
@@ -155,25 +151,25 @@ impl Network {
             w = weights_riter.next().unwrap();
 
             dzj_dai = w.t();
-            dai_dzi = Network::apply_nonlinear_derivative(z_values, &mut funcs_riter).unwrap();
+            dai_dzi = Network::apply_nonlinear_derivative(fc).unwrap();
 
             // (dZ2_dA1 dot dC_dZ2) * dA1_dZ1 => dC_dZ1 or
             // (dzj_dai dot dC_dZj) * dai_dzi => dC_dZi where j is the layer after i
             acc = dzj_dai.dot(&acc) * dai_dzi;
 
-            Network::calculate_deltas(&acc, a_values, (&mut deltas.0, &mut deltas.1));
+            Network::calculate_deltas(&acc, fc, (&mut deltas.0, &mut deltas.1));
         }
 
         return deltas
     }
 
-    pub fn calculate_deltas(dc_dz: &Array2<f64>, a_values: &mut Vec<Array2 <f64>>,
+    pub fn calculate_deltas(dc_dz: &Array2<f64>, fc: &mut ForwardComputation,
                             deltas: (&mut VecDeque<Array2<f64>>, &mut VecDeque<Array2<f64>>)) {
         let dz_db = 1.0;
         let dc_db = dc_dz * dz_db;
         deltas.0.push_front(dc_db);
 
-        let dz_dw = a_values.pop().unwrap();
+        let dz_dw = fc.last_a().unwrap();
         let dc_dw = dc_dz.dot(&dz_dw.t());
         deltas.1.push_front(dc_dw);
     }
@@ -191,7 +187,6 @@ impl Network {
 //            *w -= self.learning_rate * dw
             *w -= &dw.mapv(|x| x * learning_rate)
         }
-
     }
 
     pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) {
@@ -229,7 +224,8 @@ impl Network {
         assert_eq!(x, arr2(&[[11, 12, 13]]));
         */
 //        let no_function = None;
-        let mut empty: Option<Box<dyn FnMut(Array2<f64>, &Array2<f64>)>> = None;
+        let mut empty: Option<&mut ForwardComputation> = None;
+//        let mut empty: Option<Box<dyn FnMut(Array2<f64>, &Array2<f64>)>> = None;
         let mut predictions = vec![];
 
         for x_sample in x_test.axis_chunks_iter(Axis(0), 1) {
@@ -262,16 +258,13 @@ impl Network {
         max_acc_index
     }
 
-    pub fn apply_nonlinear(z: &mut Array2<f64>, func_type: &Functions) -> Array2<f64> {
+    pub fn apply_nonlinear(z: &mut Array2<f64>, func_type: &Function) -> Array2<f64> {
         z.mapv(|v| Activations::apply(func_type, v))
     }
 
-    pub fn apply_nonlinear_derivative<'a, I>(z_values: &mut Vec<Array2<f64>>, rev_func_names: &mut I) -> Option<Array2<f64>>
-    where
-        I: Iterator<Item = &'a Functions>
+    pub fn apply_nonlinear_derivative(fc: &mut ForwardComputation) -> Option<Array2<f64>>
     {
-
-        if let (Some(z_last), Some(func_name)) = (z_values.pop(), rev_func_names.next()) {
+        if let (Some(z_last), Some(func_name)) = (fc.last_z(), fc.last_func()) {
             let da_dz = z_last.mapv(|v| Activations::apply_derivative(func_name, v));
             return Some(da_dz)
         }
@@ -280,50 +273,11 @@ impl Network {
     }
 
     /// Assuming cost is (a - y)^2
-    pub fn cost_derivative(output_a: &Array2<f64>, y: &Array2<f64>) -> Array2<f64> {
-        2.0*(output_a - y)
+    pub fn cost_derivative(fc: &mut ForwardComputation, y: &Array2<f64>) -> Array2<f64> {
+        let output_a: Array2<f64> = fc.last_a().unwrap();
+        2.0*(&output_a - y)
     }
 }
 
 
-#[derive(Debug, Copy, Clone)]
-pub enum Functions {
-    Sigmoid,
-    Relu,
-}
 
-pub struct Activations;
-
-impl Activations {
-
-    pub fn apply(name: &Functions, x: f64) -> f64 {
-        match name {
-            Functions::Sigmoid => Activations::sigmoid(x),
-            Functions::Relu => Activations::relu(x),
-        }
-    }
-
-    pub fn apply_derivative(name: &Functions, x: f64) -> f64 {
-        match name {
-            Functions::Sigmoid => Activations::sigmoid_derivative(x),
-            Functions::Relu => Activations::relu_derivative(x),
-        }
-    }
-
-    // Activation functions and their derivatives
-    pub fn sigmoid(x: f64) -> f64 {
-        1.0 / (1.0 + (-x).exp())
-    }
-
-    pub fn sigmoid_derivative(x: f64) -> f64 {
-        Activations::sigmoid(x) * (1.0 - Activations::sigmoid(x))
-    }
-
-    pub fn relu(x: f64) -> f64 {
-        x.max(0.0)
-    }
-
-    pub fn relu_derivative(x: f64) -> f64 {
-        if x > 0.0 { 1.0 } else { 0.0 }
-    }
-}

@@ -7,7 +7,7 @@ use ndarray_rand::rand::SeedableRng;
 use rand_isaac::isaac64::Isaac64Rng;
 
 use simple_network::network::Network;
-use simple_network::network::Functions;
+use simple_network::activation::Function;
 
 fn main() {
     let path = "./data.csv";
@@ -31,7 +31,7 @@ fn main() {
     println!("train X  {:?} -------- train Y {:?}", &x_train, &y_train);
     println!("test X {:?} --------- test Y {:?}", &x_test, &y_test);
 
-    let mut simple_nn = Network::new(vec![2, 3, 1], vec![Functions::Relu, Functions::Sigmoid], 0.01);
+    let mut simple_nn = Network::new(vec![2, 3, 1], vec![Function::Relu, Function::Sigmoid], 0.01);
     simple_nn.train_sgd(&x_train, &y_train, n_train);
 }
 
