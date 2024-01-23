@@ -7,7 +7,6 @@ pub enum Function {
 pub struct Activations;
 
 impl Activations {
-
     pub fn apply(name: &Function, x: f64) -> f64 {
         match name {
             Function::Sigmoid => Activations::sigmoid(x),
