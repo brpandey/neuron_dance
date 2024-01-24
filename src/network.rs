@@ -10,9 +10,10 @@ use rand::distributions::Uniform;
 
 use crate::activation::Function;
 use crate::computation::{CacheComputation, ChainRuleComputation};
-use crate::algebra::{arg_max, apply_nonlinear, apply_linear};
+use crate::algebra::{arg_max, apply_linear, apply_nonlinear};
 
-static EPOCHS: usize = 100;
+static SGD_EPOCHS: usize = 10000;
+static MINIBATCH_EPOCHS: usize = 30;
 
 pub struct Network {
     sizes: Vec<usize>,
@@ -57,13 +58,14 @@ impl Network {
         }
     }
 
-    pub fn train_sgd(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize) {
+    pub fn train_sgd(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize,
+                     x_test: &Array2<f64>, y_test: &Array2<f64>, test_size: usize) {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
         let mut cc = CacheComputation::new(self.activations.clone());
 
-        for _ in 0..EPOCHS*100 { // train and update network based on single observation sample
+        for _ in 0..SGD_EPOCHS { // train and update network based on single observation sample
             rng = rand::thread_rng();
             random_index = rng.gen_range(0..train_size);
             x_single = x_train.select(Axis(0), &[random_index]);
@@ -71,14 +73,18 @@ impl Network {
 
             self.train_iteration(x_single.t(), &y_single, self.learning_rate, &mut cc);
         }
+
+        let result = self.evaluate(x_test, y_test, test_size);
+        println!("Accuracy {:?} {}", result, test_size);
     }
 
-    pub fn train_minibatch(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize, batch_size: usize) {
+    pub fn train_minibatch(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize, batch_size: usize,
+                           x_test: &Array2<f64>, y_test: &Array2<f64>, test_size: usize) {
         let mut row_indices = (0..train_size).collect::<Vec<usize>>();
         let (mut x_minibatch, mut y_minibatch);
         let mut cc = CacheComputation::new(self.activations.clone());
 
-        for _ in 0..EPOCHS {
+        for e in 0..MINIBATCH_EPOCHS {
             row_indices.shuffle(&mut rand::thread_rng());
 
             for i in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
@@ -88,9 +94,10 @@ impl Network {
                 // transpose to ensure proper matrix multi fit
                 self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
             }
+
+            let result = self.evaluate(x_test, y_test, test_size);
+            println!("Epoch {}: accuracy {:?}  test_size {}", e, result, test_size);
         }
-//        println!("Epoch {}: {} / {}", j, self.evaluate(test_data), n_test);
-        //     pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) {
     }
 
     pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, learning_rate: f64, cc: &mut CacheComputation) {
@@ -156,7 +163,7 @@ impl Network {
         }
     }
 
-    pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) {
+    pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) -> f64 {
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
 
@@ -182,7 +189,9 @@ impl Network {
             .map(|(x, y)| if *x == *y as usize { 1 } else { 0 })
             .sum();
 
-        println!("EPOCH X matches {matches} / n_test {n_test}, ACCURACY {:?}", matches/n_test);
+        let accuracy = matches as f64 / n_test as f64;
+        println!("matches {matches} / n_test {n_test}, ACCURACY {:?}", accuracy);
+        accuracy
     }
 }
 
