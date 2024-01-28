@@ -27,7 +27,8 @@ impl Activations {
     }
 
     pub fn sigmoid_derivative(x: f64) -> f64 {
-        Activations::sigmoid(x) * (1.0 - Activations::sigmoid(x))
+        let s = Activations::sigmoid(x);
+        s * (1.0 - s)
     }
 
     pub fn relu(x: f64) -> f64 {

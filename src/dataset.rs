@@ -20,8 +20,6 @@ impl DataSet {
             .deserialize_array2_dynamic()
             .expect("can deserialize array");
 
-        println!("array is {:?}, shape is {:?}", &data_array, data_array.shape());
-
         DataSet(data_array)
     }
 
@@ -36,9 +34,6 @@ impl DataSet {
 
         // take random shuffling following a normal distribution
         let shuffled = data.sample_axis_using(Axis(0), n_size as usize, SamplingStrategy::WithoutReplacement, &mut rng).to_owned();
-        println!("shuffled {:?}", &shuffled);
-
-        // end shuffle array
 
         let n1 = (n_size as f32 * split_ratio).ceil() as usize;
         let n2 = n_size - n1;

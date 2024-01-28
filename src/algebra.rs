@@ -1,16 +1,14 @@
 use ndarray::Array2;
 
 use crate::computation::CacheComputation;
-use crate::activation::Activations;
-use crate::activation::Function;
-
+use crate::activation::{Activations, Function};
 
 pub fn arg_max(output: &Array2<f64>) -> usize {
     let mut max_acc_index = 0;
 
     // if we have a single neuron output, return either 0 or 1
     if output.shape() == &[1,1] {
-        return output[[0, 0]].round() as usize;
+        return output[[0, 0]].round() as usize
     }
 
     // Find the index of the output neuron with the highest activation
@@ -40,7 +38,6 @@ pub fn apply_nonlinear_derivative(cc: &mut CacheComputation) -> Option<Array2<f6
         let da_dz = z_last.mapv(|v| Activations::apply_derivative(func_name, v));
         return Some(da_dz)
     }
-
     None
 }
 
@@ -49,4 +46,3 @@ pub fn cost_derivative(cc: &mut CacheComputation, y: &Array2<f64>) -> Array2<f64
     let output_a: Array2<f64> = cc.last_a().unwrap();
     2.0*(&output_a - y)
 }
-

@@ -3,6 +3,7 @@ use std::iter::Iterator;
 use ndarray::{Array, Array2, ArrayView2, Axis};
 use ndarray_rand::RandomExt;
 // use ndarray_rand::rand_distr::StandardNormal;
+// use ndarray::arr2;
 
 use rand::Rng;
 use rand::seq::SliceRandom;
@@ -16,12 +17,12 @@ static SGD_EPOCHS: usize = 10000;
 static MINIBATCH_EPOCHS: usize = 30;
 
 pub struct Network {
+    #[allow(dead_code)]
     sizes: Vec<usize>,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
     activations: Vec<Function>,
     learning_rate: f64,
-    #[allow(dead_code)]
     total_layers: usize,
 }
 
@@ -41,10 +42,7 @@ impl Network {
             b = Array::random((y, 1), Uniform::new(0., 1.)); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
             w = Array::random((y, x), Uniform::new(0., 1.)); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
                                                              // 1*3, w7, w8, w9
-            println!("random weight {:8.4}", &w);
             weights.push(w);
-
-            println!("random biases {:8.4}", &b);
             biases.push(b);
         }
 
@@ -71,11 +69,14 @@ impl Network {
             x_single = x_train.select(Axis(0), &[random_index]);
             y_single = y_train.select(Axis(0), &[random_index]);
 
+//            x_single = arr2(&[[0.93333333, 0.93333333, 0.81960784]]);
+//            y_single = arr2(&[[1.0]]);
+
             self.train_iteration(x_single.t(), &y_single, self.learning_rate, &mut cc);
         }
 
         let result = self.evaluate(x_test, y_test, test_size);
-        println!("Accuracy {:?} {}", result, test_size);
+        println!("Accuracy {:?} {}/{} {} SGD", result.0, result.1, result.2, SGD_EPOCHS);
     }
 
     pub fn train_minibatch(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize, batch_size: usize,
@@ -119,7 +120,7 @@ impl Network {
         let mut acc = x.to_owned();
 
         // Compute and store the linear Z values and nonlinear A (activation) values
-        // Z = W*X + B, A = RELU(Z), A = Sigmoid(Z) or Z = W*A + B values
+        // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
         for ((w, b), act) in self.weights.iter().zip(self.biases.iter()).zip(self.activations.iter()) {
             z = apply_linear(w, &acc, b); // z = w.dot(&acc) + b;
             a = apply_nonlinear(&mut z, act); // σ(z)
@@ -140,7 +141,12 @@ impl Network {
 
         let mut crc = ChainRuleComputation::new(cc);
         let acc0: Array2<f64> = crc.init(y);
-        self.weights.iter().rev().fold(acc0, |acc: Array2<f64>, w| crc.fold_layer(acc, w));
+
+        // zip number of iterations with corresponding weight (start from back to front layer)
+        let zipped = (0..self.total_layers-2).zip(self.weights.iter().rev());
+        zipped.fold(acc0, |acc: Array2<f64>, (_, w)| {
+            crc.fold_layer(acc, w)
+        });
 
         crc
     }
@@ -163,39 +169,24 @@ impl Network {
         }
     }
 
-    pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) -> f64 {
+    pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) -> (f64, usize, usize) {
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
-
-        /*
-        let b = arr2(&[[11, 12, 13],
-        [14, 15, 16]]);
-
-        let mut iter = b.axis_chunks_iter(Axis(0), 1);
-        let x = iter.next().unwrap();
-        assert_eq!(x, arr2(&[[11, 12, 13]]));
-        */
-
         let mut empty: Option<&mut CacheComputation> = None;
-        let mut predictions = vec![];
+        let mut matches: usize = 0;
 
-        for x_sample in x_test.axis_chunks_iter(Axis(0), 1) {
-            output = self.predict(x_sample, &mut empty);
-            predictions.push(arg_max(&output));
+        // processes an x_test row of input values at a time
+        for (x_sample, y) in x_test.axis_chunks_iter(Axis(0), 1).zip(y_test.iter()) {
+            output = self.predict(x_sample.t(), &mut empty);
+
+//            println!("predict x_sample {} out {} am {} y {:?}", x_sample.view(), &output.view(), arg_max(&output), y);
+            if arg_max(&output) == *y as usize {
+                matches += 1;
+            }
         }
 
-        let matches: usize =
-            predictions.iter().zip(y_test.iter())
-            .map(|(x, y)| if *x == *y as usize { 1 } else { 0 })
-            .sum();
-
         let accuracy = matches as f64 / n_test as f64;
-        println!("matches {matches} / n_test {n_test}, ACCURACY {:?}", accuracy);
-        accuracy
+
+        (accuracy, matches, n_test)
     }
 }
-
-
-
-
-

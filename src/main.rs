@@ -13,9 +13,9 @@ fn main() {
     let ds = DataSet::new(path);
     let ((x_train, y_train), (x_test, y_test), (n_train, n_test)) = ds.train_test_split(train_size);
 
-    println!("train X  {:?} -------- train Y {:?}", &x_train, &y_train);
-    println!("test X {:?} --------- test Y {:?}", &x_test, &y_test);
+//    println!("train X  {:?} -------- train Y {:?}", &x_train, &y_train);
+//    println!("test X {:?} --------- test Y {:?}", &x_test, &y_test);
 
-    let mut simple_nn = Network::new(vec![2, 3, 1], vec![Function::Relu, Function::Sigmoid], 0.01);
+    let mut simple_nn = Network::new(vec![3, 3, 1], vec![Function::Relu, Function::Sigmoid], 0.01);
     simple_nn.train_sgd(&x_train, &y_train, n_train, &x_test, &y_test, n_test);
 }

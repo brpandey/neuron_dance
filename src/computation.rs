@@ -4,11 +4,12 @@ use ndarray::Array2;
 use crate::activation::Function;
 use crate::algebra::{cost_derivative, apply_nonlinear_derivative};
 
+#[derive(Debug, Clone)]
 pub struct CacheComputation {
     pub z_values: Vec<Array2<f64>>, // linear values
     pub a_values: Vec<Array2<f64>>, // non-linear activation values
     pub func_names: Vec<Function>,
-    pub currentf: usize,
+    pub lastf: usize,
 }
 
 impl CacheComputation {
@@ -19,13 +20,13 @@ impl CacheComputation {
             z_values,
             a_values,
             func_names,
-            currentf: 0,
+            lastf: 0,
         }
     }
 
     pub fn init(&mut self, x: Array2<f64>) {
         (self.z_values, self.a_values) = (Vec::new(), vec![x]);
-        self.currentf = self.func_names.len() - 1;
+        self.lastf = self.func_names.len() - 1;
     }
 
     pub fn store_intermediate(&mut self, z: Array2<f64>, a: &Array2<f64>) {
@@ -42,11 +43,13 @@ impl CacheComputation {
     }
 
     pub fn last_func(&mut self) -> Option<&Function> {
-        if self.currentf != 0 { self.currentf -= 1; }
-        self.func_names.get(self.currentf)
+        let f = self.func_names.get(self.lastf);
+        if self.lastf != 0 { self.lastf -= 1; }
+        f
     }
 }
 
+#[derive(Debug)]
 pub struct ChainRuleComputation<'a> {
     pub cache: &'a mut CacheComputation,
     pub bias_deltas: VecDeque<Array2<f64>>,
@@ -70,52 +73,75 @@ impl <'a> ChainRuleComputation<'a> {
         self.weight_deltas.iter()
     }
 
-    // compute chain rule for last/output layer
+    // Compute chain rule for last/output layer
+    // For example purposes consider a 3 layer NN including an input layer
+    // with these equations:
+
+    /*
+       C  = (A2 - Y)^2
+       A2 = sigmoid(Z2)
+       Z2 = W2*A1 + B2
+       A1 = relu(Z1)
+       Z1 = W1*X + B1
+
+       Where * is the dot product of two matrices l*m and m*n resulting in a matrix l*n
+    */
+
     pub fn init(&mut self, y: &Array2<f64>) -> Array2<f64> {
-        // dc_db => dc_da * da_dz * dz_db
+        // C = (A2 - Y)^2
+        // A2 = sigmoid(Z2)
+
+        // Main chain rule equations
+        // dc_db => dc_da * da_dz * dz_db   (or) dc_dz * dz_db
+        // dc_dw => dc_da * da_dz * dz_dw.t (or) dc_dz * dz_dw.t
 
         // Here are the functions in an example 2 layer NN with relu then sigmoid activation
-        // C = (A2 − Y )
-        let dc_da = cost_derivative(self.cache, y); // cost derivative wrt to last activation layer
+        // For example, C = (A2 − Y)^2
+        let dc_da2 = cost_derivative(self.cache, y); // cost derivative wrt to last activation layer
 
         // A2 = sigmoid (Z2)
-        let da_dz = apply_nonlinear_derivative(self.cache).unwrap();
-        let dc_dz: Array2<f64> =  dc_da * da_dz;
+        let da2_dz2 = apply_nonlinear_derivative(self.cache).unwrap();
+        let dc_dz2: Array2<f64> = dc_da2.dot(&da2_dz2);
 
         // Z2 = W2A1 + B, dz_db is just the constant 1 that is multiplying B
-        let dz_db = 1.0;
-        let dc_db = &dc_dz * dz_db;
-        self.bias_deltas.push_front(dc_db);
-
-        // dc_dw => dc_dz * dz_dw  or also  dc_da * da_dz * dz_dw
+        let dz2_db2 = 1.0;
+        let dc_db2 = &dc_dz2 * dz2_db2;
 
         // Z2 = W2A1 + B, dz_dw is just the constant A1 which is multiplying W2 
-        let dz_dw = self.cache.last_a().unwrap();
-        let dc_dw = dc_dz.dot(&dz_dw.t());
-        self.weight_deltas.push_front(dc_dw);
+        let dz2_dw2 = self.cache.last_a().unwrap();
+        let dc_dw2 = dc_dz2.dot(&dz2_dw2.t());
 
-        dc_dz
+        self.bias_deltas.push_front(dc_db2);
+        self.weight_deltas.push_front(dc_dw2);
+
+        dc_dz2
     }
 
-    // computes chain rule for preceding layer <starting from next to last layer>
-    pub fn fold_layer(&mut self, mut dc_dz: Array2<f64>, w: &Array2<f64>) -> Array2<f64>{
-        // Note j is layer after the layer i, e.g. j is 2 and i is 1
+    // Method can be called repeatedly:
+    // Computes chain rule from preceding layer value (layer 2) and calculates for current layer (layer 1)
+    // With layer j being layer after layer i in a feed forward nn, so e.g. j is 2 and i 1
+    pub fn fold_layer(&mut self, dc_dz2: Array2<f64>, w: &Array2<f64>) -> Array2<f64>{
+        // Main equations
+        // dc_db = dc_dz2 * dz2_da1 * da1_dz1 * dz1_db1   (or) dc_dz1 * dz1_db1
+        // dc_dw = dc_dz2 * dz2_da1 * da1_dz1 * dz1_dw1.t (or) dc_dz1 * dz1_dw1.t
 
-        let dzj_dai = w.t();
-        let dai_dzi = apply_nonlinear_derivative(self.cache).unwrap();
+        // Z2 = W2A1 + B, w is just W2
+        let dz2_da1 = w;
 
-        // (dZ2_dA1 dot dC_dZ2) * dA1_dZ1 => dC_dZ1 or
-        // (dzj_dai dot dC_dZj) * dai_dzi => dC_dZi where j is the layer after i
-        dc_dz = dzj_dai.dot(&dc_dz) * dai_dzi;
+        // For example: A1 = Relu(Z1)
+        let da1_dz1 = apply_nonlinear_derivative(self.cache).unwrap(); // derivative of relu applied to Z1
+        let dc_dz1 = dc_dz2.dot(dz2_da1).dot(&da1_dz1); // dc_dz is the accumulator value that allows us to repeatedly call fold layer
 
-        let dz_db = 1.0;
-        let dc_db = &dc_dz * dz_db; // cost derivative with respect to bias
-        self.bias_deltas.push_front(dc_db); // fold result into deque
+        // For example Z1 = W1X + B1
+        let dz1_db1 = 1.0;
+        let dc_db1 = &dc_dz1 * dz1_db1; // cost derivative with respect to bias
 
-        let dz_dw = self.cache.last_a().unwrap();
-        let dc_dw = dc_dz.dot(&dz_dw.t()); // cost derivative with respect to weight
-        self.weight_deltas.push_front(dc_dw); // fold result into deque
+        let dz1_dw1 = self.cache.last_a().unwrap(); // if 2 layer nn, will be X
+        let dc_dw1 = dc_dz1.dot(&dz1_dw1.t()); // cost derivative with respect to weight
 
-        dc_dz // return acc
+        self.bias_deltas.push_front(dc_db1); // fold result into deque
+        self.weight_deltas.push_front(dc_dw1); // fold result into deque
+
+        dc_dz1 // return acc
     }
 }
