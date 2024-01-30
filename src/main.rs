@@ -1,6 +1,6 @@
 use simple_network::{
     network::Network,
-    activation::Function,
+    activation::{Relu, Sigmoid},
     dataset::DataSet
 };
 
@@ -16,6 +16,6 @@ fn main() {
 //    println!("train X  {:?} -------- train Y {:?}", &x_train, &y_train);
 //    println!("test X {:?} --------- test Y {:?}", &x_test, &y_test);
 
-    let mut simple_nn = Network::new(vec![3, 3, 1], vec![Function::Relu, Function::Sigmoid], 0.01);
+    let mut simple_nn = Network::new(vec![3, 3, 1], vec![Box::new(Relu), Box::new(Sigmoid)], 0.01);
     simple_nn.train_sgd(&x_train, &y_train, n_train, &x_test, &y_test, n_test);
 }

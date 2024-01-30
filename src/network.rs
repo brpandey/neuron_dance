@@ -9,7 +9,7 @@ use rand::Rng;
 use rand::seq::SliceRandom;
 use rand::distributions::Uniform;
 
-use crate::activation::Function;
+use crate::activation::Activation;
 use crate::computation::{CacheComputation, ChainRuleComputation};
 use crate::algebra::{arg_max, apply_linear, apply_nonlinear};
 
@@ -21,15 +21,13 @@ pub struct Network {
     sizes: Vec<usize>,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
-    activations: Vec<Function>,
+    activations: Vec<Box<dyn Activation>>,
     learning_rate: f64,
     total_layers: usize,
 }
 
 impl Network {
-    // e.g. [2,3,1] or [3,3,1]
-    // Vec["relu", "sigmoid"]
-    pub fn new(sizes: Vec<usize>, activations: Vec<Function>, learning_rate: f64) -> Self {
+    pub fn new(sizes: Vec<usize>, activations: Vec<Box<dyn Activation>>, learning_rate: f64) -> Self {
         let (mut weights, mut biases) : (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
@@ -61,29 +59,26 @@ impl Network {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
-        let mut cc = CacheComputation::new(self.activations.clone());
+        let mut cc = CacheComputation::new(&self.activations);
 
         for _ in 0..SGD_EPOCHS { // train and update network based on single observation sample
             rng = rand::thread_rng();
             random_index = rng.gen_range(0..train_size);
-            x_single = x_train.select(Axis(0), &[random_index]);
-            y_single = y_train.select(Axis(0), &[random_index]);
-
-//            x_single = arr2(&[[0.93333333, 0.93333333, 0.81960784]]);
-//            y_single = arr2(&[[1.0]]);
+            x_single = x_train.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
+            y_single = y_train.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
 
             self.train_iteration(x_single.t(), &y_single, self.learning_rate, &mut cc);
         }
 
         let result = self.evaluate(x_test, y_test, test_size);
-        println!("Accuracy {:?} {}/{} {} SGD", result.0, result.1, result.2, SGD_EPOCHS);
+        println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, SGD_EPOCHS);
     }
 
     pub fn train_minibatch(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize, batch_size: usize,
                            x_test: &Array2<f64>, y_test: &Array2<f64>, test_size: usize) {
         let mut row_indices = (0..train_size).collect::<Vec<usize>>();
         let (mut x_minibatch, mut y_minibatch);
-        let mut cc = CacheComputation::new(self.activations.clone());
+        let mut cc = CacheComputation::new(&self.activations);
 
         for e in 0..MINIBATCH_EPOCHS {
             row_indices.shuffle(&mut rand::thread_rng());
@@ -98,6 +93,10 @@ impl Network {
 
             let result = self.evaluate(x_test, y_test, test_size);
             println!("Epoch {}: accuracy {:?}  test_size {}", e, result, test_size);
+
+            let result = self.evaluate(x_test, y_test, test_size);
+            println!("Epoch {}: accuracy {:?} {}/{} {} (MiniBatch)", e, result.0, result.1, result.2, MINIBATCH_EPOCHS);
+
         }
     }
 

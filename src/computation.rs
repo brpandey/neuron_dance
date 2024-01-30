@@ -1,32 +1,32 @@
 use std::collections::VecDeque;
 use ndarray::Array2;
 
-use crate::activation::Function;
+use crate::activation::Activation;
 use crate::algebra::{cost_derivative, apply_nonlinear_derivative};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CacheComputation {
     pub z_values: Vec<Array2<f64>>, // linear values
     pub a_values: Vec<Array2<f64>>, // non-linear activation values
-    pub func_names: Vec<Function>,
+    pub funcs: Vec<Box<dyn Activation>>,
     pub lastf: usize,
 }
 
 impl CacheComputation {
-    pub fn new(func_names: Vec<Function>) -> Self {
+    pub fn new(funcs: &[Box<dyn Activation>]) -> Self {
         let (z_values, a_values) = (Vec::new(), Vec::new());
 
         CacheComputation {
             z_values,
             a_values,
-            func_names,
+            funcs: funcs.to_vec(),
             lastf: 0,
         }
     }
 
     pub fn init(&mut self, x: Array2<f64>) {
         (self.z_values, self.a_values) = (Vec::new(), vec![x]);
-        self.lastf = self.func_names.len() - 1;
+        self.lastf = self.funcs.len() - 1;
     }
 
     pub fn store_intermediate(&mut self, z: Array2<f64>, a: &Array2<f64>) {
@@ -42,8 +42,8 @@ impl CacheComputation {
         self.z_values.pop()
     }
 
-    pub fn last_func(&mut self) -> Option<&Function> {
-        let f = self.func_names.get(self.lastf);
+    pub fn last_func(&mut self) -> Option<&Box<dyn Activation>> {
+        let f = self.funcs.get(self.lastf);
         if self.lastf != 0 { self.lastf -= 1; }
         f
     }

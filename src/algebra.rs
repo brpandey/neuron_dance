@@ -1,7 +1,7 @@
 use ndarray::Array2;
 
 use crate::computation::CacheComputation;
-use crate::activation::{Activations, Function};
+use crate::activation::Activation;
 
 pub fn arg_max(output: &Array2<f64>) -> usize {
     let mut max_acc_index = 0;
@@ -28,14 +28,14 @@ pub fn apply_linear(w: &Array2<f64>, x: &Array2<f64>, b: &Array2<f64>) -> Array2
 }
 
 #[inline]
-pub fn apply_nonlinear(z: &mut Array2<f64>, func_type: &Function) -> Array2<f64> {
-    z.mapv(|v| Activations::apply(func_type, v))
+pub fn apply_nonlinear(z: &mut Array2<f64>, f: &Box<dyn Activation>) -> Array2<f64> {
+    z.mapv(|v| f.apply(v))
 }
 
 pub fn apply_nonlinear_derivative(cc: &mut CacheComputation) -> Option<Array2<f64>>
 {
-    if let (Some(z_last), Some(func_name)) = (cc.last_z(), cc.last_func()) {
-        let da_dz = z_last.mapv(|v| Activations::apply_derivative(func_name, v));
+    if let (Some(z_last), Some(f)) = (cc.last_z(), cc.last_func()) {
+        let da_dz = z_last.mapv(|v| f.apply_derivative(v));
         return Some(da_dz)
     }
     None
