@@ -11,7 +11,7 @@ use rand::distributions::Uniform;
 
 use crate::activation::Activation;
 use crate::computation::{CacheComputation, ChainRuleComputation};
-use crate::algebra::{arg_max, apply_linear, apply_nonlinear};
+use crate::algebra::*;
 
 static SGD_EPOCHS: usize = 10000;
 static MINIBATCH_EPOCHS: usize = 30;
@@ -121,17 +121,17 @@ impl Network {
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
         for ((w, b), act) in self.weights.iter().zip(self.biases.iter()).zip(self.activations.iter()) {
-            z = apply_linear(w, &acc, b); // z = w.dot(&acc) + b;
-            a = apply_nonlinear(&mut z, act); // σ(z)
+            z = z_linear(w, &acc, b); // z = w.dot(&acc) + b;
+            a = a_nonlinear(&mut z, act); // σ(z)
 
             acc = a;
-            opt.as_mut().map(|cc| cc.store_intermediate(z, &acc));
+            opt.as_mut().map(|cc| cc.cache(z, &acc));
         }
 
         acc // return last computed activation values
     }
 
-    pub fn backward_pass<'a, 'b, 'c>(&'a self, y: &Array2<f64>, cc: &'b mut CacheComputation) -> ChainRuleComputation<'c>
+    pub fn backward_pass<'b, 'c>(&self, y: &Array2<f64>, cc: &'b mut CacheComputation) -> ChainRuleComputation<'c>
     where 'b: 'c // cc is around longer than crc
     {
         // Compute the chain rule values for each layer

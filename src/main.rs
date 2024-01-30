@@ -1,6 +1,6 @@
 use simple_network::{
     network::Network,
-    activation::{Relu, Sigmoid},
+    activation::functions::{relu::Relu, sigmoid::Sigmoid},
     dataset::DataSet
 };
 

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use ndarray::Array2;
 
 use crate::activation::Activation;
-use crate::algebra::{cost_derivative, apply_nonlinear_derivative};
+use crate::algebra::*;
 
 #[derive(Debug)]
 pub struct CacheComputation {
@@ -29,7 +29,7 @@ impl CacheComputation {
         self.lastf = self.funcs.len() - 1;
     }
 
-    pub fn store_intermediate(&mut self, z: Array2<f64>, a: &Array2<f64>) {
+    pub fn cache(&mut self, z: Array2<f64>, a: &Array2<f64>) {
         self.z_values.push(z);
         self.a_values.push(a.to_owned());
     }
@@ -100,7 +100,7 @@ impl <'a> ChainRuleComputation<'a> {
         let dc_da2 = cost_derivative(self.cache, y); // cost derivative wrt to last activation layer
 
         // A2 = sigmoid (Z2)
-        let da2_dz2 = apply_nonlinear_derivative(self.cache).unwrap();
+        let da2_dz2 = nonlinear_derivative(self.cache).unwrap();
         let dc_dz2: Array2<f64> = dc_da2.dot(&da2_dz2);
 
         // Z2 = W2A1 + B, dz_db is just the constant 1 that is multiplying B
@@ -129,7 +129,7 @@ impl <'a> ChainRuleComputation<'a> {
         let dz2_da1 = w;
 
         // For example: A1 = Relu(Z1)
-        let da1_dz1 = apply_nonlinear_derivative(self.cache).unwrap(); // derivative of relu applied to Z1
+        let da1_dz1 = nonlinear_derivative(self.cache).unwrap(); // derivative of relu applied to Z1
         let dc_dz1 = dc_dz2.dot(dz2_da1).dot(&da1_dz1); // dc_dz is the accumulator value that allows us to repeatedly call fold layer
 
         // For example Z1 = W1X + B1
