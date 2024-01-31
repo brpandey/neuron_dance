@@ -1,8 +1,6 @@
 use csv::ReaderBuilder as CSV;
-
 use ndarray::{prelude::*, Axis};
 use ndarray_csv::Array2Reader;
-
 use ndarray_rand::{RandomExt, SamplingStrategy};
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::isaac64::Isaac64Rng;
@@ -23,7 +21,7 @@ impl DataSet {
         DataSet(data_array)
     }
 
-    pub fn train_test_split(&self, split_ratio: f32) -> ((Array2<f64>, Array2<f64>), (Array2<f64>, Array2<f64>), (usize, usize)) {
+    pub fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData {
 
         let data = &self.0;
         let n_size = data.shape()[0]; // 1345
@@ -58,6 +56,40 @@ impl DataSet {
             //        test_data.column(3).to_owned(),
         );
 
-        ((x_train, y_train), (x_test, y_test), (n1, n2))
+        TrainTestSplitData(x_train, y_train, n1, x_test, y_test, n2)
+    }
+}
+
+//                           x_train    y_train        # train  x_test        y_test     # test
+pub struct TrainTestSplitData(Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize);
+
+pub struct TrainSplitRef<'a> {
+    pub x: &'a Array2<f64>,
+    pub y: &'a Array2<f64>,
+    pub size: usize,
+}
+
+pub struct TestSplitRef<'a> {
+    pub x: &'a Array2<f64>,
+    pub y: &'a Array2<f64>,
+    pub size: usize,
+}
+
+pub type TrainTestSplitRef<'a> = (TrainSplitRef<'a>, TestSplitRef<'a>);
+
+impl TrainTestSplitData {
+    pub fn get_ref<'a>(&'a self) -> TrainTestSplitRef<'a> {
+        (
+            TrainSplitRef {
+                x: &self.0,
+                y: &self.1,
+                size: self.2
+            },
+            TestSplitRef {
+                x: &self.3,
+                y: &self.4,
+                size: self.5,
+            }
+        )
     }
 }

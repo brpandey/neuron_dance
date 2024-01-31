@@ -1,5 +1,4 @@
 use std::iter::Iterator;
-
 use ndarray::{Array, Array2, ArrayView2, Axis};
 use ndarray_rand::RandomExt;
 // use ndarray_rand::rand_distr::StandardNormal;
@@ -10,8 +9,9 @@ use rand::seq::SliceRandom;
 use rand::distributions::Uniform;
 
 use crate::activation::Activation;
-use crate::computation::{CacheComputation, ChainRuleComputation};
 use crate::algebra::*;
+use crate::computation::{CacheComputation, ChainRuleComputation};
+use crate::dataset::TrainTestSplitRef;
 
 static SGD_EPOCHS: usize = 10000;
 static MINIBATCH_EPOCHS: usize = 30;
@@ -54,49 +54,47 @@ impl Network {
         }
     }
 
-    pub fn train_sgd(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize,
-                     x_test: &Array2<f64>, y_test: &Array2<f64>, test_size: usize) {
+    pub fn train_sgd(&mut self, test_train: TrainTestSplitRef) {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
         let mut cc = CacheComputation::new(&self.activations);
 
+        let (train, test) = (&test_train.0, &test_train.1);
+
         for _ in 0..SGD_EPOCHS { // train and update network based on single observation sample
             rng = rand::thread_rng();
-            random_index = rng.gen_range(0..train_size);
-            x_single = x_train.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
-            y_single = y_train.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
+            random_index = rng.gen_range(0..train.size);
+            x_single = train.x.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
+            y_single = train.y.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
 
             self.train_iteration(x_single.t(), &y_single, self.learning_rate, &mut cc);
         }
 
-        let result = self.evaluate(x_test, y_test, test_size);
+        let result = self.evaluate(test.x, test.y, test.size);
         println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, SGD_EPOCHS);
     }
 
-    pub fn train_minibatch(&mut self, x_train: &Array2<f64>, y_train: &Array2<f64>, train_size: usize, batch_size: usize,
-                           x_test: &Array2<f64>, y_test: &Array2<f64>, test_size: usize) {
-        let mut row_indices = (0..train_size).collect::<Vec<usize>>();
+    pub fn train_minibatch(&mut self, test_train: TrainTestSplitRef, batch_size: usize) {
         let (mut x_minibatch, mut y_minibatch);
         let mut cc = CacheComputation::new(&self.activations);
+
+        let (train, test) = (&test_train.0, &test_train.1);
+        let mut row_indices = (0..train.size).collect::<Vec<usize>>();
 
         for e in 0..MINIBATCH_EPOCHS {
             row_indices.shuffle(&mut rand::thread_rng());
 
             for i in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
-                x_minibatch = x_train.select(Axis(0), &i);
-                y_minibatch = y_train.select(Axis(0), &i);
+                x_minibatch = train.x.select(Axis(0), &i);
+                y_minibatch = train.y.select(Axis(0), &i);
 
                 // transpose to ensure proper matrix multi fit
                 self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
             }
 
-            let result = self.evaluate(x_test, y_test, test_size);
-            println!("Epoch {}: accuracy {:?}  test_size {}", e, result, test_size);
-
-            let result = self.evaluate(x_test, y_test, test_size);
+            let result = self.evaluate(test.x, test.y, test.size);
             println!("Epoch {}: accuracy {:?} {}/{} {} (MiniBatch)", e, result.0, result.1, result.2, MINIBATCH_EPOCHS);
-
         }
     }
 
