@@ -1,8 +1,6 @@
 use std::collections::VecDeque;
 use ndarray::Array2;
-
 use crate::activation::Activation;
-use crate::algebra::*;
 
 #[derive(Debug)]
 pub struct CacheComputation {
@@ -34,15 +32,30 @@ impl CacheComputation {
         self.a_values.push(a.to_owned());
     }
 
-    pub fn last_a(&mut self) -> Option<Array2<f64>> {
+    pub fn nonlinear_derivative(&mut self) -> Option<Array2<f64>>
+    {
+        if let (Some(z_last), Some(f)) = (self.last_z(), self.last_func()) {
+            let da_dz = z_last.mapv(|v| f.derivative(v));
+            return Some(da_dz)
+        }
+        None
+    }
+
+    /// Assuming cost is (a - y)^2
+    pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
+        let output_a: Array2<f64> = self.last_a().unwrap();
+        2.0*(&output_a - y)
+    }
+
+    fn last_a(&mut self) -> Option<Array2<f64>> {
         self.a_values.pop()
     }
 
-    pub fn last_z(&mut self) -> Option<Array2<f64>> {
+    fn last_z(&mut self) -> Option<Array2<f64>> {
         self.z_values.pop()
     }
 
-    pub fn last_func(&mut self) -> Option<&Box<dyn Activation>> {
+    fn last_func(&mut self) -> Option<&Box<dyn Activation>> {
         let f = self.funcs.get(self.lastf);
         if self.lastf != 0 { self.lastf -= 1; }
         f
@@ -97,17 +110,17 @@ impl <'a> ChainRuleComputation<'a> {
 
         // Here are the functions in an example 2 layer NN with relu then sigmoid activation
         // For example, C = (A2 − Y)^2
-        let dc_da2 = cost_derivative(self.cache, y); // cost derivative wrt to last activation layer
+        let dc_da2 = self.cache.cost_derivative(y); // cost derivative wrt to last activation layer
 
         // A2 = sigmoid (Z2)
-        let da2_dz2 = nonlinear_derivative(self.cache).unwrap();
+        let da2_dz2 = self.cache.nonlinear_derivative().unwrap();
         let dc_dz2: Array2<f64> = dc_da2.dot(&da2_dz2);
 
         // Z2 = W2A1 + B, dz_db is just the constant 1 that is multiplying B
         let dz2_db2 = 1.0;
         let dc_db2 = &dc_dz2 * dz2_db2;
 
-        // Z2 = W2A1 + B, dz_dw is just the constant A1 which is multiplying W2 
+        // Z2 = W2A1 + B, dz_dw is just the constant A1 which is multiplying W2
         let dz2_dw2 = self.cache.last_a().unwrap();
         let dc_dw2 = dc_dz2.dot(&dz2_dw2.t());
 
@@ -129,7 +142,7 @@ impl <'a> ChainRuleComputation<'a> {
         let dz2_da1 = w;
 
         // For example: A1 = Relu(Z1)
-        let da1_dz1 = nonlinear_derivative(self.cache).unwrap(); // derivative of relu applied to Z1
+        let da1_dz1 = self.cache.nonlinear_derivative().unwrap(); // derivative of relu applied to Z1
         let dc_dz1 = dc_dz2.dot(dz2_da1).dot(&da1_dz1); // dc_dz is the accumulator value that allows us to repeatedly call fold layer
 
         // For example Z1 = W1X + B1

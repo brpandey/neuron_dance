@@ -1,15 +1,11 @@
 use std::iter::Iterator;
 use ndarray::{Array, Array2, ArrayView2, Axis};
-use ndarray_rand::RandomExt;
-// use ndarray_rand::rand_distr::StandardNormal;
-// use ndarray::arr2;
-
+use ndarray_rand::RandomExt; // use ndarray_rand::rand_distr::StandardNormal;
 use rand::Rng;
 use rand::seq::SliceRandom;
 use rand::distributions::Uniform;
 
-use crate::activation::Activation;
-use crate::algebra::*;
+use crate::{activation::Activation, algebra::Algebra}; // import local traits
 use crate::computation::{CacheComputation, ChainRuleComputation};
 use crate::dataset::TrainTestSplitRef;
 
@@ -119,8 +115,8 @@ impl Network {
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
         for ((w, b), act) in self.weights.iter().zip(self.biases.iter()).zip(self.activations.iter()) {
-            z = z_linear(w, &acc, b); // z = w.dot(&acc) + b;
-            a = a_nonlinear(&mut z, act); // σ(z)
+            z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
+            a = z.activate(act); // non-linear, σ(z)
 
             acc = a;
             opt.as_mut().map(|cc| cc.cache(z, &acc));
@@ -177,7 +173,7 @@ impl Network {
             output = self.predict(x_sample.t(), &mut empty);
 
 //            println!("predict x_sample {} out {} am {} y {:?}", x_sample.view(), &output.view(), arg_max(&output), y);
-            if arg_max(&output) == *y as usize {
+            if output.arg_max() == *y as usize {
                 matches += 1;
             }
         }
