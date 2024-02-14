@@ -1,23 +1,25 @@
 use std::collections::VecDeque;
 use ndarray::Array2;
-use crate::activation::Activation;
+use crate::activation::{Activation, MathFp};
 
 #[derive(Debug)]
 pub struct CacheComputation {
     pub z_values: Vec<Array2<f64>>, // linear values
     pub a_values: Vec<Array2<f64>>, // non-linear activation values
-    pub funcs: Vec<Box<dyn Activation>>,
+    pub funcs: Vec<MathFp>,
     pub lastf: usize,
 }
 
 impl CacheComputation {
-    pub fn new(funcs: &[Box<dyn Activation>]) -> Self {
-        let (z_values, a_values) = (Vec::new(), Vec::new());
+    pub fn new(acts: &[Box<dyn Activation>]) -> Self {
+        // Create activation derivatives collection given activation trait objects
+        let funcs: Vec<MathFp> =
+            acts.iter().map(|a| { let (_, d) = a.pair(); d}).collect();
 
         CacheComputation {
-            z_values,
-            a_values,
-            funcs: funcs.to_vec(),
+            z_values: vec![],
+            a_values: vec![],
+            funcs,
             lastf: 0,
         }
     }
@@ -34,8 +36,8 @@ impl CacheComputation {
 
     pub fn nonlinear_derivative(&mut self) -> Option<Array2<f64>>
     {
-        if let (Some(z_last), Some(f)) = (self.last_z(), self.last_func()) {
-            let da_dz = z_last.mapv(|v| f.derivative(v));
+        if let (Some(z_last), Some(a_derivative)) = (self.last_z(), self.last_func()) {
+            let da_dz = z_last.mapv(|v| a_derivative(v));
             return Some(da_dz)
         }
         None
@@ -55,7 +57,7 @@ impl CacheComputation {
         self.z_values.pop()
     }
 
-    fn last_func(&mut self) -> Option<&Box<dyn Activation>> {
+    fn last_func(&mut self) -> Option<&MathFp> {
         let f = self.funcs.get(self.lastf);
         if self.lastf != 0 { self.lastf -= 1; }
         f

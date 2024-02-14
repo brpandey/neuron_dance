@@ -6,8 +6,13 @@ pub mod sigmoid;
 
 use std::str::FromStr;
 use std::fmt;
-use crate::activation::{Activation,
-                        functions::{relu::Relu, sigmoid::Sigmoid}}; // Update (2)
+use crate::activation::{Activation, functions::
+                        {relu::Relu, sigmoid::Sigmoid}}; // Update (2)
+
+pub trait Function {
+    fn compute(x: f64) -> f64;
+    fn derivative(x: f64) -> f64;
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ActivationParseError;

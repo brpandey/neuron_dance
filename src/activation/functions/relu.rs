@@ -1,15 +1,14 @@
-use crate::activation::Activation;
+use crate::activation::functions::Function;
 
 #[derive(Clone, Debug)]
 pub struct Relu;
 
-impl Activation for Relu {
-    fn compute(&self, x: f64) -> f64 {
+impl Function for Relu {
+    fn compute(x: f64) -> f64 {
         x.max(0.0)
     }
 
-    fn derivative(&self, x: f64) -> f64 {
+    fn derivative(x: f64) -> f64 {
         if x > 0.0 { 1.0 } else { 0.0 }
     }
 }
-

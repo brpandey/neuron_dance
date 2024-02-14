@@ -1,16 +1,15 @@
-use crate::activation::Activation;
+use crate::activation::functions::Function;
 
 #[derive(Clone, Debug)]
 pub struct Sigmoid;
 
-impl Activation for Sigmoid {
-    fn compute(&self, x: f64) -> f64 {
+impl Function for Sigmoid {
+    fn compute(x: f64) -> f64 {
         1.0 / (1.0 + (-x).exp())
     }
 
-    fn derivative(&self, x: f64) -> f64 {
-        let s = self.compute(x);
+    fn derivative(x: f64) -> f64 {
+        let s = Self::compute(x); // <Sigmoid as Function>::compute(x);
         s * (1.0 - s)
     }
 }
-

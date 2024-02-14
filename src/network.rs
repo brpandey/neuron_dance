@@ -5,7 +5,7 @@ use rand::Rng;
 use rand::seq::SliceRandom;
 use rand::distributions::Uniform;
 
-use crate::{activation::Activation, algebra::Algebra}; // import local traits
+use crate::{activation::{Activation, MathFp}, algebra::Algebra}; // import local traits
 use crate::computation::{CacheComputation, ChainRuleComputation};
 use crate::dataset::TrainTestSplitRef;
 
@@ -18,6 +18,7 @@ pub struct Network {
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
     activations: Vec<Box<dyn Activation>>,
+    forward: Vec<MathFp>, // forward activation functions
     learning_rate: f64,
     total_layers: usize,
 }
@@ -28,6 +29,10 @@ impl Network {
         let (mut x, mut y);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
         let size = sizes.len();
+
+        // Create activation function collection given activation trait objects
+        let forward: Vec<MathFp> =
+            activations.iter().map(|a| { let (c, _) = a.pair(); c}).collect();
 
         for i in 1..size {
             x = sizes[i-1];
@@ -45,6 +50,7 @@ impl Network {
             weights,
             biases,
             activations,
+            forward,
             learning_rate,
             total_layers: size,
         }
@@ -114,9 +120,9 @@ impl Network {
 
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
-        for ((w, b), act) in self.weights.iter().zip(self.biases.iter()).zip(self.activations.iter()) {
+        for ((w, b), a_func) in self.weights.iter().zip(self.biases.iter()).zip(self.forward.iter()) {
             z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
-            a = z.activate(act); // non-linear, σ(z)
+            a = z.activate(a_func); // non-linear, σ(z)
 
             acc = a;
             opt.as_mut().map(|cc| cc.cache(z, &acc));
