@@ -1,16 +1,15 @@
 use csv::ReaderBuilder as CSV;
 use ndarray::{prelude::*, Axis, ScalarOperand};
 use ndarray_csv::Array2Reader;
-use ndarray_rand::{RandomExt, SamplingStrategy};
-use ndarray_rand::rand::SeedableRng;
-use ndarray_rand::rand_distr::uniform::SampleUniform;
+use ndarray_rand::{RandomExt, SamplingStrategy,
+                   rand::SeedableRng, rand_distr::uniform::SampleUniform};
 use rand_isaac::isaac64::Isaac64Rng;
 use num::Float;
-use serde;
+use serde::de::Deserialize;
 
 pub struct DataSet<T>(Array2<T>);
 
-impl <T: Float + SampleUniform + ScalarOperand + for<'de> serde::de::Deserialize<'de>> DataSet<T> {
+impl <T: Float + SampleUniform + ScalarOperand + for<'de> Deserialize<'de>> DataSet<T> {
     pub fn new(path: &str) -> Self {
         let mut reader = CSV::new()
             .has_headers(true)
@@ -25,7 +24,6 @@ impl <T: Float + SampleUniform + ScalarOperand + for<'de> serde::de::Deserialize
     }
 
     pub fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData<T> {
-
         let data = &self.0;
         let n_size = data.shape()[0]; // 1345
         let n_features = data.shape()[1]; // 4 = 3 input features + 1 outcome / target

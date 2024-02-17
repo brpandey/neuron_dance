@@ -6,8 +6,18 @@ pub mod sigmoid;
 
 use std::str::FromStr;
 use std::fmt;
-use crate::activation::{Activation,
-                        functions::{relu::Relu, sigmoid::Sigmoid}}; // Update (2)
+use crate::activation::{Activation, functions::
+                        {relu::Relu, sigmoid::Sigmoid}}; // Update (2)
+
+// Note:
+// The Function trait doesn't need a &self parameter and is easier to add new activation function types
+// This trait can't be turned into a trait object nor does it need to be,
+// the Activation trait handles the trait object part
+// Essentially these trait functions are static functions
+pub trait Function<T> {
+    fn compute(x: T) -> T;
+    fn derivative(x: T) -> T;
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ActivationParseError;

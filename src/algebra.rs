@@ -1,13 +1,13 @@
 use ndarray::Array2;
 use num::Float;
-use crate::activation::Activation;
+use crate::activation::MathFp;
 
 pub trait Algebra<T, W = Self, B = Self> {
     type Output;
 
     fn arg_max(&self) -> usize;
     fn weighted_sum(&self, w: &W, b: &B) -> Self::Output;
-    fn activate(&self, f: &Box<dyn Activation<T>>) -> Self::Output;
+    fn activate(&self, f: &MathFp<T>) -> Self::Output;
 }
 
 impl<T: Float + 'static> Algebra<T> for Array2<T> {
@@ -40,7 +40,7 @@ impl<T: Float + 'static> Algebra<T> for Array2<T> {
 
     #[inline]
     // perform non-linear activation
-    fn activate(&self, f: &Box<dyn Activation<T>>) -> Self {
-        self.mapv(|v| f.compute(v))
+    fn activate(&self, f: &MathFp<T>) -> Self {
+        self.mapv(|v| f(v))
     }
 }

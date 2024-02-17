@@ -2,24 +2,27 @@ use std::collections::VecDeque;
 use std::ops::MulAssign;
 use ndarray::{Array2, ScalarOperand};
 use num::Float;
-use crate::activation::Activation;
+
+use crate::activation::{Activation, MathFp};
 
 #[derive(Debug)]
 pub struct CacheComputation<T> {
-    pub z_values: Vec<Array2<T>>, // linear values
-    pub a_values: Vec<Array2<T>>, // non-linear activation values
-    pub funcs: Vec<Box<dyn Activation<T>>>,
-    pub lastf: usize,
+    z_values: Vec<Array2<T>>, // linear values
+    a_values: Vec<Array2<T>>, // non-linear activation values
+    funcs: Vec<MathFp<T>>,
+    lastf: usize,
 }
 
 impl<T: Float + MulAssign + ScalarOperand> CacheComputation<T> {
-    pub fn new(funcs: &[Box<dyn Activation<T>>]) -> Self {
-        let (z_values, a_values) = (Vec::new(), Vec::new());
+    pub fn new(acts: &[Box<dyn Activation<T>>]) -> Self {
+        // Create activation derivatives collection given activation trait objects
+        let funcs: Vec<MathFp<T>> =
+            acts.iter().map(|a| { let (_, d) = a.pair(); d}).collect();
 
         CacheComputation {
-            z_values,
-            a_values,
-            funcs: funcs.to_vec(),
+            z_values: vec![],
+            a_values: vec![],
+            funcs,
             lastf: 0,
         }
     }
@@ -34,30 +37,32 @@ impl<T: Float + MulAssign + ScalarOperand> CacheComputation<T> {
         self.a_values.push(a.to_owned());
     }
 
-    pub fn nonlinear_derivative(&mut self) -> Option<Array2<T>>
+    fn nonlinear_derivative(&mut self) -> Option<Array2<T>>
     {
-        if let (Some(z_last), Some(f)) = (self.last_z(), self.last_func()) {
-            let da_dz = z_last.mapv(|v| f.derivative(v));
+        if let (Some(z_last), Some(a_derivative)) = (self.last_z(), self.last_func()) {
+            let da_dz = z_last.mapv(|v| a_derivative(v));
             return Some(da_dz)
         }
         None
     }
 
     /// Assuming cost is (a - y)^2
-    pub fn cost_derivative(&mut self, y: &Array2<T>) -> Array2<T> {
+    fn cost_derivative(&mut self, y: &Array2<T>) -> Array2<T> {
         let output_a: Array2<T> = self.last_a().unwrap();
         (&output_a - y) * T::from(2.0).unwrap()
     }
 
+    #[inline]
     fn last_a(&mut self) -> Option<Array2<T>> {
         self.a_values.pop()
     }
 
+    #[inline]
     fn last_z(&mut self) -> Option<Array2<T>> {
         self.z_values.pop()
     }
 
-    fn last_func(&mut self) -> Option<&Box<dyn Activation<T>>> {
+    fn last_func(&mut self) -> Option<&MathFp<T>> {
         let f = self.funcs.get(self.lastf);
         if self.lastf != 0 { self.lastf -= 1; }
         f
@@ -66,9 +71,9 @@ impl<T: Float + MulAssign + ScalarOperand> CacheComputation<T> {
 
 #[derive(Debug)]
 pub struct ChainRuleComputation<'a, T> {
-    pub cache: &'a mut CacheComputation<T>,
-    pub bias_deltas: VecDeque<Array2<T>>,
-    pub weight_deltas: VecDeque<Array2<T>>,
+    cache: &'a mut CacheComputation<T>,
+    bias_deltas: VecDeque<Array2<T>>,
+    weight_deltas: VecDeque<Array2<T>>,
 }
 
 impl <'a, T: Float + MulAssign + ScalarOperand> ChainRuleComputation<'a, T> {
@@ -80,10 +85,12 @@ impl <'a, T: Float + MulAssign + ScalarOperand> ChainRuleComputation<'a, T> {
         }
     }
 
+    #[inline]
     pub fn bias_deltas(&self) -> impl Iterator<Item = &'_ Array2<T>> { // iterator is tied to the lifetime of current computation
         self.bias_deltas.iter()
     }
 
+    #[inline]
     pub fn weight_deltas(&self) -> impl Iterator<Item = &'_ Array2<T>> { // iterator is tied to the lifetime of current computation
         self.weight_deltas.iter()
     }

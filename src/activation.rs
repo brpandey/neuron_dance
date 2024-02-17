@@ -1,28 +1,27 @@
 pub mod functions;
 
 use std::fmt::Debug;
+use crate::activation::functions::Function;
 
-pub trait Activation<T> : ActivationClone<T> + Debug  {
-    fn compute(&self, x: T) -> T;
-    fn derivative(&self, x: T) -> T;
+pub type MathFp<T> = fn(T) -> T; // function pointer
+
+// Activation trait
+pub trait Activation<T> : Debug  {
+    fn pair(&self) -> (MathFp<T>, MathFp<T>);
 }
 
-pub trait ActivationClone<T> {
-    fn clone_box(&self) -> Box<dyn Activation<T>>;
-}
+// Note:
+// The Activation trait is used as a trait object in order to store each of the neural network layer
+// activations in a collection.  Works in conjunction with the Function Trait
+// to retrieve the necessary function pointers for relevant computations
 
-impl<Y, X> ActivationClone<X> for Y
-where
-    Y: 'static + Activation<X> + Clone,
-{
-    fn clone_box(&self) -> Box<dyn Activation<X>> {
-        Box::new(self.clone())
-    }
-}
+// Note:
+// The Function trait doesn't need a &self parameter and is easier to add new activation function types
 
-// Manual implementation which defers to blanket implementation of clone_box
-impl<T> Clone for Box<dyn Activation<T>> {
-    fn clone(&self) -> Box<dyn Activation<T>> {
-        self.clone_box()
+// Blanket implementation for all function types U (e.g. Relu, Sigmoid)
+impl<U: Function<T> + Debug + Clone + 'static, T> Activation<T> for U {
+    // return both activate, activate derivative func in a tuple
+    fn pair(&self) -> (MathFp<T>, MathFp<T>) {
+        (<U as Function<T>>::compute, <U as Function<T>>::derivative)
     }
 }

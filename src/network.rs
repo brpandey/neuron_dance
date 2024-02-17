@@ -2,15 +2,11 @@ use std::iter::Iterator;
 use std::ops::{SubAssign, MulAssign};
 
 use ndarray::{Array, Array2, ArrayView2, Axis, ScalarOperand};
-use ndarray_rand::RandomExt; // use ndarray_rand::rand_distr::StandardNormal;
-use ndarray_rand::rand_distr::uniform::SampleUniform;
-
-use rand::Rng;
-use rand::seq::SliceRandom;
-use rand::distributions::Uniform;
+use ndarray_rand::{RandomExt, rand_distr::uniform::SampleUniform}; // rand_distr::StandardNormal;
+use rand::{Rng, seq::SliceRandom, distributions::Uniform};
 use num::Float;
 
-use crate::{activation::Activation, algebra::Algebra}; // import local traits
+use crate::{activation::{Activation, MathFp}, algebra::Algebra}; // import local traits
 use crate::computation::{CacheComputation, ChainRuleComputation};
 use crate::dataset::TrainTestSplitRef;
 
@@ -23,6 +19,7 @@ pub struct Network<T> {
     weights: Vec<Array2<T>>,
     biases: Vec<Array2<T>>,
     activations: Vec<Box<dyn Activation<T>>>,
+    forward: Vec<MathFp<T>>, // forward activation functions
     learning_rate: T,
     total_layers: usize,
 }
@@ -34,10 +31,14 @@ impl<T: Float + SampleUniform + ScalarOperand + SubAssign + MulAssign> Network<T
         let (mut b, mut w) : (Array2<T>, Array2<T>);
         let size = sizes.len();
 
+        // Create activation function collection given activation trait objects
+        let forward: Vec<MathFp<T>> =
+            activations.iter().map(|a| { let (c, _) = a.pair(); c}).collect();
+
         for i in 1..size {
             x = sizes[i-1];
             y = sizes[i];
- 
+
             b = Array::random((y, 1), Uniform::new(num::zero::<T>(), num::one::<T>())); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
             w = Array::random((y, x), Uniform::new(num::zero::<T>(), num::one::<T>())); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
                                                              // 1*3, w7, w8, w9
@@ -50,6 +51,7 @@ impl<T: Float + SampleUniform + ScalarOperand + SubAssign + MulAssign> Network<T
             weights,
             biases,
             activations,
+            forward,
             learning_rate,
             total_layers: size,
         }
@@ -119,9 +121,9 @@ impl<T: Float + SampleUniform + ScalarOperand + SubAssign + MulAssign> Network<T
 
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
-        for ((w, b), act) in self.weights.iter().zip(self.biases.iter()).zip(self.activations.iter()) {
+        for ((w, b), a_func) in self.weights.iter().zip(self.biases.iter()).zip(self.forward.iter()) {
             z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
-            a = z.activate(act); // non-linear, σ(z)
+            a = z.activate(a_func); // non-linear, σ(z)
 
             acc = a;
             opt.as_mut().map(|cc| cc.cache(z, &acc));
