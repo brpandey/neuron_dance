@@ -1,16 +1,29 @@
+use num::Float;
+use std::fmt::Debug;
+//use std::marker::PhantomData;
 use crate::activation::Activation;
 
 #[derive(Clone, Debug)]
 pub struct Sigmoid;
+// pub struct Sigmoid<T>(PhantomData<T>);
 
-impl Activation for Sigmoid {
-    fn compute(&self, x: f64) -> f64 {
-        1.0 / (1.0 + (-x).exp())
-    }
-
-    fn derivative(&self, x: f64) -> f64 {
-        let s = self.compute(x);
-        s * (1.0 - s)
+/*
+impl<T> Default for Sigmoid<T> {
+    fn default() -> Self {
+        Sigmoid(PhantomData)
     }
 }
+*/
 
+impl <T: Float + Debug + 'static> Activation<T> for Sigmoid {
+    fn compute(&self, x: T) -> T {
+        let one = T::from(1.0).unwrap();
+        one / (one + (-x).exp())
+    }
+
+    fn derivative(&self, x: T) -> T {
+        let one = T::from(1.0).unwrap();
+        let s = self.compute(x);
+        s * (one - s)
+    }
+}

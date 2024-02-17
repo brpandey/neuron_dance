@@ -19,7 +19,7 @@ impl fmt::Display for ActivationParseError {
     }
 }
 
-impl FromStr for Box<dyn Activation> {
+impl<T: std::fmt::Debug + num::Float + 'static > FromStr for Box<dyn Activation<T>> {
     type Err = ActivationParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

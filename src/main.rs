@@ -17,7 +17,7 @@ fn main() {
     let layers = vec!["relu", "sigmoid"]
         .into_iter()
         .map(|l| l.parse().unwrap())
-        .collect::<Vec<Box<dyn Activation>>>();
+        .collect::<Vec<Box<dyn Activation<f64>>>>();
 
     let mut simple_nn = Network::new(vec![3, 3, 1], layers, 0.01);
     simple_nn.train_sgd(tts_data.get_ref());

@@ -1,27 +1,30 @@
 use csv::ReaderBuilder as CSV;
-use ndarray::{prelude::*, Axis};
+use ndarray::{prelude::*, Axis, ScalarOperand};
 use ndarray_csv::Array2Reader;
 use ndarray_rand::{RandomExt, SamplingStrategy};
 use ndarray_rand::rand::SeedableRng;
+use ndarray_rand::rand_distr::uniform::SampleUniform;
 use rand_isaac::isaac64::Isaac64Rng;
+use num::Float;
+use serde;
 
-pub struct DataSet(Array2<f64>);
+pub struct DataSet<T>(Array2<T>);
 
-impl DataSet {
+impl <T: Float + SampleUniform + ScalarOperand + for<'de> serde::de::Deserialize<'de>> DataSet<T> {
     pub fn new(path: &str) -> Self {
         let mut reader = CSV::new()
             .has_headers(true)
             .from_path(path)
             .expect("expect 1");
 
-        let data_array: Array2<f64> = reader
+        let data_array: Array2<T> = reader
             .deserialize_array2_dynamic()
             .expect("can deserialize array");
 
         DataSet(data_array)
     }
 
-    pub fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData {
+    pub fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData<T> {
 
         let data = &self.0;
         let n_size = data.shape()[0]; // 1345
@@ -45,13 +48,13 @@ impl DataSet {
         let test_data = Array2::from_shape_vec((n2, n_features), second_raw_vec).unwrap();
 
         let (x_train, y_train) = (
-            train_data.slice(s![.., 0..3]).to_owned() / 255.0,
+            train_data.slice(s![.., 0..3]).to_owned() / T::from(255.0).unwrap(),
             train_data.slice(s![.., 3..4]).to_owned(),
             //        train_data.column(3).to_owned(),
         );
 
-        let (x_test, y_test) : (Array2<f64>, Array2<f64>) = (
-            test_data.slice(s![.., 0..3]).to_owned() / 255.0,
+        let (x_test, y_test) : (Array2<T>, Array2<T>) = (
+            test_data.slice(s![.., 0..3]).to_owned() / T::from(255.0).unwrap(),
             test_data.slice(s![.., 3..4]).to_owned(),
             //        test_data.column(3).to_owned(),
         );
@@ -61,24 +64,24 @@ impl DataSet {
 }
 
 //                           x_train    y_train        # train  x_test        y_test     # test
-pub struct TrainTestSplitData(Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize);
+pub struct TrainTestSplitData<T>(Array2<T>, Array2<T>, usize, Array2<T>, Array2<T>, usize);
 
-pub struct TrainSplitRef<'a> {
-    pub x: &'a Array2<f64>,
-    pub y: &'a Array2<f64>,
+pub struct TrainSplitRef<'a, T> {
+    pub x: &'a Array2<T>,
+    pub y: &'a Array2<T>,
     pub size: usize,
 }
 
-pub struct TestSplitRef<'a> {
-    pub x: &'a Array2<f64>,
-    pub y: &'a Array2<f64>,
+pub struct TestSplitRef<'a, T> {
+    pub x: &'a Array2<T>,
+    pub y: &'a Array2<T>,
     pub size: usize,
 }
 
-pub type TrainTestSplitRef<'a> = (TrainSplitRef<'a>, TestSplitRef<'a>);
+pub type TrainTestSplitRef<'a, T> = (TrainSplitRef<'a, T>, TestSplitRef<'a, T>);
 
-impl TrainTestSplitData {
-    pub fn get_ref<'a>(&'a self) -> TrainTestSplitRef<'a> {
+impl <T> TrainTestSplitData<T> {
+    pub fn get_ref<'a>(&'a self) -> TrainTestSplitRef<'a, T> {
         (
             TrainSplitRef {
                 x: &self.0,

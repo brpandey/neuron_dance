@@ -1,9 +1,14 @@
 use std::iter::Iterator;
-use ndarray::{Array, Array2, ArrayView2, Axis};
+use std::ops::{SubAssign, MulAssign};
+
+use ndarray::{Array, Array2, ArrayView2, Axis, ScalarOperand};
 use ndarray_rand::RandomExt; // use ndarray_rand::rand_distr::StandardNormal;
+use ndarray_rand::rand_distr::uniform::SampleUniform;
+
 use rand::Rng;
 use rand::seq::SliceRandom;
 use rand::distributions::Uniform;
+use num::Float;
 
 use crate::{activation::Activation, algebra::Algebra}; // import local traits
 use crate::computation::{CacheComputation, ChainRuleComputation};
@@ -12,29 +17,29 @@ use crate::dataset::TrainTestSplitRef;
 static SGD_EPOCHS: usize = 10000;
 static MINIBATCH_EPOCHS: usize = 30;
 
-pub struct Network {
+pub struct Network<T> {
     #[allow(dead_code)]
     sizes: Vec<usize>,
-    weights: Vec<Array2<f64>>,
-    biases: Vec<Array2<f64>>,
-    activations: Vec<Box<dyn Activation>>,
-    learning_rate: f64,
+    weights: Vec<Array2<T>>,
+    biases: Vec<Array2<T>>,
+    activations: Vec<Box<dyn Activation<T>>>,
+    learning_rate: T,
     total_layers: usize,
 }
 
-impl Network {
-    pub fn new(sizes: Vec<usize>, activations: Vec<Box<dyn Activation>>, learning_rate: f64) -> Self {
-        let (mut weights, mut biases) : (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
+impl<T: Float + SampleUniform + ScalarOperand + SubAssign + MulAssign> Network<T> {
+    pub fn new(sizes: Vec<usize>, activations: Vec<Box<dyn Activation<T>>>, learning_rate: T) -> Self {
+        let (mut weights, mut biases) : (Vec<Array2<T>>, Vec<Array2<T>>) = (vec![], vec![]);
         let (mut x, mut y);
-        let (mut b, mut w) : (Array2<f64>, Array2<f64>);
+        let (mut b, mut w) : (Array2<T>, Array2<T>);
         let size = sizes.len();
 
         for i in 1..size {
             x = sizes[i-1];
             y = sizes[i];
-
-            b = Array::random((y, 1), Uniform::new(0., 1.)); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
-            w = Array::random((y, x), Uniform::new(0., 1.)); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
+ 
+            b = Array::random((y, 1), Uniform::new(num::zero::<T>(), num::one::<T>())); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
+            w = Array::random((y, x), Uniform::new(num::zero::<T>(), num::one::<T>())); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
                                                              // 1*3, w7, w8, w9
             weights.push(w);
             biases.push(b);
@@ -50,7 +55,7 @@ impl Network {
         }
     }
 
-    pub fn train_sgd(&mut self, test_train: TrainTestSplitRef) {
+    pub fn train_sgd(&mut self, test_train: TrainTestSplitRef<T>) {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
@@ -71,7 +76,7 @@ impl Network {
         println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, SGD_EPOCHS);
     }
 
-    pub fn train_minibatch(&mut self, test_train: TrainTestSplitRef, batch_size: usize) {
+    pub fn train_minibatch(&mut self, test_train: TrainTestSplitRef<T>, batch_size: usize) {
         let (mut x_minibatch, mut y_minibatch);
         let mut cc = CacheComputation::new(&self.activations);
 
@@ -86,7 +91,7 @@ impl Network {
                 y_minibatch = train.y.select(Axis(0), &i);
 
                 // transpose to ensure proper matrix multi fit
-                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
+                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/T::from(batch_size).unwrap(), &mut cc);
             }
 
             let result = self.evaluate(test.x, test.y, test.size);
@@ -94,22 +99,22 @@ impl Network {
         }
     }
 
-    pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, learning_rate: f64, cc: &mut CacheComputation) {
+    pub fn train_iteration(&mut self, x_iteration: ArrayView2<T>, y_iteration: &Array2<T>, learning_rate: T, cc: &mut CacheComputation<T>) {
         self.forward_pass(x_iteration, cc);
         let chain_rule_compute = self.backward_pass(y_iteration, cc);
         self.update_iteration(learning_rate, chain_rule_compute);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
-    pub fn forward_pass(&self, x: ArrayView2<f64>, cc: &mut CacheComputation) {
+    pub fn forward_pass(&self, x: ArrayView2<T>, cc: &mut CacheComputation<T>) {
         cc.init(x.to_owned());
         let mut opt_comp = Some(cc);
         self.predict(x, &mut opt_comp);
     }
 
-    pub fn predict(&self, x: ArrayView2<f64>, opt: &mut Option<&mut CacheComputation>) -> Array2<f64> {
-        let mut z: Array2<f64>;
-        let mut a: Array2<f64>;
+    pub fn predict(&self, x: ArrayView2<T>, opt: &mut Option<&mut CacheComputation<T>>) -> Array2<T> {
+        let mut z: Array2<T>;
+        let mut a: Array2<T>;
         let mut acc = x.to_owned();
 
         // Compute and store the linear Z values and nonlinear A (activation) values
@@ -125,7 +130,7 @@ impl Network {
         acc // return last computed activation values
     }
 
-    pub fn backward_pass<'b, 'c>(&self, y: &Array2<f64>, cc: &'b mut CacheComputation) -> ChainRuleComputation<'c>
+    pub fn backward_pass<'b, 'c>(&self, y: &Array2<T>, cc: &'b mut CacheComputation<T>) -> ChainRuleComputation<'c, T>
     where 'b: 'c // cc is around longer than crc
     {
         // Compute the chain rule values for each layer
@@ -133,18 +138,18 @@ impl Network {
         // starting with last layer first
 
         let mut crc = ChainRuleComputation::new(cc);
-        let acc0: Array2<f64> = crc.init(y);
+        let acc0: Array2<T> = crc.init(y);
 
         // zip number of iterations with corresponding weight (start from back to front layer)
         let zipped = (0..self.total_layers-2).zip(self.weights.iter().rev());
-        zipped.fold(acc0, |acc: Array2<f64>, (_, w)| {
+        zipped.fold(acc0, |acc: Array2<T>, (_, w)| {
             crc.fold_layer(acc, w)
         });
 
         crc
     }
 
-    pub fn update_iteration(&mut self, learning_rate: f64, crc: ChainRuleComputation) {
+    pub fn update_iteration(&mut self, learning_rate: T, crc: ChainRuleComputation<T>) {
         // Apply delta contributions to current biases and weights by subtracting
         // since we are taking the negative gradient using the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
@@ -162,10 +167,10 @@ impl Network {
         }
     }
 
-    pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) -> (f64, usize, usize) {
+    pub fn evaluate(&self, x_test: &Array2<T>, y_test: &Array2<T>, n_test: usize) -> (f64, usize, usize) {
         // run forward pass with no caching of intermediate values on each observation data
-        let mut output: Array2<f64>;
-        let mut empty: Option<&mut CacheComputation> = None;
+        let mut output: Array2<T>;
+        let mut empty: Option<&mut CacheComputation<T>> = None;
         let mut matches: usize = 0;
 
         // processes an x_test row of input values at a time
@@ -173,7 +178,7 @@ impl Network {
             output = self.predict(x_sample.t(), &mut empty);
 
 //            println!("predict x_sample {} out {} am {} y {:?}", x_sample.view(), &output.view(), arg_max(&output), y);
-            if output.arg_max() == *y as usize {
+            if output.arg_max() == T::to_usize(y).unwrap() {
                 matches += 1;
             }
         }

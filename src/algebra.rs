@@ -1,15 +1,16 @@
 use ndarray::Array2;
+use num::Float;
 use crate::activation::Activation;
 
-pub trait Algebra<W = Self, B = Self> {
+pub trait Algebra<T, W = Self, B = Self> {
     type Output;
 
     fn arg_max(&self) -> usize;
     fn weighted_sum(&self, w: &W, b: &B) -> Self::Output;
-    fn activate(&self, f: &Box<dyn Activation>) -> Self::Output;
+    fn activate(&self, f: &Box<dyn Activation<T>>) -> Self::Output;
 }
 
-impl Algebra for Array2<f64> {
+impl<T: Float + 'static> Algebra<T> for Array2<T> {
     type Output = Self;
 
     fn arg_max(&self) -> usize {
@@ -17,7 +18,8 @@ impl Algebra for Array2<f64> {
 
         // if we have a single neuron output, return either 0 or 1
         if self.shape() == &[1,1] {
-            return self[[0, 0]].round() as usize
+            let out = self[[0, 0]].round();
+            return T::to_usize(&out).unwrap()
         }
 
         // Find the index of the current neuron with the highest activation
@@ -38,7 +40,7 @@ impl Algebra for Array2<f64> {
 
     #[inline]
     // perform non-linear activation
-    fn activate(&self, f: &Box<dyn Activation>) -> Self {
+    fn activate(&self, f: &Box<dyn Activation<T>>) -> Self {
         self.mapv(|v| f.compute(v))
     }
 }

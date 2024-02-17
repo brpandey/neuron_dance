@@ -1,17 +1,19 @@
 use std::collections::VecDeque;
-use ndarray::Array2;
+use std::ops::MulAssign;
+use ndarray::{Array2, ScalarOperand};
+use num::Float;
 use crate::activation::Activation;
 
 #[derive(Debug)]
-pub struct CacheComputation {
-    pub z_values: Vec<Array2<f64>>, // linear values
-    pub a_values: Vec<Array2<f64>>, // non-linear activation values
-    pub funcs: Vec<Box<dyn Activation>>,
+pub struct CacheComputation<T> {
+    pub z_values: Vec<Array2<T>>, // linear values
+    pub a_values: Vec<Array2<T>>, // non-linear activation values
+    pub funcs: Vec<Box<dyn Activation<T>>>,
     pub lastf: usize,
 }
 
-impl CacheComputation {
-    pub fn new(funcs: &[Box<dyn Activation>]) -> Self {
+impl<T: Float + MulAssign + ScalarOperand> CacheComputation<T> {
+    pub fn new(funcs: &[Box<dyn Activation<T>>]) -> Self {
         let (z_values, a_values) = (Vec::new(), Vec::new());
 
         CacheComputation {
@@ -22,17 +24,17 @@ impl CacheComputation {
         }
     }
 
-    pub fn init(&mut self, x: Array2<f64>) {
+    pub fn init(&mut self, x: Array2<T>) {
         (self.z_values, self.a_values) = (Vec::new(), vec![x]);
         self.lastf = self.funcs.len() - 1;
     }
 
-    pub fn cache(&mut self, z: Array2<f64>, a: &Array2<f64>) {
+    pub fn cache(&mut self, z: Array2<T>, a: &Array2<T>) {
         self.z_values.push(z);
         self.a_values.push(a.to_owned());
     }
 
-    pub fn nonlinear_derivative(&mut self) -> Option<Array2<f64>>
+    pub fn nonlinear_derivative(&mut self) -> Option<Array2<T>>
     {
         if let (Some(z_last), Some(f)) = (self.last_z(), self.last_func()) {
             let da_dz = z_last.mapv(|v| f.derivative(v));
@@ -42,20 +44,20 @@ impl CacheComputation {
     }
 
     /// Assuming cost is (a - y)^2
-    pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
-        let output_a: Array2<f64> = self.last_a().unwrap();
-        2.0*(&output_a - y)
+    pub fn cost_derivative(&mut self, y: &Array2<T>) -> Array2<T> {
+        let output_a: Array2<T> = self.last_a().unwrap();
+        (&output_a - y) * T::from(2.0).unwrap()
     }
 
-    fn last_a(&mut self) -> Option<Array2<f64>> {
+    fn last_a(&mut self) -> Option<Array2<T>> {
         self.a_values.pop()
     }
 
-    fn last_z(&mut self) -> Option<Array2<f64>> {
+    fn last_z(&mut self) -> Option<Array2<T>> {
         self.z_values.pop()
     }
 
-    fn last_func(&mut self) -> Option<&Box<dyn Activation>> {
+    fn last_func(&mut self) -> Option<&Box<dyn Activation<T>>> {
         let f = self.funcs.get(self.lastf);
         if self.lastf != 0 { self.lastf -= 1; }
         f
@@ -63,14 +65,14 @@ impl CacheComputation {
 }
 
 #[derive(Debug)]
-pub struct ChainRuleComputation<'a> {
-    pub cache: &'a mut CacheComputation,
-    pub bias_deltas: VecDeque<Array2<f64>>,
-    pub weight_deltas: VecDeque<Array2<f64>>,
+pub struct ChainRuleComputation<'a, T> {
+    pub cache: &'a mut CacheComputation<T>,
+    pub bias_deltas: VecDeque<Array2<T>>,
+    pub weight_deltas: VecDeque<Array2<T>>,
 }
 
-impl <'a> ChainRuleComputation<'a> {
-    pub fn new(cache: &'a mut CacheComputation) -> Self {
+impl <'a, T: Float + MulAssign + ScalarOperand> ChainRuleComputation<'a, T> {
+    pub fn new(cache: &'a mut CacheComputation<T>) -> Self {
         ChainRuleComputation {
             cache,
             bias_deltas: VecDeque::new(),
@@ -78,11 +80,11 @@ impl <'a> ChainRuleComputation<'a> {
         }
     }
 
-    pub fn bias_deltas(&self) -> impl Iterator<Item = &'_ Array2<f64>> { // iterator is tied to the lifetime of current computation
+    pub fn bias_deltas(&self) -> impl Iterator<Item = &'_ Array2<T>> { // iterator is tied to the lifetime of current computation
         self.bias_deltas.iter()
     }
 
-    pub fn weight_deltas(&self) -> impl Iterator<Item = &'_ Array2<f64>> { // iterator is tied to the lifetime of current computation
+    pub fn weight_deltas(&self) -> impl Iterator<Item = &'_ Array2<T>> { // iterator is tied to the lifetime of current computation
         self.weight_deltas.iter()
     }
 
@@ -100,7 +102,7 @@ impl <'a> ChainRuleComputation<'a> {
        Where * is the dot product of two matrices l*m and m*n resulting in a matrix l*n
     */
 
-    pub fn init(&mut self, y: &Array2<f64>) -> Array2<f64> {
+    pub fn init(&mut self, y: &Array2<T>) -> Array2<T> {
         // C = (A2 - Y)^2
         // A2 = sigmoid(Z2)
 
@@ -114,10 +116,10 @@ impl <'a> ChainRuleComputation<'a> {
 
         // A2 = sigmoid (Z2)
         let da2_dz2 = self.cache.nonlinear_derivative().unwrap();
-        let dc_dz2: Array2<f64> = dc_da2.dot(&da2_dz2);
+        let dc_dz2 = dc_da2.dot(&da2_dz2);
 
         // Z2 = W2A1 + B, dz_db is just the constant 1 that is multiplying B
-        let dz2_db2 = 1.0;
+        let dz2_db2 = T::from(1.0).unwrap();
         let dc_db2 = &dc_dz2 * dz2_db2;
 
         // Z2 = W2A1 + B, dz_dw is just the constant A1 which is multiplying W2
@@ -133,7 +135,7 @@ impl <'a> ChainRuleComputation<'a> {
     // Method can be called repeatedly:
     // Computes chain rule from preceding layer value (layer 2) and calculates for current layer (layer 1)
     // With layer j being layer after layer i in a feed forward nn, so e.g. j is 2 and i 1
-    pub fn fold_layer(&mut self, dc_dz2: Array2<f64>, w: &Array2<f64>) -> Array2<f64>{
+    pub fn fold_layer(&mut self, dc_dz2: Array2<T>, w: &Array2<T>) -> Array2<T>{
         // Main equations
         // dc_db = dc_dz2 * dz2_da1 * da1_dz1 * dz1_db1   (or) dc_dz1 * dz1_db1
         // dc_dw = dc_dz2 * dz2_da1 * da1_dz1 * dz1_dw1.t (or) dc_dz1 * dz1_dw1.t
@@ -146,7 +148,7 @@ impl <'a> ChainRuleComputation<'a> {
         let dc_dz1 = dc_dz2.dot(dz2_da1).dot(&da1_dz1); // dc_dz is the accumulator value that allows us to repeatedly call fold layer
 
         // For example Z1 = W1X + B1
-        let dz1_db1 = 1.0;
+        let dz1_db1 = T::from(1.0).unwrap();
         let dc_db1 = &dc_dz1 * dz1_db1; // cost derivative with respect to bias
 
         let dz1_dw1 = self.cache.last_a().unwrap(); // if 2 layer nn, will be X
