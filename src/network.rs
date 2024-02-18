@@ -1,6 +1,4 @@
-use std::iter::Iterator;
-use std::ops::{SubAssign, MulAssign};
-
+use std::{iter::Iterator, ops::{SubAssign, MulAssign}, fmt::Debug};
 use ndarray::{Array, Array2, ArrayView2, Axis, ScalarOperand};
 use ndarray_rand::{RandomExt, rand_distr::uniform::SampleUniform}; // rand_distr::StandardNormal;
 use rand::{Rng, seq::SliceRandom, distributions::Uniform};
@@ -24,12 +22,17 @@ pub struct Network<T> {
     total_layers: usize,
 }
 
-impl<T: Float + SampleUniform + ScalarOperand + SubAssign + MulAssign> Network<T> {
-    pub fn new(sizes: Vec<usize>, activations: Vec<Box<dyn Activation<T>>>, learning_rate: T) -> Self {
+impl<T: Float + SampleUniform + ScalarOperand + SubAssign + MulAssign + Debug> Network<T> {
+    pub fn new(sizes: Vec<usize>, layers: Vec<&str>, learning_rate: T) -> Self {
         let (mut weights, mut biases) : (Vec<Array2<T>>, Vec<Array2<T>>) = (vec![], vec![]);
         let (mut x, mut y);
         let (mut b, mut w) : (Array2<T>, Array2<T>);
         let size = sizes.len();
+
+        // Construct activation function trait objects from supplied strs
+        let activations = layers.into_iter()
+            .map(|l| l.parse().unwrap())
+            .collect::<Vec<Box<dyn Activation<T>>>>();
 
         // Create activation function collection given activation trait objects
         let forward: Vec<MathFp<T>> =
