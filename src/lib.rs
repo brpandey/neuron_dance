@@ -1,5 +1,6 @@
 pub mod network;
-pub mod computation;
+pub mod cache_computation;
+pub mod chain_rule;
 pub mod activation;
 pub mod algebra;
 pub mod dataset;

@@ -1,68 +1,6 @@
 use std::collections::VecDeque;
-use ndarray::Array2;
-use crate::activation::{Activation, MathFp};
-
-#[derive(Debug)]
-pub struct CacheComputation {
-    pub z_values: Vec<Array2<f64>>, // linear values
-    pub a_values: Vec<Array2<f64>>, // non-linear activation values
-    pub funcs: Vec<MathFp>,
-    pub lastf: usize,
-}
-
-impl CacheComputation {
-    pub fn new(acts: &[Box<dyn Activation>]) -> Self {
-        // Create activation derivatives collection given activation trait objects
-        let funcs: Vec<MathFp> =
-            acts.iter().map(|a| { let (_, d) = a.pair(); d}).collect();
-
-        CacheComputation {
-            z_values: vec![],
-            a_values: vec![],
-            funcs,
-            lastf: 0,
-        }
-    }
-
-    pub fn init(&mut self, x: Array2<f64>) {
-        (self.z_values, self.a_values) = (Vec::new(), vec![x]);
-        self.lastf = self.funcs.len() - 1;
-    }
-
-    pub fn cache(&mut self, z: Array2<f64>, a: &Array2<f64>) {
-        self.z_values.push(z);
-        self.a_values.push(a.to_owned());
-    }
-
-    pub fn nonlinear_derivative(&mut self) -> Option<Array2<f64>>
-    {
-        if let (Some(z_last), Some(a_derivative)) = (self.last_z(), self.last_func()) {
-            let da_dz = z_last.mapv(|v| a_derivative(v));
-            return Some(da_dz)
-        }
-        None
-    }
-
-    /// Assuming cost is (a - y)^2
-    pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
-        let output_a: Array2<f64> = self.last_a().unwrap();
-        2.0*(&output_a - y)
-    }
-
-    fn last_a(&mut self) -> Option<Array2<f64>> {
-        self.a_values.pop()
-    }
-
-    fn last_z(&mut self) -> Option<Array2<f64>> {
-        self.z_values.pop()
-    }
-
-    fn last_func(&mut self) -> Option<&MathFp> {
-        let f = self.funcs.get(self.lastf);
-        if self.lastf != 0 { self.lastf -= 1; }
-        f
-    }
-}
+use ndarray::{Array2, Axis};
+use crate::cache_computation::CacheComputation;
 
 #[derive(Debug)]
 pub struct ChainRuleComputation<'a> {
@@ -75,8 +13,8 @@ impl <'a> ChainRuleComputation<'a> {
     pub fn new(cache: &'a mut CacheComputation) -> Self {
         ChainRuleComputation {
             cache,
-            bias_deltas: VecDeque::new(),
             weight_deltas: VecDeque::new(),
+            bias_deltas: VecDeque::new(),
         }
     }
 
@@ -116,11 +54,12 @@ impl <'a> ChainRuleComputation<'a> {
 
         // A2 = sigmoid (Z2)
         let da2_dz2 = self.cache.nonlinear_derivative().unwrap();
-        let dc_dz2: Array2<f64> = dc_da2.dot(&da2_dz2);
+        let dc_dz2: Array2<f64> = &dc_da2 * &da2_dz2;
 
         // Z2 = W2A1 + B, dz_db is just the constant 1 that is multiplying B
         let dz2_db2 = 1.0;
-        let dc_db2 = &dc_dz2 * dz2_db2;
+        let dc_db2_temp = (&dc_dz2 * dz2_db2).sum_axis(Axis(1));
+        let dc_db2 = dc_db2_temp.into_shape(self.cache.last_bias_shape()).unwrap();
 
         // Z2 = W2A1 + B, dz_dw is just the constant A1 which is multiplying W2
         let dz2_dw2 = self.cache.last_a().unwrap();
@@ -141,17 +80,19 @@ impl <'a> ChainRuleComputation<'a> {
         // dc_dw = dc_dz2 * dz2_da1 * da1_dz1 * dz1_dw1.t (or) dc_dz1 * dz1_dw1.t
 
         // Z2 = W2A1 + B, w is just W2
-        let dz2_da1 = w;
+        let dz2_da1 = w.t();
 
         // For example: A1 = Relu(Z1)
         let da1_dz1 = self.cache.nonlinear_derivative().unwrap(); // derivative of relu applied to Z1
-        let dc_dz1 = dc_dz2.dot(dz2_da1).dot(&da1_dz1); // dc_dz is the accumulator value that allows us to repeatedly call fold layer
+        let dc_da1 = dz2_da1.dot(&dc_dz2);
+        let dc_dz1 = dc_da1 * da1_dz1;
 
         // For example Z1 = W1X + B1
         let dz1_db1 = 1.0;
-        let dc_db1 = &dc_dz1 * dz1_db1; // cost derivative with respect to bias
+        let dc_db1_temp = (&dc_dz1 * dz1_db1).sum_axis(Axis(1));
+        let dc_db1 = dc_db1_temp.into_shape(self.cache.last_bias_shape()).unwrap(); // cost derivative with respect to bias
 
-        let dz1_dw1 = self.cache.last_a().unwrap(); // if 2 layer nn, will be X
+        let dz1_dw1 = self.cache.last_a().unwrap();
         let dc_dw1 = dc_dz1.dot(&dz1_dw1.t()); // cost derivative with respect to weight
 
         self.bias_deltas.push_front(dc_db1); // fold result into deque

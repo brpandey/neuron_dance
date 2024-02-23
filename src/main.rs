@@ -20,6 +20,6 @@ fn main() {
         .collect::<Vec<Box<dyn Activation>>>();
 
     let mut simple_nn = Network::new(vec![3, 3, 1], layers, 0.01);
-    simple_nn.train_sgd(tts_data.get_ref());
-    //simple_nn.train_minibatch(tts_data.get_ref(), 32);
+    //simple_nn.train_sgd(tts_data.get_ref());
+    simple_nn.train_minibatch(tts_data.get_ref(), 32);
 }

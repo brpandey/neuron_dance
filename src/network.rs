@@ -6,7 +6,8 @@ use rand::seq::SliceRandom;
 use rand::distributions::Uniform;
 
 use crate::{activation::{Activation, MathFp}, algebra::Algebra}; // import local traits
-use crate::computation::{CacheComputation, ChainRuleComputation};
+use crate::cache_computation::CacheComputation;
+use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSplitRef;
 
 static SGD_EPOCHS: usize = 10000;
@@ -60,7 +61,7 @@ impl Network {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
-        let mut cc = CacheComputation::new(&self.activations);
+        let mut cc = CacheComputation::new(&self.activations, &self.biases);
 
         let (train, test) = (&test_train.0, &test_train.1);
 
@@ -79,7 +80,7 @@ impl Network {
 
     pub fn train_minibatch(&mut self, test_train: TrainTestSplitRef, batch_size: usize) {
         let (mut x_minibatch, mut y_minibatch);
-        let mut cc = CacheComputation::new(&self.activations);
+        let mut cc = CacheComputation::new(&self.activations, &self.biases);
 
         let (train, test) = (&test_train.0, &test_train.1);
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
@@ -92,7 +93,8 @@ impl Network {
                 y_minibatch = train.y.select(Axis(0), &i);
 
                 // transpose to ensure proper matrix multi fit
-                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
+                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate, &mut cc);
+//                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
             }
 
             let result = self.evaluate(test.x, test.y, test.size);
@@ -178,7 +180,6 @@ impl Network {
         for (x_sample, y) in x_test.axis_chunks_iter(Axis(0), 1).zip(y_test.iter()) {
             output = self.predict(x_sample.t(), &mut empty);
 
-//            println!("predict x_sample {} out {} am {} y {:?}", x_sample.view(), &output.view(), arg_max(&output), y);
             if output.arg_max() == *y as usize {
                 matches += 1;
             }
