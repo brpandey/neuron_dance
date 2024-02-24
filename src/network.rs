@@ -105,7 +105,7 @@ impl Network {
     pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, learning_rate: f64, cc: &mut CacheComputation) {
         self.forward_pass(x_iteration, cc);
         let chain_rule_compute = self.backward_pass(y_iteration, cc);
-        self.update_iteration(learning_rate, chain_rule_compute);
+        self.update_iteration(chain_rule_compute, learning_rate);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
@@ -152,7 +152,7 @@ impl Network {
         crc
     }
 
-    pub fn update_iteration(&mut self, learning_rate: f64, crc: ChainRuleComputation) {
+    pub fn update_iteration(&mut self, crc: ChainRuleComputation, learning_rate: f64) {
         // Apply delta contributions to current biases and weights by subtracting
         // since we are taking the negative gradient using the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)

@@ -56,10 +56,12 @@ impl CacheComputation {
         2.0*(&last_a - &y.t())
     }
 
+    #[inline]
     pub fn last_a(&mut self) -> Option<Array2<f64>> {
         self.a_values.pop()
     }
 
+    #[inline]
     fn last_z(&mut self) -> Option<Array2<f64>> {
         self.z_values.pop()
     }
