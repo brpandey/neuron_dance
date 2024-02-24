@@ -29,6 +29,7 @@ impl CacheComputation {
         }
     }
 
+    // Reset values
     pub fn init(&mut self, x: Array2<f64>) {
         (self.z_values, self.a_values) = (Vec::new(), vec![x]);
         self.index = (self.funcs.len() - 1, self.shapes.len() - 1);
