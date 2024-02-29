@@ -93,8 +93,7 @@ impl Network {
                 y_minibatch = train.y.select(Axis(0), &i);
 
                 // transpose to ensure proper matrix multi fit
-                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate, &mut cc);
-//                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
+                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
             }
 
             let result = self.evaluate(test.x, test.y, test.size);
