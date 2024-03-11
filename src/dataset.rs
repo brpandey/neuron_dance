@@ -1,6 +1,8 @@
 use ndarray::Array2;
+pub const DATASET_DIR: &str = "./src/dataset/raw/";
 
 pub mod csv;
+pub mod idx;
 
 pub trait DataSet  {
     fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData;

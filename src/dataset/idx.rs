@@ -7,46 +7,88 @@ use std::io::{Cursor, Read};
 use crate::dataset::DATASET_DIR;
 use crate::dataset::{DataSet, TrainTestSplitData};
 
-// aggregate type
-pub struct IdxType([SubsetType; 4]); // order is [x_train_type, y_train_type, x_test_type, y_test_type]
 
-impl IdxType {
-    pub fn new() -> Self {
-        IdxType([
-            SubsetType::Train(RawType::Images), SubsetType::Train(RawType::Labels),
-            SubsetType::Test(RawType::Images), SubsetType::Test(RawType::Labels)
-        ])
+/************************** MnistData *******************************/
+
+pub struct MnistData(Mnist, IdxType);
+
+impl MnistData {
+    pub fn new(mtype: Mnist) -> Self {
+        let idx_metadata = IdxType::new();
+        MnistData(mtype, idx_metadata)
     }
 
     fn fetch(&self) -> (Raw, Raw, Raw, Raw) {
-        let x_raw = self.0[0].fetch();
-        let y_raw = self.0[1].fetch();
-        let x_test = self.0[2].fetch();
-        let y_test = self.0[3].fetch();
-        (x_raw, y_raw, x_test, y_test)
+        let mnist_token = self.0.token();
+        self.1.fetch(mnist_token)
     }
 }
 
-impl DataSet for IdxType {
+impl DataSet for MnistData {
+    //impl DataSet for IdxType {
     fn train_test_split(&self, _split_ratio: f32) -> TrainTestSplitData {
         let (mut x_raw, mut y_raw, mut x_raw_test, mut y_raw_test) = self.fetch();
 
         let x_train = x_raw.take().unwrap();
+        let y_train = y_raw.take().unwrap();
         let n_train = x_raw.size();
 
-        let y_train = y_raw.take().unwrap();
-
         let x_test = x_raw_test.take().unwrap();
+        let y_test = y_raw_test.take().unwrap();
         let n_test = x_raw_test.size();
 
-        let y_test = y_raw_test.take().unwrap();
-
         println!("x_train shape is {:?}, y_train shape is {:?}, x_test shape is {:?}, y_test shape is {:?}", x_train.shape(), y_train.shape(), x_test.shape(), y_test.shape());
-
 
         TrainTestSplitData(x_train, y_train, n_train, x_test, y_test, n_test)
     }
 }
+
+/******************************/
+/***** Start of Type data *****/
+/******************************/
+
+
+/************************** Mnist *******************************/
+
+pub enum Mnist {
+    Regular,
+    Fashion,
+}
+
+impl Mnist {
+    pub fn token(&self) -> &str {
+        match self {
+            Mnist::Regular => "mnist",
+            Mnist::Fashion => "mnist-fashion",
+        }
+    }
+}
+
+
+/************************** IdxType *******************************/
+// Idx is the file format the mnist files are stored in
+
+// aggregate type (x_train, y_train, x_test, y_test)
+pub struct IdxType(SubsetType, SubsetType, SubsetType, SubsetType);
+
+impl IdxType {
+    pub fn new() -> Self {
+        IdxType(
+            SubsetType::Train(RawType::Images), SubsetType::Train(RawType::Labels), // train
+            SubsetType::Test(RawType::Images), SubsetType::Test(RawType::Labels) // test
+        )
+    }
+
+    fn fetch(&self, token: &str) -> (Raw, Raw, Raw, Raw) {
+        let x_raw = self.0.fetch(token);
+        let y_raw = self.1.fetch(token);
+        let x_test = self.2.fetch(token);
+        let y_test = self.3.fetch(token);
+        (x_raw, y_raw, x_test, y_test)
+    }
+}
+
+/************************** SubsetType *******************************/
 
 // define types via enums to aid in constructing actual data enums
 #[derive(Copy, Clone, PartialEq)]
@@ -56,19 +98,19 @@ enum SubsetType {
 }
 
 impl SubsetType {
-    fn path(&self) -> String {
+    fn path(&self, type_dir: &str) -> String {
         match self {
-            SubsetType::Train(ref r) => self.merge_path("train", r.filename()),
-            SubsetType::Test(ref r) => self.merge_path("t10k", r.filename()),
+            SubsetType::Train(ref r) => self.merge_path(type_dir, "train", r.filename()),
+            SubsetType::Test(ref r) => self.merge_path(type_dir, "t10k", r.filename()),
         }
     }
 
-    fn merge_path(&self, token: &str, suffix_path: &str) -> String {
-        format!("{}{}-{}", DATASET_DIR, token, suffix_path)
+    fn merge_path(&self, type_dir: &str, token: &str, suffix_path: &str) -> String {
+        format!("{}{}/{}-{}", DATASET_DIR, type_dir, token, suffix_path)
     }
 
-    fn fetch(&self) -> Raw {
-        let path = self.path();
+    fn fetch(&self, type_dir_name: &str) -> Raw {
+        let path = self.path(type_dir_name);
 
         let f = File::open(path).unwrap();
         let mut decoder = GzDecoder::new(f);
@@ -82,6 +124,8 @@ impl SubsetType {
     }
 }
 
+/************************** RawType *******************************/
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum RawType { Labels, Images }
 
@@ -94,22 +138,21 @@ impl RawType {
     }
 }
 
+/************************** Raw DATA types *******************************/
+
 enum Raw {
     Labels(RawLabels),
     Images(RawImages),
 }
 
 impl Raw {
-    const LABELS: u32 = 2049;
-    const IMAGES: u32 = 2051;
-
     fn new(buf: Vec<u8>) -> Self {
         // wrap cursor around the in-memory buffer, implementing the Read trait
         let mut cur = Cursor::new(buf);
 
         match cur.read_u32::<BigEndian>().unwrap() { // match on Idx Magic Number
-            Raw::LABELS => Raw::Labels(RawLabels::new(&mut cur)),
-            Raw::IMAGES => Raw::Images(RawImages::new(&mut cur)),
+            RawLabels::MAGIC => Raw::Labels(RawLabels::new(&mut cur)),
+            RawImages::MAGIC => Raw::Images(RawImages::new(&mut cur)),
             0_u32..=2048_u32 | 2050_u32 | 2052_u32..=u32::MAX => todo!(),
         }
     }
@@ -133,6 +176,8 @@ struct RawLabels(Option<Array2<f64>>, usize);
 struct RawImages(Option<Array2<f64>>, usize, usize, usize);
 
 impl RawLabels {
+    const MAGIC: u32 = 2049;
+
     fn new(cur: &mut Cursor<Vec<u8>>) -> Self {
         let n_labels = cur.read_u32::<BigEndian>().unwrap();
 
@@ -140,7 +185,7 @@ impl RawLabels {
         let mut buf: Vec<u8> = vec![];
         cur.read_to_end(&mut buf).unwrap();
 
-        let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64 / 255.0 as f64).collect();
+        let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64).collect();
         let data = Array2::from_shape_vec((n_labels as usize, 1), floats).unwrap(); // e.g. 10,000 x 1
         Self(Some(data), n_labels as usize)
     }
@@ -149,6 +194,8 @@ impl RawLabels {
 }
 
 impl RawImages {
+    const MAGIC: u32 = 2051;
+
     fn new(cur: &mut Cursor<Vec<u8>>) -> Self {
         let n_images = cur.read_u32::<BigEndian>().unwrap();
         let shape1 = cur.read_u32::<BigEndian>().unwrap(); // e.g. 28
@@ -167,4 +214,3 @@ impl RawImages {
 
     fn take(&mut self) -> Option<Array2<f64>> { self.0.take() }
 }
-

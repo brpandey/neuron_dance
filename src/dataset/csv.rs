@@ -1,20 +1,36 @@
-use csv::ReaderBuilder as CSV;
+use csv::ReaderBuilder as Builder;
 use ndarray::{Array2, Axis, s};
 use ndarray_csv::Array2Reader;
 use ndarray_rand::{RandomExt, SamplingStrategy};
 use ndarray_rand::rand::SeedableRng;
 use rand_isaac::isaac64::Isaac64Rng;
 
-use crate::dataset::{DataSet, TrainTestSplitData};
+use crate::dataset::{DATASET_DIR, DataSet, TrainTestSplitData};
 
 pub struct CSVData(Array2<f64>);
 
+pub enum CSV {
+    RGB,
+//    Custom(String),
+}
+
+impl CSV {
+    pub fn filename(&self) -> String {
+        match self {
+            CSV::RGB => format!("{}{}.csv", DATASET_DIR, "rgb"),
+//            CSV::Custom => 
+        }
+    }
+}
+
 impl CSVData {
-    pub fn new(path: &str) -> Self {
-        let mut reader = CSV::new()
+    pub fn new(ctype: CSV) -> Self {
+        let path = ctype.filename();
+
+        let mut reader = Builder::new()
             .has_headers(true)
             .from_path(path)
-            .expect("expect 1");
+            .expect("csv error");
 
         let data_array: Array2<f64> = reader
             .deserialize_array2_dynamic()
@@ -27,8 +43,9 @@ impl CSVData {
 impl DataSet for CSVData {
     fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData {
         let data = &self.0;
+
         let n_size = data.shape()[0]; // 1345
-        let n_features = data.shape()[1]; // 4 = 3 input features + 1 outcome / target
+        let n_features = data.shape()[1]; // 4, => 3 input features + 1 outcome / target
 
         let seed = 42; // for reproducibility
         let mut rng = Isaac64Rng::seed_from_u64(seed);
@@ -59,6 +76,10 @@ impl DataSet for CSVData {
             //        test_data.column(3).to_owned(),
         );
 
+        // n_features is 4
+        // x_train shape is [897, 3], y_train shape is [897, 1], x_test shape is [448, 3], y_test shape is [448, 1]
+
+        println!("x_train shape is {:?}, y_train shape is {:?}, x_test shape is {:?}, y_test shape is {:?}", x_train.shape(), y_train.shape(), x_test.shape(), y_test.shape());
         TrainTestSplitData(x_train, y_train, n1, x_test, y_test, n2)
     }
 }
