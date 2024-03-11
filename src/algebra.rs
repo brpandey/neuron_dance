@@ -22,7 +22,7 @@ impl Algebra for Array2<f64> {
 
         // Find the index of the current neuron with the highest activation
         for (i, &v) in self.iter().enumerate() {
-            if v > self[[0, max_acc_index]] { // compare value from first row (0) of 2d array by index
+            if v > self[[max_acc_index, 0]] { // compare value from first column (0) of 2d array by index
                 max_acc_index = i;
             }
         }

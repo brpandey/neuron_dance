@@ -1,21 +1,19 @@
 use std::iter::Iterator;
 use ndarray::{Array, Array2, ArrayView2, Axis};
-use ndarray_rand::RandomExt; // use ndarray_rand::rand_distr::StandardNormal;
-use rand::Rng;
-use rand::seq::SliceRandom;
-use rand::distributions::Uniform;
+use ndarray_rand::RandomExt;
+use rand::{Rng, seq::SliceRandom};
+use statrs::distribution::Normal;
 
 use crate::{activation::{Activation, MathFp}, algebra::Algebra}; // import local traits
 use crate::cache_computation::CacheComputation;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSplitRef;
 
-static SGD_EPOCHS: usize = 10000;
-static MINIBATCH_EPOCHS: usize = 30;
+static SGD_EPOCHS: usize = 20000;
+static MINIBATCH_EPOCHS: usize = 20;
 
 pub struct Network {
-    #[allow(dead_code)]
-    sizes: Vec<usize>,
+    output_size: usize,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
     activations: Vec<Box<dyn Activation>>,
@@ -39,15 +37,15 @@ impl Network {
             x = sizes[i-1];
             y = sizes[i];
 
-            b = Array::random((y, 1), Uniform::new(0., 1.)); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
-            w = Array::random((y, x), Uniform::new(0., 1.)); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
-                                                             // 1*3, w7, w8, w9
+            b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
+            w = Array::random((y, x), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
+
             weights.push(w);
             biases.push(b);
         }
 
         Network {
-            sizes,
+            output_size: sizes[size-1],
             weights,
             biases,
             activations,
@@ -61,7 +59,7 @@ impl Network {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
-        let mut cc = CacheComputation::new(&self.activations, &self.biases);
+        let mut cc = CacheComputation::new(&self.activations, &self.biases, self.output_size, 1);
 
         let (train, test) = (&test_train.0, &test_train.1);
 
@@ -80,7 +78,7 @@ impl Network {
 
     pub fn train_minibatch(&mut self, test_train: TrainTestSplitRef, batch_size: usize) {
         let (mut x_minibatch, mut y_minibatch);
-        let mut cc = CacheComputation::new(&self.activations, &self.biases);
+        let mut cc = CacheComputation::new(&self.activations, &self.biases, self.output_size, batch_size);
 
         let (train, test) = (&test_train.0, &test_train.1);
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
@@ -88,9 +86,9 @@ impl Network {
         for e in 0..MINIBATCH_EPOCHS {
             row_indices.shuffle(&mut rand::thread_rng());
 
-            for i in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
-                x_minibatch = train.x.select(Axis(0), &i);
-                y_minibatch = train.y.select(Axis(0), &i);
+            for c in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
+                x_minibatch = train.x.select(Axis(0), &c);
+                y_minibatch = train.y.select(Axis(0), &c);
 
                 // transpose to ensure proper matrix multi fit
                 self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
@@ -126,7 +124,7 @@ impl Network {
             a = z.activate(a_func); // non-linear, σ(z)
 
             acc = a;
-            opt.as_mut().map(|cc| cc.cache(z, &acc));
+            opt.as_mut().map(|cc| cc.store(z, &acc));
         }
 
         acc // return last computed activation values

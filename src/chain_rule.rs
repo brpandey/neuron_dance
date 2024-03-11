@@ -108,7 +108,7 @@ impl <'a> ChainRuleComputation<'a> {
 
 enum Layer {
     Output(OutputLayerTerms), // network's last layer of chain rule values
-    Hidden(HiddenLayerTerms) // network's intermediate layer of chain rule values
+    Hidden(HiddenLayerTerms), // network's intermediate layer of chain rule values
 }
 
 // Output layer terms

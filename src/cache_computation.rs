@@ -1,4 +1,5 @@
-use ndarray::Array2;
+use ndarray::{s, Array1, Array2};
+use std::collections::HashMap;
 use crate::activation::{Activation, MathFp};
 
 #[derive(Debug)]
@@ -8,10 +9,13 @@ pub struct CacheComputation {
     pub funcs: Vec<MathFp>, // activation functions
     pub shapes: Vec<(usize, usize)>, // bias shapes
     pub index: (usize, usize), // function, bias shape
+    pub one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors
+    pub output_size: usize,
+    pub batch_size: usize,
 }
 
 impl CacheComputation {
-    pub fn new(acts: &[Box<dyn Activation>], biases: &[Array2<f64>]) -> Self {
+    pub fn new(acts: &[Box<dyn Activation>], biases: &[Array2<f64>], output_size: usize, batch_size: usize) -> Self {
         // Create activation derivatives collection given activation trait objects
         let funcs: Vec<MathFp> =
             acts.iter().map(|a| { let (_, d) = a.pair(); d}).collect();
@@ -20,13 +24,36 @@ impl CacheComputation {
         let shapes: Vec<(usize, usize)> =
             biases.iter().map(|b| (b.shape()[0], b.shape()[1])).collect();
 
+        // Precompute one hot encoded vectors given output layer size
+        let one_hot = Self::precompute(output_size);
+
         CacheComputation {
             z_values: vec![],
             a_values: vec![],
             funcs,
             shapes,
             index: (0, 0),
+            one_hot,
+            output_size,
+            batch_size,
         }
+    }
+
+    fn precompute(size: usize) -> HashMap<usize, Array1<f64>> {
+        let mut map = HashMap::new();
+        let mut zeros;
+
+        for i in 0..size {
+            zeros = Array1::zeros(size);
+            zeros[i] = 1.;
+            map.insert(i, zeros);
+        }
+
+        map
+    }
+
+    fn one_hot_encode(&self, index: usize) -> Option<&Array1<f64>> {
+        self.one_hot.get(&index)
     }
 
     // Reset values
@@ -35,7 +62,7 @@ impl CacheComputation {
         self.index = (self.funcs.len() - 1, self.shapes.len() - 1);
     }
 
-    pub fn cache(&mut self, z: Array2<f64>, a: &Array2<f64>) {
+    pub fn store(&mut self, z: Array2<f64>, a: &Array2<f64>) {
         self.z_values.push(z);
         self.a_values.push(a.to_owned());
     }
@@ -53,7 +80,29 @@ impl CacheComputation {
     /// Assuming cost is (a - y)^2
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
         let last_a: Array2<f64> = self.last_a().unwrap();
-        2.0*(&last_a - &y.t())
+
+        if self.output_size > 1 {
+            // Normalized labels is a matrix that accounts for output size and mini batch size
+            let mut normalized_labels: Array2<f64> =
+                Array2::zeros((self.output_size, self.batch_size));
+
+            // map y to normalized_labels by:
+
+            // expanding each label value into a one hot encoded value - store result in normalized labels
+            // perform for each label in batch
+
+            // e.g. where y is 10 x 1 or 10 x 32
+            for i in 0..self.batch_size {
+                let label = y[[i, 0]] as usize;
+                let encoded_label = self.one_hot_encode(label).unwrap();
+                normalized_labels.slice_mut(s![.., i]).assign(encoded_label);
+            }
+
+            2.0*(&last_a - &normalized_labels)
+        } else {
+            // e.g. 1 x 1 or 1 x 32
+            2.0*(&last_a - &y.t())
+        }
     }
 
     #[inline]
