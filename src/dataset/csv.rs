@@ -7,42 +7,51 @@ use rand_isaac::isaac64::Isaac64Rng;
 
 use crate::dataset::{DATASET_DIR, DataSet, TrainTestSplitData};
 
-pub struct CSVData(Array2<f64>);
+pub type CSVBox = Box<Array2<f64>>;
 
-pub enum CSV {
+pub struct CSVData(CSVType, Option<CSVBox>);
+
+pub enum CSVType {
     RGB,
 //    Custom(String),
 }
 
-impl CSV {
+impl CSVType {
     pub fn filename(&self) -> String {
         match self {
-            CSV::RGB => format!("{}{}.csv", DATASET_DIR, "rgb"),
-//            CSV::Custom => 
+            CSVType::RGB => format!("{}{}.csv", DATASET_DIR, "rgb"),
+//            CSVType::Custom => 
         }
     }
 }
 
 impl CSVData {
-    pub fn new(ctype: CSV) -> Self {
-        let path = ctype.filename();
+    pub fn new(ctype: CSVType) -> Self {
+        CSVData(ctype, None)
+    }
+}
 
+impl DataSet for CSVData {
+    fn fetch(&mut self, token: &str) {
         let mut reader = Builder::new()
             .has_headers(true)
-            .from_path(path)
+            .from_path(token)
             .expect("csv error");
 
         let data_array: Array2<f64> = reader
             .deserialize_array2_dynamic()
             .expect("can deserialize array");
 
-        CSVData(data_array)
+        self.1 = Some(Box::new(data_array))
     }
-}
 
-impl DataSet for CSVData {
-    fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData {
-        let data = &self.0;
+
+    fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSplitData {
+        if self.1.is_none() {
+            self.fetch(&self.0.filename());
+        }
+
+        let data = self.1.as_mut().unwrap();
 
         let n_size = data.shape()[0]; // 1345
         let n_features = data.shape()[1]; // 4, => 3 input features + 1 outcome / target

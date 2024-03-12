@@ -5,7 +5,8 @@ pub mod csv;
 pub mod idx;
 
 pub trait DataSet  {
-    fn train_test_split(&self, split_ratio: f32) -> TrainTestSplitData;
+    fn fetch(&mut self, token: &str);
+    fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSplitData;
 }
 
 //                           x_train    y_train        # train  x_test        y_test     # test

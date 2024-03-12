@@ -1,8 +1,8 @@
 use simple_network::{
     network::Network,
     activation::Activation,
-    dataset::{DataSet, csv::{CSV, CSVData},
-              idx::{Mnist, MnistData}},
+    dataset::{DataSet, csv::{CSVType, CSVData},
+              idx::{MnistType, MnistData}},
 };
 
 fn main() {
@@ -10,12 +10,12 @@ fn main() {
     let csv = false;
     let train_size = 2.0/3.0;     // train / total ratio, test = total - train
 
-    let dataset: Box<dyn DataSet>;
+    let mut dataset: Box<dyn DataSet>;
 
     if csv {
-        dataset = Box::new(CSVData::new(CSV::RGB));
+        dataset = Box::new(CSVData::new(CSVType::RGB));
     } else {
-        dataset = Box::new(MnistData::new(Mnist::Regular));
+        dataset = Box::new(MnistData::new(MnistType::Regular));
     }
 
     tts_data = dataset.train_test_split(train_size);
