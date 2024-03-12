@@ -1,14 +1,12 @@
 use csv::ReaderBuilder as Builder;
 use ndarray::{Array2, Axis, s};
 use ndarray_csv::Array2Reader;
-use ndarray_rand::{RandomExt, SamplingStrategy};
-use ndarray_rand::rand::SeedableRng;
+use ndarray_rand::{RandomExt, SamplingStrategy, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 
 use crate::dataset::{DATASET_DIR, DataSet, TrainTestSplitData};
 
 pub type CSVBox = Box<Array2<f64>>;
-
 pub struct CSVData(CSVType, Option<CSVBox>);
 
 pub enum CSVType {
@@ -89,6 +87,6 @@ impl DataSet for CSVData {
         // x_train shape is [897, 3], y_train shape is [897, 1], x_test shape is [448, 3], y_test shape is [448, 1]
 
         println!("x_train shape is {:?}, y_train shape is {:?}, x_test shape is {:?}, y_test shape is {:?}", x_train.shape(), y_train.shape(), x_test.shape(), y_test.shape());
-        TrainTestSplitData(x_train, y_train, n1, x_test, y_test, n2)
+        TrainTestSplitData((x_train, y_train, n1, x_test, y_test, n2))
     }
 }

@@ -4,12 +4,10 @@ use ndarray::Array2;
 use std::fs::File;
 use std::io::{Cursor, Read};
 
-use crate::dataset::DATASET_DIR;
-use crate::dataset::{DataSet, TrainTestSplitData};
+use crate::dataset::{DATASET_DIR, DataSet, TrainTestTuple, TrainTestSplitData};
 
 // MnistData
-
-type Subsets = (SubsetType, SubsetType, SubsetType, SubsetType);
+type Subsets = (Subset, Subset, Subset, Subset);
 type RawQuad = (Raw, Raw, Raw, Raw); // (x_train, y_train, x_test, y_test)
 
 pub struct MnistData(MnistType, Subsets, Option<Box<RawQuad>>);
@@ -17,52 +15,52 @@ pub struct MnistData(MnistType, Subsets, Option<Box<RawQuad>>);
 impl MnistData {
     pub fn new(mtype: MnistType) -> Self {
         let subsets = (
-            SubsetType::Train(RawType::Images), SubsetType::Train(RawType::Labels), // train
-            SubsetType::Test(RawType::Images), SubsetType::Test(RawType::Labels) // test
+            Subset::Train(Raw::Images(None)), Subset::Train(Raw::Labels(None)), // train
+            Subset::Test(Raw::Images(None)), Subset::Test(Raw::Labels(None)) // test
         );
 
         MnistData(mtype, subsets, None)
     }
-}
 
-impl DataSet for MnistData {
-    fn fetch(&mut self, token: &str) {
-        let x_raw = self.1.0.fetch(token);
-        let y_raw = self.1.1.fetch(token);
-        let x_test = self.1.2.fetch(token);
-        let y_test = self.1.3.fetch(token);
-        self.2 = Some(Box::new((x_raw, y_raw, x_test, y_test)))
-    }
+    pub fn destructure(&mut self) -> TrainTestTuple {
+        let q = self.2.as_mut().unwrap(); // Grab option as_mut, get raw quads
 
-    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSplitData {
-        if self.2.is_none() {
-            let token = self.0.token();
-            self.fetch(&token);
-        }
+        let (n_train, n_test) = (q.0.size(), q.2.size());
 
-        // Extract data from boxed raws
-        let boxed_raws = self.2.as_mut().unwrap();
-
-        let x_train = boxed_raws.0.take().unwrap();
-        let y_train = boxed_raws.1.take().unwrap();
-        let x_test = boxed_raws.2.take().unwrap();
-        let y_test = boxed_raws.3.take().unwrap();
-
-        let n_train = boxed_raws.0.size();
-        let n_test = boxed_raws.2.size();
+        let ttt = // train test tuple
+            (q.0.take().unwrap(), q.1.take().unwrap(), n_train,
+             q.2.take().unwrap(), q.3.take().unwrap(), n_test);
 
         self.2 = None;
 
-        println!("x_train shape is {:?}, y_train shape is {:?}, x_test shape is {:?}, y_test shape is {:?}",
-                 x_train.shape(), y_train.shape(), x_test.shape(), y_test.shape());
+        ttt
+    }
+}
 
-        TrainTestSplitData(x_train, y_train, n_train, x_test, y_test, n_test)
+impl DataSet for MnistData {
+    fn fetch(&mut self, t: &str) {
+        // only fetch if data not resident already
+        if self.2.is_none() {
+            let x = self.1.0.fetch(t);
+            let y = self.1.1.fetch(t);
+            let x_test = self.1.2.fetch(t);
+            let y_test = self.1.3.fetch(t);
+
+            self.2 = Some(Box::new((x, y, x_test, y_test)));
+        }
+    }
+
+    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSplitData {
+        self.fetch(&self.0.token());
+
+        // Extract data from boxed raws
+        let tts = TrainTestSplitData(self.destructure());
+        println!("Train test split shapes are {}", &tts);
+        tts
     }
 }
 
 /*****************************************************************/
-
-// Start of Type Data
 
 // 1 MnistType
 
@@ -80,21 +78,18 @@ impl MnistType {
     }
 }
 
+// 2 Subset
 
-// 2 SubsetType
-
-// define types via enums to aid in constructing actual data enums
-#[derive(Copy, Clone, PartialEq)]
-enum SubsetType {
-    Train(RawType),
-    Test(RawType),
+enum Subset {
+    Train(Raw),
+    Test(Raw),
 }
 
-impl SubsetType {
+impl Subset {
     fn path(&self, type_dir: &str) -> String {
         match self {
-            SubsetType::Train(ref r) => self.merge_path(type_dir, "train", r.filename()),
-            SubsetType::Test(ref r) => self.merge_path(type_dir, "t10k", r.filename()),
+            Subset::Train(ref r) => self.merge_path(type_dir, "train", r.filename()),
+            Subset::Test(ref r) => self.merge_path(type_dir, "t10k", r.filename()),
         }
     }
 
@@ -109,41 +104,28 @@ impl SubsetType {
         let mut decoder = GzDecoder::new(f);
 
         // decode entire gzip file into buf
-        let mut buf: Vec<u8> = vec![];
-        decoder.read_to_end(&mut buf).unwrap();
+        let mut decoded_buf: Vec<u8> = vec![];
+        decoder.read_to_end(&mut decoded_buf).unwrap();
 
         // Create content from decoded file
-        Raw::new(buf)
+        Raw::new(decoded_buf)
     }
 }
 
-// 3 RawType
 
-#[derive(Copy, Clone, PartialEq)]
-enum RawType { Labels, Images }
-
-impl RawType {
-    fn filename(&self) -> &str {
-        match self {
-            RawType::Images  => "images-idx3-ubyte.gz",
-            RawType::Labels  => "labels-idx1-ubyte.gz",
-        }
-    }
-}
-
-/************************** Raw Data Types *******************************/
+// 3 Raw Data Types
 
 pub enum Raw {
-    Labels(RawLabels),
-    Images(RawImages),
+    Labels(Option<RawLabels>),
+    Images(Option<RawImages>),
 }
 
 impl Raw {
     const IDX_MAGIC_BYTES_LEN: usize = 4;
 
-    fn new(buf: Vec<u8>) -> Self {
+    fn new(decoded_buf: Vec<u8>) -> Self {
         // wrap the in-memory buffer with Cursor, which implements the Read trait
-        let mut cur = Cursor::new(buf);
+        let mut cur = Cursor::new(decoded_buf);
         let mut idx_magic_buf = [0u8; Self::IDX_MAGIC_BYTES_LEN];
         cur.read_exact(&mut idx_magic_buf).unwrap();
 
@@ -151,23 +133,33 @@ impl Raw {
         let magic = u32::from_be_bytes(idx_magic_buf); // reconstitute back into (unsigned) 4 byte integer
 
         match magic {
-            RawLabels::MAGIC => Raw::Labels(RawLabels::new(&mut cur, num_dim)),
-            RawImages::MAGIC => Raw::Images(RawImages::new(&mut cur, num_dim)),
+            RawLabels::MAGIC => Raw::Labels(Some(RawLabels::new(&mut cur, num_dim))),
+            RawImages::MAGIC => Raw::Images(Some(RawImages::new(&mut cur, num_dim))),
             0_u32..=2048_u32 | 2050_u32 | 2052_u32..=u32::MAX => todo!(),
+        }
+    }
+
+    fn filename(&self) -> &str {
+        match self {
+            Raw::Labels(_) => "labels-idx1-ubyte.gz",
+            Raw::Images(_) => "images-idx3-ubyte.gz",
         }
     }
 
     fn take(&mut self) -> Option<Array2<f64>> {
         match self {
-            Raw::Labels(r) => r.take(),
-            Raw::Images(r) => r.take(),
+            Raw::Labels(Some(ref mut r)) => r.take(),
+            Raw::Images(Some(ref mut r)) => r.take(),
+            _ => None,
         }
     }
 
+
     fn size(&self) -> usize {
         match self {
-            Raw::Labels(r) => r.1,
-            Raw::Images(r) => r.1,
+            Raw::Labels(Some(ref r)) => r.1,  // access size field for RawLabels
+            Raw::Images(Some(ref r)) => r.1, // access size field for RawImages
+            _ => 0,
         }
     }
 }
@@ -181,7 +173,7 @@ impl RawLabels {
     fn new(cur: &mut Cursor<Vec<u8>>, _ndim: usize) -> Self {
         let n_labels = cur.read_u32::<BigEndian>().unwrap();
 
-        // read data into buf after metadata is read
+        // read data into buffer after metadata is read
         let mut buf: Vec<u8> = vec![];
         cur.read_to_end(&mut buf).unwrap();
 
@@ -199,7 +191,8 @@ impl RawImages {
     fn new(cur: &mut Cursor<Vec<u8>>, ndim: usize) -> Self {
         // extract sizes info given magic number metadata info about num dimensions
         let sizes = (0..ndim).into_iter().fold(Vec::with_capacity(ndim), |mut acc, _| {
-            acc.push(cur.read_u32::<BigEndian>().unwrap() as usize); acc
+            let size = cur.read_u32::<BigEndian>().unwrap() as usize;
+            acc.push(size); acc
         });
 
         let (n_images, shape1, shape2) = (sizes[0], sizes[1], sizes[2]);
