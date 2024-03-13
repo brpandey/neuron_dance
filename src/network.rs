@@ -9,6 +9,8 @@ use crate::cache_computation::CacheComputation;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSplitRef;
 
+extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
+
 static SGD_EPOCHS: usize = 20000;
 static MINIBATCH_EPOCHS: usize = 20;
 
