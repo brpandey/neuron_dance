@@ -24,14 +24,13 @@ impl MnistData {
 
     pub fn destructure(&mut self) -> TrainTestTuple {
         let q = self.2.as_mut().unwrap(); // Grab option as_mut, get raw quads
-
         let (n_train, n_test) = (q.0.size(), q.2.size());
 
         let ttt = // train test tuple
             (q.0.take().unwrap(), q.1.take().unwrap(), n_train,
              q.2.take().unwrap(), q.3.take().unwrap(), n_test);
 
-        self.2 = None;
+        self.2 = None; // after takes, set field to None denoting must fetch again
 
         ttt
     }
@@ -41,11 +40,8 @@ impl DataSet for MnistData {
     fn fetch(&mut self, t: &str) {
         // only fetch if data not resident already
         if self.2.is_none() {
-            let x = self.1.0.fetch(t);
-            let y = self.1.1.fetch(t);
-            let x_test = self.1.2.fetch(t);
-            let y_test = self.1.3.fetch(t);
-
+            let (x, y) = (self.1.0.fetch(t), self.1.1.fetch(t));
+            let (x_test, y_test) = (self.1.2.fetch(t), self.1.3.fetch(t));
             self.2 = Some(Box::new((x, y, x_test, y_test)));
         }
     }
@@ -112,7 +108,6 @@ impl Subset {
     }
 }
 
-
 // 3 Raw Data Types
 
 pub enum Raw {
@@ -148,8 +143,8 @@ impl Raw {
 
     fn take(&mut self) -> Option<Array2<f64>> {
         match self {
-            Raw::Labels(Some(ref mut r)) => r.take(),
-            Raw::Images(Some(ref mut r)) => r.take(),
+            Raw::Labels(Some(ref mut r)) => r.0.take(),
+            Raw::Images(Some(ref mut r)) => r.0.take(),
             _ => None,
         }
     }
@@ -165,7 +160,6 @@ impl Raw {
 }
 
 pub struct RawLabels(Option<Array2<f64>>, usize);
-pub struct RawImages(Option<Array2<f64>>, usize, usize, usize);
 
 impl RawLabels {
     const MAGIC: u32 = 2049;
@@ -181,9 +175,9 @@ impl RawLabels {
         let data = Array2::from_shape_vec((n_labels as usize, 1), floats).unwrap(); // e.g. 10,000 x 1
         Self(Some(data), n_labels as usize)
     }
-
-    fn take(&mut self) -> Option<Array2<f64>> { self.0.take() }
 }
+
+pub struct RawImages(Option<Array2<f64>>, usize, usize, usize);
 
 impl RawImages {
     const MAGIC: u32 = 2051;
@@ -206,6 +200,4 @@ impl RawImages {
         let data = Array2::from_shape_vec((n_images, flattened_shape), floats).unwrap(); // e.g. 10,000 x 784
         Self(Some(data), n_images, shape1, shape2)
     }
-
-    fn take(&mut self) -> Option<Array2<f64>> { self.0.take() }
 }
