@@ -4,10 +4,11 @@ use ndarray_rand::RandomExt;
 use rand::{Rng, seq::SliceRandom};
 use statrs::distribution::Normal;
 
-use crate::{activation::{Activation, MathFp}, algebra::Algebra}; // import local traits
+use crate::{activation::MathFp, algebra::Algebra}; // import local traits
 use crate::cache_computation::CacheComputation;
 use crate::chain_rule::ChainRuleComputation;
-use crate::dataset::TrainTestSplitRef;
+use crate::dataset::TrainTestSubsetRef;
+use crate::layers::{Layer, LayersGroup, LayerReduce};
 
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
@@ -18,24 +19,38 @@ pub struct Network {
     output_size: usize,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
-    activations: Vec<Box<dyn Activation>>,
-    forward: Vec<MathFp>, // forward activation functions
+    forward: Vec<MathFp>, // forward propagation, activation functions
+    backward: Vec<MathFp>, // backward propagation, activation derivatives
     learning_rate: f64,
+    layers: LayersGroup,
     total_layers: usize,
 }
 
 impl Network {
-    pub fn new(sizes: Vec<usize>, activations: Vec<Box<dyn Activation>>, learning_rate: f64) -> Self {
+    pub fn new() -> Self { Self::empty() }
+
+    fn empty() -> Self {
+        Network {
+            output_size: 0, weights: vec![], biases: vec![],
+            forward: vec![], backward: vec![], learning_rate: 0.0,
+            layers: LayersGroup::new(), total_layers: 0,
+        }
+    }
+
+    pub fn add<L: Layer<Output = LayerReduce> + 'static>(&mut self, layer: L) {
+        self.layers.add(layer);
+    }
+
+    //     "quadratic_cost", "adam", 0.2, "loss, accuracy";
+    pub fn compile(&mut self, learning_rate: f64) { 
+        let (sizes, forward, backward) = self.layers.reduce();
+        let total_layers = self.layers.len();
+
         let (mut weights, mut biases) : (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
-        let size = sizes.len();
 
-        // Create activation function collection given activation trait objects
-        let forward: Vec<MathFp> =
-            activations.iter().map(|a| { let (c, _) = a.pair(); c}).collect();
-
-        for i in 1..size {
+        for i in 1..total_layers {
             x = sizes[i-1];
             y = sizes[i];
 
@@ -46,24 +61,22 @@ impl Network {
             biases.push(b);
         }
 
-        Network {
-            output_size: sizes[size-1],
-            weights,
-            biases,
-            activations,
-            forward,
-            learning_rate,
-            total_layers: size,
-        }
+        self.output_size = sizes[total_layers-1];
+        self.weights = weights;
+        self.biases = biases;
+        self.forward = forward;
+        self.backward = backward;
+        self.learning_rate = learning_rate;
+        self.total_layers = total_layers;
     }
 
-    pub fn train_sgd(&mut self, test_train: TrainTestSplitRef) {
+    pub fn train_sgd(&mut self, subsets: TrainTestSubsetRef) {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
-        let mut cc = CacheComputation::new(&self.activations, &self.biases, self.output_size, 1);
+        let mut cc = CacheComputation::new(&self.backward, &self.biases, self.output_size, 1);
 
-        let (train, test) = (&test_train.0, &test_train.1);
+        let (train, test) = (&subsets.0, &subsets.1);
 
         for _ in 0..SGD_EPOCHS { // train and update network based on single observation sample
             rng = rand::thread_rng();
@@ -78,11 +91,11 @@ impl Network {
         println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, SGD_EPOCHS);
     }
 
-    pub fn train_minibatch(&mut self, test_train: TrainTestSplitRef, batch_size: usize) {
+    pub fn train_minibatch(&mut self, subsets: TrainTestSubsetRef, batch_size: usize) {
         let (mut x_minibatch, mut y_minibatch);
-        let mut cc = CacheComputation::new(&self.activations, &self.biases, self.output_size, batch_size);
+        let mut cc = CacheComputation::new(&self.backward, &self.biases, self.output_size, batch_size);
 
-        let (train, test) = (&test_train.0, &test_train.1);
+        let (train, test) = (&subsets.0, &subsets.1);
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
 
         for e in 0..MINIBATCH_EPOCHS {

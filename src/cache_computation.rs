@@ -1,39 +1,44 @@
 use ndarray::{s, Array1, Array2};
 use std::collections::HashMap;
-use crate::activation::{Activation, MathFp};
+use crate::activation::MathFp;
+
+#[derive(Debug)]
+pub enum Classification {
+    Binary,
+    MultiClass,
+}
 
 #[derive(Debug)]
 pub struct CacheComputation {
     pub z_values: Vec<Array2<f64>>, // linear values
     pub a_values: Vec<Array2<f64>>, // non-linear activation values
-    pub funcs: Vec<MathFp>, // activation functions
+    pub funcs: Vec<MathFp>, // activation derivative functions
     pub shapes: Vec<(usize, usize)>, // bias shapes
     pub index: (usize, usize), // function, bias shape
     pub one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors
+    pub classification: Classification,
     pub output_size: usize,
     pub batch_size: usize,
 }
 
 impl CacheComputation {
-    pub fn new(acts: &[Box<dyn Activation>], biases: &[Array2<f64>], output_size: usize, batch_size: usize) -> Self {
-        // Create activation derivatives collection given activation trait objects
-        let funcs: Vec<MathFp> =
-            acts.iter().map(|a| { let (_, d) = a.pair(); d}).collect();
-
+    pub fn new(backward: &Vec<MathFp>, biases: &[Array2<f64>], output_size: usize, batch_size: usize) -> Self {
         // Compute bias shapes
         let shapes: Vec<(usize, usize)> =
             biases.iter().map(|b| (b.shape()[0], b.shape()[1])).collect();
 
         // Precompute one hot encoded vectors given output layer size
         let one_hot = Self::precompute(output_size);
+        let classification = if output_size > 1 {Classification::MultiClass} else {Classification::Binary};
 
         CacheComputation {
             z_values: vec![],
             a_values: vec![],
-            funcs,
+            funcs: backward.clone(), // clone activation derivative functions (back prop)
             shapes,
             index: (0, 0),
             one_hot,
+            classification,
             output_size,
             batch_size,
         }
@@ -81,12 +86,13 @@ impl CacheComputation {
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
         let last_a: Array2<f64> = self.last_a().unwrap();
 
-        if self.output_size > 1 {
-            // Normalized labels is a matrix that accounts for output size and mini batch size
-            let mut normalized_labels: Array2<f64> =
+        if let Classification::MultiClass = self.classification {
+            // Output labels is a matrix that accounts for output size and mini batch size
+
+            let mut output_labels: Array2<f64> =
                 Array2::zeros((self.output_size, self.batch_size));
 
-            // map y to normalized_labels by:
+            // map y to output_labels by:
 
             // expanding each label value into a one hot encoded value - store result in normalized labels
             // perform for each label in batch
@@ -95,13 +101,13 @@ impl CacheComputation {
             for i in 0..self.batch_size {
                 let label = y[[i, 0]] as usize;
                 let encoded_label = self.one_hot_encode(label).unwrap();
-                normalized_labels.slice_mut(s![.., i]).assign(encoded_label);
+                output_labels.slice_mut(s![.., i]).assign(encoded_label);
             }
 
-            2.0*(&last_a - &normalized_labels)
+            &last_a - &output_labels
         } else {
             // e.g. 1 x 1 or 1 x 32
-            2.0*(&last_a - &y.t())
+            &last_a - &y.t()
         }
     }
 
