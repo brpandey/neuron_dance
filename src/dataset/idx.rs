@@ -4,7 +4,7 @@ use ndarray::Array2;
 use std::fs::File;
 use std::io::{Cursor, Read};
 
-use crate::dataset::{DATASET_DIR, DataSet, TrainTestTuple, TrainTestSplitData};
+use crate::dataset::{DATASET_DIR, DataSet, TrainTestTuple, TrainTestSubsetData};
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
@@ -46,12 +46,12 @@ impl DataSet for MnistData {
         }
     }
 
-    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSplitData {
+    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
         self.fetch(&self.0.token());
 
         // Extract data from boxed raws
-        let tts = TrainTestSplitData(self.destructure());
-        println!("Train test split shapes are {}", &tts);
+        let tts = TrainTestSubsetData(self.destructure());
+        println!("Train test subset shapes are {}", &tts);
         tts
     }
 }

@@ -4,7 +4,7 @@ use ndarray_csv::Array2Reader;
 use ndarray_rand::{RandomExt, SamplingStrategy, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 
-use crate::dataset::{DATASET_DIR, DataSet, TrainTestSplitData};
+use crate::dataset::{DATASET_DIR, DataSet, TrainTestSubsetData};
 
 pub type CSVBox = Box<Array2<f64>>;
 pub struct CSVData(CSVType, Option<CSVBox>);
@@ -44,7 +44,7 @@ impl DataSet for CSVData {
     }
 
 
-    fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSplitData {
+    fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData {
         if self.1.is_none() {
             self.fetch(&self.0.filename());
         }
@@ -85,8 +85,8 @@ impl DataSet for CSVData {
 
         // For example: n_features is 4
         // x_train shape is [897, 3], y_train shape is [897, 1], x_test shape is [448, 3], y_test shape is [448, 1]
-        let tts = TrainTestSplitData((x_train, y_train, n1, x_test, y_test, n2));
-        println!("Train test split shapes are {}", &tts);
+        let tts = TrainTestSubsetData((x_train, y_train, n1, x_test, y_test, n2));
+        println!("Train test subset shapes are {}", &tts);
         tts
     }
 }
