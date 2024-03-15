@@ -29,7 +29,7 @@ fn main() {
         model.add(Dense(1, "sigmoid".to_string()));
     } else {
         model = Network::new();
-        model.add(Input2((28, 28)));
+        model.add(Input2(28, 28));
         model.add(Dense(50, "sigmoid".to_string()));
         model.add(Dense(10, "sigmoid".to_string()));
     }

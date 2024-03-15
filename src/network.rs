@@ -8,7 +8,7 @@ use crate::{activation::MathFp, algebra::Algebra}; // import local traits
 use crate::cache_computation::CacheComputation;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
-use crate::layers::{Layer, LayersGroup, LayerReduce};
+use crate::layers::{Layer, LayerStack, LayerTerms};
 
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
@@ -22,7 +22,7 @@ pub struct Network {
     forward: Vec<MathFp>, // forward propagation, activation functions
     backward: Vec<MathFp>, // backward propagation, activation derivatives
     learning_rate: f64,
-    layers: LayersGroup,
+    layers: Option<LayerStack>,
     total_layers: usize,
 }
 
@@ -33,18 +33,18 @@ impl Network {
         Network {
             output_size: 0, weights: vec![], biases: vec![],
             forward: vec![], backward: vec![], learning_rate: 0.0,
-            layers: LayersGroup::new(), total_layers: 0,
+            layers: Some(LayerStack::new()), total_layers: 0,
         }
     }
 
-    pub fn add<L: Layer<Output = LayerReduce> + 'static>(&mut self, layer: L) {
-        self.layers.add(layer);
+    pub fn add<L: Layer<Output = LayerTerms> + 'static>(&mut self, layer: L) {
+        self.layers.as_mut().unwrap().add(layer);
     }
 
     //     "quadratic_cost", "adam", 0.2, "loss, accuracy";
     pub fn compile(&mut self, learning_rate: f64) { 
-        let (sizes, forward, backward) = self.layers.reduce();
-        let total_layers = self.layers.len();
+        let (sizes, forward, backward) = self.layers.as_mut().unwrap().reduce();
+        let total_layers = self.layers.as_ref().unwrap().len();
 
         let (mut weights, mut biases) : (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
@@ -61,13 +61,19 @@ impl Network {
             biases.push(b);
         }
 
-        self.output_size = sizes[total_layers-1];
-        self.weights = weights;
-        self.biases = biases;
-        self.forward = forward;
-        self.backward = backward;
-        self.learning_rate = learning_rate;
-        self.total_layers = total_layers;
+        // replace empty network with new initialized network
+        let n = Network {
+            output_size: sizes[total_layers-1],
+            weights,
+            biases,
+            forward,
+            backward,
+            learning_rate,
+            layers: self.layers.take(),
+            total_layers,
+        };
+
+        let _ = std::mem::replace(self, n);
     }
 
     pub fn train_sgd(&mut self, subsets: TrainTestSubsetRef) {
