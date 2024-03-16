@@ -1,3 +1,5 @@
+extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
+
 use std::iter::Iterator;
 use ndarray::{Array, Array2, ArrayView2, Axis};
 use ndarray_rand::RandomExt;
@@ -9,8 +11,6 @@ use crate::cache_computation::CacheComputation;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
-
-extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
 static SGD_EPOCHS: usize = 20000;
 static MINIBATCH_EPOCHS: usize = 20;
@@ -41,12 +41,11 @@ impl Network {
         self.layers.as_mut().unwrap().add(layer);
     }
 
-    //     "quadratic_cost", "adam", 0.2, "loss, accuracy";
-    pub fn compile(&mut self, learning_rate: f64) { 
+    pub fn compile(&mut self, learning_rate: f64) { // "quadratic_cost", "adam", 0.2, "loss, accuracy";
         let (sizes, forward, backward) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
 
-        let (mut weights, mut biases) : (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
+        let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
 
@@ -61,19 +60,14 @@ impl Network {
             biases.push(b);
         }
 
-        // replace empty network with new initialized network
+        // initialize network properly
         let n = Network {
-            output_size: sizes[total_layers-1],
-            weights,
-            biases,
-            forward,
-            backward,
-            learning_rate,
-            layers: self.layers.take(),
-            total_layers,
+            output_size: sizes[total_layers-1], weights, biases,
+            forward, backward, learning_rate,
+            layers: self.layers.take(), total_layers,
         };
 
-        let _ = std::mem::replace(self, n);
+        let _ = std::mem::replace(self, n); // replace empty network with new initialized network
     }
 
     pub fn train_sgd(&mut self, subsets: TrainTestSubsetRef) {

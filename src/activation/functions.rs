@@ -4,9 +4,10 @@ pub mod relu;
 pub mod sigmoid;
 // End Finish (1)
 
+use std::convert::From;
 use std::str::FromStr;
 use std::fmt;
-use crate::activation::{Activation, functions::
+use crate::activation::{Act, Activation, functions::
                         {relu::Relu, sigmoid::Sigmoid}}; // Update (2)
 
 pub trait Function {
@@ -33,6 +34,18 @@ impl FromStr for Box<dyn Activation> {
             "relu" => Ok(Box::new(Relu)),
             "sigmoid" => Ok(Box::new(Sigmoid)),
             _ => Err(ActivationParseError),
+        }
+        // End Finish (3)
+    }
+}
+
+impl From<Act> for Box<dyn Activation> {
+    fn from(activation_type: Act) -> Self {
+        // Add new activation type here - Start (3)
+        match activation_type {
+            Act::Relu => Box::new(Relu),
+            Act::Sigmoid => Box::new(Sigmoid),
+//            _ => Err(ActivationParseError),
         }
         // End Finish (3)
     }

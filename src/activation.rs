@@ -16,3 +16,9 @@ impl<T: Function + Debug + Clone + 'static> Activation for T {
         (<T as Function>::compute, <T as Function>::derivative)
     }
 }
+
+#[derive(Copy, Clone)]
+pub enum Act {
+    Relu,
+    Sigmoid,
+}

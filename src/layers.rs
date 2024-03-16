@@ -1,16 +1,16 @@
 use either::*;
 use std::ops::RangeBounds;
+use std::convert::Into;
 
-use crate::activation::{Activation, MathFp};
+use crate::activation::{Act, Activation, MathFp};
 
 // Make fields public for layers literal construction
 pub struct Input1(pub usize);
 pub struct Input2(pub usize, pub usize);
-pub struct Dense(pub usize, pub String);
+pub struct Dense(pub usize, pub Act);
 
 pub trait Layer {
     type Output;
-
     fn reduce(&self) -> Self::Output;
 }
 
@@ -64,7 +64,7 @@ impl Layer for Dense {
 
     fn reduce(&self) -> Self::Output {
         let size = self.0;
-        let act: Box<dyn Activation> = self.1.as_str().parse().unwrap();
+        let act: Box<dyn Activation> = self.1.into();
         LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act)
     }
 }
