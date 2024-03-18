@@ -8,8 +8,43 @@ pub enum Classification {
     MultiClass,
 }
 
+pub enum TT { // TermType
+    Linear,
+    Nonlinear,
+    ActivationDerivative,
+    BiasShape,
+}
+
+pub enum Term<'a> {
+    Linear(Option<Array2<f64>>),
+    Nonlinear(Option<Array2<f64>>),
+    ActivationDerivative(&'a MathFp),
+    BiasShape(usize, usize),
+}
+
+impl<'a> Term<'a> {
+    pub fn array(self) -> Array2<f64> {
+        match self {
+            Term::Linear(Some(array2)) => array2,
+            Term::Nonlinear(Some(array2)) => array2,
+            _ => panic!("mismatch types, or no value found"),
+        }
+    }
+
+    pub fn shape(self) -> (usize, usize) {
+        if let Term::BiasShape(x, y) = self { (x, y)}
+        else { (0,0) }
+    }
+
+    pub fn fp(self) -> &'a MathFp {
+        if let Term::ActivationDerivative(fp) = self { fp }
+        else { panic!("mismatched term types") }
+    }
+}
+
+
 #[derive(Debug)]
-pub struct CacheComputation {
+pub struct TermCache {
     pub z_values: Vec<Array2<f64>>, // linear values
     pub a_values: Vec<Array2<f64>>, // non-linear activation values
     pub funcs: Vec<MathFp>, // activation derivative functions
@@ -21,7 +56,7 @@ pub struct CacheComputation {
     pub batch_size: usize,
 }
 
-impl CacheComputation {
+impl TermCache {
     pub fn new(backward: &Vec<MathFp>, biases: &[Array2<f64>], output_size: usize, batch_size: usize) -> Self {
         // Compute bias shapes
         let shapes: Vec<(usize, usize)> =
@@ -29,9 +64,9 @@ impl CacheComputation {
 
         // Precompute one hot encoded vectors given output layer size
         let one_hot = Self::precompute(output_size);
-        let classification = if output_size > 1 {Classification::MultiClass} else {Classification::Binary};
+        let classification = if output_size > 1 { Classification::MultiClass } else { Classification::Binary };
 
-        CacheComputation {
+        TermCache {
             z_values: vec![],
             a_values: vec![],
             funcs: backward.clone(), // clone activation derivative functions (back prop)
@@ -44,6 +79,9 @@ impl CacheComputation {
         }
     }
 
+    /************* One Hot Encoding **************/
+
+    // precompute one hot vector encodings given output layer size
     fn precompute(size: usize) -> HashMap<usize, Array1<f64>> {
         let mut map = HashMap::new();
         let mut zeros;
@@ -61,30 +99,19 @@ impl CacheComputation {
         self.one_hot.get(&index)
     }
 
-    // Reset values
-    pub fn init(&mut self, x: Array2<f64>) {
-        (self.z_values, self.a_values) = (Vec::new(), vec![x]);
-        self.index = (self.funcs.len() - 1, self.shapes.len() - 1);
-    }
+    /************* Activation & Cost Derivatives **************/
 
-    pub fn store(&mut self, z: Array2<f64>, a: &Array2<f64>) {
-        self.z_values.push(z);
-        self.a_values.push(a.to_owned());
-    }
-
-    pub fn nonlinear_derivative(&mut self) -> Option<Array2<f64>>
+    pub fn nonlinear_derivative(&mut self) -> Array2<f64>
     {
-        if let Some(z_last) = self.last_z() {
-            let a_derivative = self.last_func();
-            let da_dz = z_last.mapv(|v| a_derivative(v));
-            return Some(da_dz)
-        }
-        None
+        let z_last = self.pop(TT::Linear).array();
+        let a_derivative = self.pop(TT::ActivationDerivative).fp();
+        let da_dz = z_last.mapv(|v| a_derivative(v));
+        da_dz
     }
 
     /// Assuming cost is (a - y)^2
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
-        let last_a: Array2<f64> = self.last_a().unwrap();
+        let last_a: Array2<f64> = self.pop(TT::Nonlinear).array();
 
         if let Classification::MultiClass = self.classification {
             // Output labels is a matrix that accounts for output size and mini batch size
@@ -111,25 +138,34 @@ impl CacheComputation {
         }
     }
 
-    #[inline]
-    pub fn last_a(&mut self) -> Option<Array2<f64>> {
-        self.a_values.pop()
+    /************* Stack operations **************/
+
+    // Reset values
+    pub fn init(&mut self, x: Array2<f64>) {
+        (self.z_values, self.a_values) = (Vec::new(), vec![x]);
+        self.index = (self.funcs.len() - 1, self.shapes.len() - 1);
     }
 
-    #[inline]
-    fn last_z(&mut self) -> Option<Array2<f64>> {
-        self.z_values.pop()
+
+    pub fn push(&mut self, z: Array2<f64>, a: &Array2<f64>) {
+        self.z_values.push(z);
+        self.a_values.push(a.to_owned());
     }
 
-    fn last_func(&mut self) -> &MathFp {
-        let f = self.funcs.get(self.index.0).unwrap();
-        if self.index.0 != 0 { self.index.0 -= 1; }
-        f
-    }
-
-    pub fn last_bias_shape(&mut self) -> (usize, usize) {
-        let s = self.shapes.get(self.index.1).unwrap();
-        if self.index.1 != 0 { self.index.1 -= 1; }
-        *s
+    pub fn pop(&mut self, kind: TT) -> Term {
+        match kind {
+            TT::Linear => Term::Linear(self.z_values.pop()),
+            TT::Nonlinear => Term::Nonlinear(self.a_values.pop()),
+            TT::ActivationDerivative => {
+                let f = self.funcs.get(self.index.0).unwrap();
+                if self.index.0 != 0 { self.index.0 -= 1; }
+                Term::ActivationDerivative(f)
+            },
+            TT::BiasShape => {
+                let s = self.shapes.get(self.index.1).unwrap();
+                if self.index.1 != 0 { self.index.1 -= 1; }
+                Term::BiasShape(s.0, s.1)
+            },
+        }
     }
 }

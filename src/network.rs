@@ -7,7 +7,7 @@ use rand::{Rng, seq::SliceRandom};
 use statrs::distribution::Normal;
 
 use crate::{activation::MathFp, algebra::Algebra}; // import local traits
-use crate::cache_computation::CacheComputation;
+use crate::term_cache::TermCache;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
@@ -74,7 +74,7 @@ impl Network {
         let mut rng;
         let mut random_index;
         let (mut x_single, mut y_single);
-        let mut cc = CacheComputation::new(&self.backward, &self.biases, self.output_size, 1);
+        let mut cc = TermCache::new(&self.backward, &self.biases, self.output_size, 1);
 
         let (train, test) = (&subsets.0, &subsets.1);
 
@@ -93,7 +93,7 @@ impl Network {
 
     pub fn train_minibatch(&mut self, subsets: TrainTestSubsetRef, batch_size: usize) {
         let (mut x_minibatch, mut y_minibatch);
-        let mut cc = CacheComputation::new(&self.backward, &self.biases, self.output_size, batch_size);
+        let mut cc = TermCache::new(&self.backward, &self.biases, self.output_size, batch_size);
 
         let (train, test) = (&subsets.0, &subsets.1);
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
@@ -114,20 +114,20 @@ impl Network {
         }
     }
 
-    pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, learning_rate: f64, cc: &mut CacheComputation) {
+    pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, learning_rate: f64, cc: &mut TermCache) {
         self.forward_pass(x_iteration, cc);
         let chain_rule_compute = self.backward_pass(y_iteration, cc);
         self.update_iteration(chain_rule_compute, learning_rate);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
-    pub fn forward_pass(&self, x: ArrayView2<f64>, cc: &mut CacheComputation) {
+    pub fn forward_pass(&self, x: ArrayView2<f64>, cc: &mut TermCache) {
         cc.init(x.to_owned());
         let mut opt_comp = Some(cc);
         self.predict(x, &mut opt_comp);
     }
 
-    pub fn predict(&self, x: ArrayView2<f64>, opt: &mut Option<&mut CacheComputation>) -> Array2<f64> {
+    pub fn predict(&self, x: ArrayView2<f64>, opt: &mut Option<&mut TermCache>) -> Array2<f64> {
         let mut z: Array2<f64>;
         let mut a: Array2<f64>;
         let mut acc = x.to_owned();
@@ -139,13 +139,13 @@ impl Network {
             a = z.activate(a_func); // non-linear, σ(z)
 
             acc = a;
-            opt.as_mut().map(|cc| cc.store(z, &acc));
+            opt.as_mut().map(|c| c.push(z, &acc));
         }
 
         acc // return last computed activation values
     }
 
-    pub fn backward_pass<'b, 'c>(&self, y: &Array2<f64>, cc: &'b mut CacheComputation) -> ChainRuleComputation<'c>
+    pub fn backward_pass<'b, 'c>(&self, y: &Array2<f64>, cc: &'b mut TermCache) -> ChainRuleComputation<'c>
     where 'b: 'c // cc is around longer than crc
     {
         // Compute the chain rule values for each layer
@@ -185,7 +185,7 @@ impl Network {
     pub fn evaluate(&self, x_test: &Array2<f64>, y_test: &Array2<f64>, n_test: usize) -> (f64, usize, usize) {
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
-        let mut empty: Option<&mut CacheComputation> = None;
+        let mut empty: Option<&mut TermCache> = None;
         let mut matches: usize = 0;
 
         // processes an x_test row of input values at a time

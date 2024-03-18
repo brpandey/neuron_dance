@@ -1,16 +1,16 @@
 use std::collections::VecDeque;
 use ndarray::{Array2, Axis};
-use crate::cache_computation::CacheComputation;
+use crate::term_cache::{TermCache, TT};
 
 #[derive(Debug)]
 pub struct ChainRuleComputation<'a> {
-    pub cache: &'a mut CacheComputation,
+    pub cache: &'a mut TermCache,
     pub bias_deltas: VecDeque<Array2<f64>>,
     pub weight_deltas: VecDeque<Array2<f64>>,
 }
 
 impl <'a> ChainRuleComputation<'a> {
-    pub fn new(cache: &'a mut CacheComputation) -> Self {
+    pub fn new(cache: &'a mut TermCache) -> Self {
         ChainRuleComputation {
             cache,
             weight_deltas: VecDeque::new(),
@@ -48,7 +48,7 @@ impl <'a> ChainRuleComputation<'a> {
         // create shared component
         let shared = SharedOutputTerms {
             dc_da: self.cache.cost_derivative(y), // e.g. C = (A2 − Y)^2
-            da_dz: self.cache.nonlinear_derivative().unwrap(),  // e.g A2 = sigmoid (Z2)
+            da_dz: self.cache.nonlinear_derivative(),  // e.g A2 = sigmoid (Z2)
             dc_dz: None,
         };
 
@@ -57,8 +57,8 @@ impl <'a> ChainRuleComputation<'a> {
             OutputLayerTerms {
                 shared,
                 dz_db: 1.0,
-                dz_dw: self.cache.last_a().unwrap(),
-                bias_shape: self.cache.last_bias_shape(),
+                dz_dw: self.cache.pop(TT::Nonlinear).array(),
+                bias_shape: self.cache.pop(TT::BiasShape).shape(),
             }
         );
 
@@ -83,7 +83,7 @@ impl <'a> ChainRuleComputation<'a> {
         let shared = SharedHiddenTerms {
             dc_dz2,
             dz2_da1: w.clone(), // Z2 = W2A1 + B, w is just W2
-            da1_dz1: self.cache.nonlinear_derivative().unwrap(), // derivative of e.g. relu applied to Z1,
+            da1_dz1: self.cache.nonlinear_derivative(), // derivative of e.g. relu applied to Z1,
             dc_dz1: None
         }; // last field is result
 
@@ -92,8 +92,8 @@ impl <'a> ChainRuleComputation<'a> {
             HiddenLayerTerms {
                 shared,
                 dz1_db1: 1.0,         // For example Z1 = W1X + B1
-                dz1_dw1: self.cache.last_a().unwrap(),
-                bias_shape: self.cache.last_bias_shape(),
+                dz1_dw1: self.cache.pop(TT::Nonlinear).array(),
+                bias_shape: self.cache.pop(TT::BiasShape).shape(),
             }
         );
 

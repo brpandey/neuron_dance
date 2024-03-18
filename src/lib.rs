@@ -1,5 +1,5 @@
 pub mod network;
-pub mod cache_computation;
+pub mod term_cache;
 pub mod chain_rule;
 pub mod activation;
 pub mod algebra;
