@@ -1,24 +1,19 @@
 pub mod functions;
 
 use std::fmt::Debug;
-use crate::activation::functions::Function;
+use crate::activation::functions::FunctionAct;
 
-pub type MathFp = fn(f64) -> f64; // function pointer
+pub type ActFp = fn(f64) -> f64; // function pointer
 
 pub trait Activation : Debug  {
-    fn pair(&self) -> (MathFp, MathFp);
+    fn pair(&self) -> (ActFp, ActFp);
 }
 
 // blanket implementation for all function types T
-impl<T: Function + Debug + Clone + 'static> Activation for T {
+impl<T: FunctionAct + Debug + Clone + 'static> Activation for T {
     // return both activate, activate derivative func in a tuple
-    fn pair(&self) -> (MathFp, MathFp) {
-        (<T as Function>::compute, <T as Function>::derivative)
+    fn pair(&self) -> (ActFp, ActFp) {
+        (<T as FunctionAct>::compute, <T as FunctionAct>::derivative)
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum Act {
-    Relu,
-    Sigmoid,
-}

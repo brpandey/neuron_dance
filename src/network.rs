@@ -6,24 +6,25 @@ use ndarray_rand::RandomExt;
 use rand::{Rng, seq::SliceRandom};
 use statrs::distribution::Normal;
 
-use crate::{activation::MathFp, algebra::Algebra}; // import local traits
+use crate::{activation::ActFp, algebra::AlgebraExt}; // import local traits
 use crate::term_cache::TermCache;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
+use crate::cost::{Cost, functions::Loss};
 
-static SGD_EPOCHS: usize = 20000;
-static MINIBATCH_EPOCHS: usize = 20;
+pub enum Batch {
+    SGD,
+    Mini(usize)
+}
 
+#[derive(Debug)]
 pub struct Network {
-    output_size: usize,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
-    forward: Vec<MathFp>, // forward propagation, activation functions
-    backward: Vec<MathFp>, // backward propagation, activation derivatives
-    learning_rate: f64,
+    forward: Vec<ActFp>, // forward propagation, activation functions
     layers: Option<LayerStack>,
-    total_layers: usize,
+    cache: Option<TermCache>,
 }
 
 impl Network {
@@ -31,9 +32,8 @@ impl Network {
 
     fn empty() -> Self {
         Network {
-            output_size: 0, weights: vec![], biases: vec![],
-            forward: vec![], backward: vec![], learning_rate: 0.0,
-            layers: Some(LayerStack::new()), total_layers: 0,
+            weights: vec![], biases: vec![], forward: vec![], 
+            layers: Some(LayerStack::new()), cache: None,
         }
     }
 
@@ -41,9 +41,13 @@ impl Network {
         self.layers.as_mut().unwrap().add(layer);
     }
 
-    pub fn compile(&mut self, learning_rate: f64) { // "quadratic_cost", "adam", 0.2, "loss, accuracy";
+//    model.compile(Loss::QuadraticCost, 0.3, Metrics::AccuracyLoss); // adam
+    pub fn compile(&mut self, loss_type: Loss, learning_rate: f64) {
         let (sizes, forward, backward) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
+
+        let loss: Box<dyn Cost> = loss_type.into();
+        let (_cost_fp, cost_deriv_fp) = loss.pair();
 
         let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
@@ -62,43 +66,59 @@ impl Network {
 
         // initialize network properly
         let n = Network {
-            output_size: sizes[total_layers-1], weights, biases,
-            forward, backward, learning_rate,
-            layers: self.layers.take(), total_layers,
+            weights, biases, forward,
+            layers: self.layers.take(), cache: None,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
+
+        self.cache = Some(TermCache::new(backward, &self.biases, sizes[total_layers-1],
+                                         learning_rate, 0, cost_deriv_fp));
     }
 
-    pub fn train_sgd(&mut self, subsets: TrainTestSubsetRef) {
-        let mut rng;
-        let mut random_index;
-        let (mut x_single, mut y_single);
-        let mut cc = TermCache::new(&self.backward, &self.biases, self.output_size, 1);
+    pub fn fit(&mut self, subsets: TrainTestSubsetRef, epochs: usize, batch: Batch) {
+        match batch {
+            Batch::SGD => {
+                self.cache.as_mut().unwrap().set_batch_size(1);
+                self.train_sgd(subsets, epochs);
+            },
+            Batch::Mini(batch_size) => {
+                self.cache.as_mut().unwrap().set_batch_size(batch_size);
+                self.train_minibatch(subsets, epochs, batch_size);
+            },
+        }
+    }
 
+    fn train_sgd(&mut self, subsets: TrainTestSubsetRef, epochs: usize) {
+        let (mut rng, mut random_index);
+        let (mut x_single, mut y_single);
         let (train, test) = (&subsets.0, &subsets.1);
 
-        for _ in 0..SGD_EPOCHS { // train and update network based on single observation sample
+        let mut cache = self.cache.take().unwrap();
+        let lr = cache.learning_rate();
+
+        for _ in 0..epochs { // SGD_EPOCHS { // train and update network based on single observation sample
             rng = rand::thread_rng();
             random_index = rng.gen_range(0..train.size);
             x_single = train.x.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
             y_single = train.y.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
 
-            self.train_iteration(x_single.t(), &y_single, self.learning_rate, &mut cc);
+            self.train_iteration(x_single.t(), &y_single, &mut cache, lr);
         }
 
         let result = self.evaluate(test.x, test.y, test.size);
-        println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, SGD_EPOCHS);
+        println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, epochs);
     }
 
-    pub fn train_minibatch(&mut self, subsets: TrainTestSubsetRef, batch_size: usize) {
+    fn train_minibatch(&mut self, subsets: TrainTestSubsetRef, epochs: usize, batch_size: usize) {
         let (mut x_minibatch, mut y_minibatch);
-        let mut cc = TermCache::new(&self.backward, &self.biases, self.output_size, batch_size);
-
         let (train, test) = (&subsets.0, &subsets.1);
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
 
-        for e in 0..MINIBATCH_EPOCHS {
+        let mut cache = self.cache.take().unwrap();
+        let lr = cache.learning_rate();
+
+        for e in 0..epochs {
             row_indices.shuffle(&mut rand::thread_rng());
 
             for c in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
@@ -106,25 +126,25 @@ impl Network {
                 y_minibatch = train.y.select(Axis(0), &c);
 
                 // transpose to ensure proper matrix multi fit
-                self.train_iteration(x_minibatch.t(), &y_minibatch, self.learning_rate/batch_size as f64, &mut cc);
+                self.train_iteration(x_minibatch.t(), &y_minibatch, &mut cache, lr);
             }
 
             let result = self.evaluate(test.x, test.y, test.size);
-            println!("Epoch {}: accuracy {:?} {}/{} {} (MiniBatch)", e, result.0, result.1, result.2, MINIBATCH_EPOCHS);
+            println!("Epoch {}: accuracy {:?} {}/{} {} (MiniBatch)", e, result.0, result.1, result.2, epochs);
         }
     }
 
-    pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, learning_rate: f64, cc: &mut TermCache) {
-        self.forward_pass(x_iteration, cc);
-        let chain_rule_compute = self.backward_pass(y_iteration, cc);
-        self.update_iteration(chain_rule_compute, learning_rate);
+    pub fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, cache: &mut TermCache, lr: f64) {
+        self.forward_pass(x_iteration, cache);
+        let chain_rule_compute = self.backward_pass(y_iteration, cache);
+        self.update_iteration(chain_rule_compute, lr);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
-    pub fn forward_pass(&self, x: ArrayView2<f64>, cc: &mut TermCache) {
-        cc.init(x.to_owned());
-        let mut opt_comp = Some(cc);
-        self.predict(x, &mut opt_comp);
+    pub fn forward_pass(&self, x: ArrayView2<f64>, cache: &mut TermCache) {
+        cache.reset(x.to_owned());
+        let mut oc = Some(cache);
+        self.predict(x, &mut oc);
     }
 
     pub fn predict(&self, x: ArrayView2<f64>, opt: &mut Option<&mut TermCache>) -> Array2<f64> {
@@ -152,11 +172,12 @@ impl Network {
         // Store the partial cost derivative for biases and weights from each layer,
         // starting with last layer first
 
+        let total_layers = self.layers.as_ref().unwrap().len();
         let mut crc = ChainRuleComputation::new(cc);
         let acc0: Array2<f64> = crc.init(y);
 
         // zip number of iterations with corresponding weight (start from back to front layer)
-        let zipped = (0..self.total_layers-2).zip(self.weights.iter().rev());
+        let zipped = (0..total_layers-2).zip(self.weights.iter().rev());
         zipped.fold(acc0, |acc: Array2<f64>, (_, w)| {
             crc.fold_layer(acc, w)
         });

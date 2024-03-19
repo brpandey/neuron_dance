@@ -4,13 +4,11 @@ pub mod relu;
 pub mod sigmoid;
 // End Finish (1)
 
-use std::convert::From;
-use std::str::FromStr;
-use std::fmt;
-use crate::activation::{Act, Activation, functions::
+use std::{convert::From, fmt, str::FromStr};
+use crate::activation::{Activation, functions::
                         {relu::Relu, sigmoid::Sigmoid}}; // Update (2)
 
-pub trait Function {
+pub trait FunctionAct {
     fn compute(x: f64) -> f64;
     fn derivative(x: f64) -> f64;
 }
@@ -38,6 +36,13 @@ impl FromStr for Box<dyn Activation> {
         // End Finish (3)
     }
 }
+
+#[derive(Copy, Clone)]
+pub enum Act {
+    Relu,
+    Sigmoid,
+}
+
 
 impl From<Act> for Box<dyn Activation> {
     fn from(activation_type: Act) -> Self {

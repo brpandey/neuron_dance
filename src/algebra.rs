@@ -1,15 +1,16 @@
 use ndarray::Array2;
-use crate::activation::MathFp;
+use crate::activation::ActFp;
 
-pub trait Algebra<W = Self, B = Self> {
+pub trait AlgebraExt<W = Self, B = Self> {
     type Output;
 
     fn arg_max(&self) -> usize;
     fn weighted_sum(&self, w: &W, b: &B) -> Self::Output;
-    fn activate(&self, f: &MathFp) -> Self::Output;
+    fn activate(&self, f: &ActFp) -> Self::Output;
+    fn ln(&self) -> Self::Output;
 }
 
-impl Algebra for Array2<f64> {
+impl AlgebraExt for Array2<f64> {
     type Output = Self;
 
     fn arg_max(&self) -> usize {
@@ -38,7 +39,14 @@ impl Algebra for Array2<f64> {
 
     #[inline]
     // perform non-linear activation
-    fn activate(&self, f: &MathFp) -> Self {
+    fn activate(&self, f: &ActFp) -> Self {
         self.mapv(|v| f(v))
     }
+
+    #[inline]
+    // perform natural logarithm - ln
+    fn ln(&self) -> Self {
+        self.mapv(|v| v.log(std::f64::consts::E))
+    }
+
 }

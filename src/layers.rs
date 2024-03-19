@@ -1,13 +1,17 @@
 use either::*;
-use std::ops::RangeBounds;
-use std::convert::Into;
+use std::{ops::RangeBounds, convert::Into, fmt, fmt::Debug};
 
-use crate::activation::{Act, Activation, MathFp};
+use crate::activation::{Activation, ActFp};
 
 // Make fields public for layers literal construction
+
 pub struct Input1(pub usize);
 pub struct Input2(pub usize, pub usize);
 pub struct Dense(pub usize, pub Act);
+
+pub use crate::activation::functions::Act; // re-export Act
+pub use crate::cost::functions::Loss; // re-export Loss
+pub use crate::network::Batch;
 
 pub trait Layer {
     type Output;
@@ -71,6 +75,12 @@ impl Layer for Dense {
 
 pub struct LayerStack(Vec<Box<dyn Layer<Output = LayerTerms>>>); // holds a vec of layer trait objects
 
+impl Debug for LayerStack {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "LayerStack contains {:?} layers", &self.len())
+    }
+}
+
 impl LayerStack {
     pub fn new() -> Self {
         LayerStack(vec![])
@@ -85,7 +95,7 @@ impl LayerStack {
 
 impl Layer for LayerStack {
     //tuple of vecs: (sizes, act fps, act deriv fps)
-    type Output = (Vec<usize>, Vec<MathFp>, Vec<MathFp>);
+    type Output = (Vec<usize>, Vec<ActFp>, Vec<ActFp>);
 
     fn reduce(&self) -> Self::Output {
         let acc = (vec![0], vec![], vec![]); // acc is type Output

@@ -1,9 +1,9 @@
-use crate::activation::functions::Function;
+use crate::activation::functions::FunctionAct;
 
 #[derive(Clone, Debug)]
 pub struct Sigmoid;
 
-impl Function for Sigmoid {
+impl FunctionAct for Sigmoid {
     fn compute(x: f64) -> f64 {
         1.0 / (1.0 + (-x).exp())
     }

@@ -1,6 +1,7 @@
 use ndarray::{s, Array1, Array2};
 use std::collections::HashMap;
-use crate::activation::MathFp;
+use crate::activation::ActFp;
+use crate::cost::CostDFp;
 
 #[derive(Debug)]
 pub enum Classification {
@@ -18,7 +19,7 @@ pub enum TT { // TermType
 pub enum Term<'a> {
     Linear(Option<Array2<f64>>),
     Nonlinear(Option<Array2<f64>>),
-    ActivationDerivative(&'a MathFp),
+    ActivationDerivative(&'a ActFp),
     BiasShape(usize, usize),
 }
 
@@ -36,7 +37,7 @@ impl<'a> Term<'a> {
         else { (0,0) }
     }
 
-    pub fn fp(self) -> &'a MathFp {
+    pub fn fp(self) -> &'a ActFp {
         if let Term::ActivationDerivative(fp) = self { fp }
         else { panic!("mismatched term types") }
     }
@@ -47,17 +48,20 @@ impl<'a> Term<'a> {
 pub struct TermCache {
     pub z_values: Vec<Array2<f64>>, // linear values
     pub a_values: Vec<Array2<f64>>, // non-linear activation values
-    pub funcs: Vec<MathFp>, // activation derivative functions
+    pub funcs: Vec<ActFp>, // activation derivative functions
     pub shapes: Vec<(usize, usize)>, // bias shapes
     pub index: (usize, usize), // function, bias shape
     pub one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors
     pub classification: Classification,
     pub output_size: usize,
+    pub learning_rate: f64,
     pub batch_size: usize,
+    pub cost_d_fp: CostDFp,
 }
 
 impl TermCache {
-    pub fn new(backward: &Vec<MathFp>, biases: &[Array2<f64>], output_size: usize, batch_size: usize) -> Self {
+    pub fn new(backward: Vec<ActFp>, biases: &[Array2<f64>], output_size: usize,
+               learning_rate: f64, batch_size: usize, cost_d_fp: CostDFp) -> Self {
         // Compute bias shapes
         let shapes: Vec<(usize, usize)> =
             biases.iter().map(|b| (b.shape()[0], b.shape()[1])).collect();
@@ -69,14 +73,28 @@ impl TermCache {
         TermCache {
             z_values: vec![],
             a_values: vec![],
-            funcs: backward.clone(), // clone activation derivative functions (back prop)
+            funcs: backward, // activation derivative functions (back prop)
             shapes,
             index: (0, 0),
             one_hot,
             classification,
             output_size,
+            learning_rate,
             batch_size,
+            cost_d_fp,
         }
+    }
+
+    pub fn learning_rate(&self) -> f64 {
+        match self.batch_size {
+            0 => panic!("batch size not properly initialized"),
+            1 => self.learning_rate,
+            _ => self.learning_rate/self.batch_size as f64,
+        }
+    }
+
+    pub fn set_batch_size(&mut self, size: usize) {
+        self.batch_size = size;
     }
 
     /************* One Hot Encoding **************/
@@ -120,7 +138,6 @@ impl TermCache {
                 Array2::zeros((self.output_size, self.batch_size));
 
             // map y to output_labels by:
-
             // expanding each label value into a one hot encoded value - store result in normalized labels
             // perform for each label in batch
 
@@ -131,21 +148,20 @@ impl TermCache {
                 output_labels.slice_mut(s![.., i]).assign(encoded_label);
             }
 
-            &last_a - &output_labels
+            (self.cost_d_fp)(&last_a, &output_labels.view()) //            &last_a - &output_labels
         } else {
             // e.g. 1 x 1 or 1 x 32
-            &last_a - &y.t()
+            (self.cost_d_fp)(&last_a, &y.t()) //            &last_a - &y.t()
         }
     }
 
     /************* Stack operations **************/
 
     // Reset values
-    pub fn init(&mut self, x: Array2<f64>) {
+    pub fn reset(&mut self, x: Array2<f64>) {
         (self.z_values, self.a_values) = (Vec::new(), vec![x]);
         self.index = (self.funcs.len() - 1, self.shapes.len() - 1);
     }
-
 
     pub fn push(&mut self, z: Array2<f64>, a: &Array2<f64>) {
         self.z_values.push(z);
