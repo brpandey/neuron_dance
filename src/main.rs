@@ -2,11 +2,11 @@ use simple_network::{
     network::Network,
     dataset::{DataSet, csv::{CSVType, CSVData},
               idx::{MnistType, MnistData}},
-    layers::{Act, Batch, Loss, Input1, Input2, Dense},
+    layers::{Act, Batch, Eval, Loss, Input1, Input2, Dense},
 };
 
 fn main() {
-    let csv = false;
+    let csv = true; //false;
     let train_percentage = 2.0/3.0;     // train / total ratio, test = total - train
     let mut dataset: Box<dyn DataSet>;
 
@@ -18,6 +18,7 @@ fn main() {
 
     let tts = dataset.train_test_split(train_percentage);
     let mut model;
+    let subsets = tts.get_ref();
 
     if csv {
         model = Network::new();
@@ -25,15 +26,16 @@ fn main() {
         model.add(Dense(3, Act::Relu));
         model.add(Dense(1, Act::Sigmoid));
         model.compile(Loss::Quadratic, 0.2); //, Metrics::Acurracy);
-        model.fit(tts.get_ref(), 10000, Batch::SGD); // using SGD approach (doesn't have momentum supported)
+        model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
     } else {
         model = Network::new();
         model.add(Input2(28, 28));
         model.add(Dense(50, Act::Sigmoid));
         model.add(Dense(10, Act::Sigmoid));
         model.compile(Loss::Quadratic, 0.3); //, Metrics::AccuracyLoss);
-        model.fit(tts.get_ref(), 20, Batch::Mini(32));
+        model.fit(&subsets, 20, Batch::Mini(32), Eval::Train);
     }
 
-    //model.evaluate()
+    let res = model.evaluate(&subsets, &Eval::Test);
+    println!("Accuracy {:?} {}/{}", res.0, res.1, res.2);
 }

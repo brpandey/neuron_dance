@@ -9,9 +9,10 @@ pub struct Input1(pub usize);
 pub struct Input2(pub usize, pub usize);
 pub struct Dense(pub usize, pub Act);
 
-pub use crate::activation::functions::Act; // re-export Act
-pub use crate::cost::functions::Loss; // re-export Loss
-pub use crate::network::Batch;
+// re-export types into Layer
+pub use crate::activation::functions::Act;
+pub use crate::cost::functions::Loss;
+pub use crate::network::{Batch, Eval};
 
 pub trait Layer {
     type Output;

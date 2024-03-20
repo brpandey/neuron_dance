@@ -15,29 +15,25 @@ pub trait DataSet  {
 pub type TrainTestTuple = (Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize);
 pub struct TrainTestSubsetData(TrainTestTuple);
 
-pub struct TrainSubsetRef<'a> {
+#[derive(Copy, Clone)]
+pub struct SubsetRef<'a> {
     pub x: &'a Array2<f64>,
     pub y: &'a Array2<f64>,
     pub size: usize,
 }
 
-pub struct TestSubsetRef<'a> {
-    pub x: &'a Array2<f64>,
-    pub y: &'a Array2<f64>,
-    pub size: usize,
-}
-
-pub type TrainTestSubsetRef<'a> = (TrainSubsetRef<'a>, TestSubsetRef<'a>);
+//                                   train         test
+pub type TrainTestSubsetRef<'a> = (SubsetRef<'a>, SubsetRef<'a>);
 
 impl TrainTestSubsetData {
     pub fn get_ref<'a>(&'a self) -> TrainTestSubsetRef<'a> {
         (
-            TrainSubsetRef {
+            SubsetRef {
                 x: &self.0.0,
                 y: &self.0.1,
                 size: self.0.2
             },
-            TestSubsetRef {
+            SubsetRef {
                 x: &self.0.3,
                 y: &self.0.4,
                 size: self.0.5,
