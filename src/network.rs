@@ -77,25 +77,24 @@ impl Network {
     }
 
     pub fn fit(&mut self, subsets: TrainTestSubsetRef, epochs: usize, batch: Batch) {
+        let mut cache = self.cache.take().unwrap();
+
         match batch {
             Batch::SGD => {
-                self.cache.as_mut().unwrap().set_batch_size(1);
-                self.train_sgd(subsets, epochs);
+                cache.set_batch_size(1);
+                self.train_sgd(subsets, epochs, &mut cache);
             },
             Batch::Mini(batch_size) => {
-                self.cache.as_mut().unwrap().set_batch_size(batch_size);
-                self.train_minibatch(subsets, epochs, batch_size);
+                cache.set_batch_size(batch_size);
+                self.train_minibatch(subsets, epochs, batch_size, &mut cache);
             },
         }
     }
 
-    fn train_sgd(&mut self, subsets: TrainTestSubsetRef, epochs: usize) {
+    fn train_sgd(&mut self, subsets: TrainTestSubsetRef, epochs: usize, tc: &mut TermCache) {
         let (mut rng, mut random_index);
         let (mut x_single, mut y_single);
         let (train, test) = (&subsets.0, &subsets.1);
-
-        let mut cache = self.cache.take().unwrap();
-        let lr = cache.learning_rate();
 
         for _ in 0..epochs { // SGD_EPOCHS { // train and update network based on single observation sample
             rng = rand::thread_rng();
@@ -103,20 +102,21 @@ impl Network {
             x_single = train.x.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
             y_single = train.y.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
 
-            self.train_iteration(x_single.t(), &y_single, &mut cache, lr);
+            self.train_iteration(
+                x_single.t(), &y_single,
+                tc, tc.learning_rate()
+            );
         }
 
         let result = self.evaluate(test.x, test.y, test.size);
         println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, epochs);
     }
 
-    fn train_minibatch(&mut self, subsets: TrainTestSubsetRef, epochs: usize, batch_size: usize) {
+    fn train_minibatch(&mut self, subsets: TrainTestSubsetRef, epochs: usize,
+                       batch_size: usize, tc: &mut TermCache) {
         let (mut x_minibatch, mut y_minibatch);
         let (train, test) = (&subsets.0, &subsets.1);
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
-
-        let mut cache = self.cache.take().unwrap();
-        let lr = cache.learning_rate();
 
         for e in 0..epochs {
             row_indices.shuffle(&mut rand::thread_rng());
@@ -126,7 +126,10 @@ impl Network {
                 y_minibatch = train.y.select(Axis(0), &c);
 
                 // transpose to ensure proper matrix multi fit
-                self.train_iteration(x_minibatch.t(), &y_minibatch, &mut cache, lr);
+                self.train_iteration(
+                    x_minibatch.t(), &y_minibatch,
+                    tc, tc.learning_rate()
+                );
             }
 
             let result = self.evaluate(test.x, test.y, test.size);
@@ -141,10 +144,10 @@ impl Network {
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
-    pub fn forward_pass(&self, x: ArrayView2<f64>, cache: &mut TermCache) {
-        cache.reset(x.to_owned());
-        let mut oc = Some(cache);
-        self.predict(x, &mut oc);
+    pub fn forward_pass(&self, x: ArrayView2<f64>, tc: &mut TermCache) {
+        tc.stack.reset(x.to_owned());
+        let mut opt = Some(tc);
+        self.predict(x, &mut opt);
     }
 
     pub fn predict(&self, x: ArrayView2<f64>, opt: &mut Option<&mut TermCache>) -> Array2<f64> {
@@ -159,21 +162,21 @@ impl Network {
             a = z.activate(a_func); // non-linear, σ(z)
 
             acc = a;
-            opt.as_mut().map(|c| c.push(z, &acc));
+            opt.as_mut().map(|c| c.stack.push(z, &acc));
         }
 
         acc // return last computed activation values
     }
 
-    pub fn backward_pass<'b, 'c>(&self, y: &Array2<f64>, cc: &'b mut TermCache) -> ChainRuleComputation<'c>
-    where 'b: 'c // cc is around longer than crc
+    pub fn backward_pass<'b, 'c>(&self, y: &Array2<f64>, tc: &'b mut TermCache) -> ChainRuleComputation<'c>
+    where 'b: 'c // tc is around longer than crc
     {
         // Compute the chain rule values for each layer
         // Store the partial cost derivative for biases and weights from each layer,
         // starting with last layer first
 
         let total_layers = self.layers.as_ref().unwrap().len();
-        let mut crc = ChainRuleComputation::new(cc);
+        let mut crc = ChainRuleComputation::new(tc);
         let acc0: Array2<f64> = crc.init(y);
 
         // zip number of iterations with corresponding weight (start from back to front layer)
