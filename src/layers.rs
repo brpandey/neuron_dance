@@ -13,6 +13,7 @@ pub struct Dense(pub usize, pub Act);
 pub use crate::activation::functions::Act;
 pub use crate::cost::functions::Loss;
 pub use crate::network::{Batch, Eval};
+pub use crate::metrics::{Mett};
 
 pub trait Layer {
     type Output;

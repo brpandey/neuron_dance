@@ -12,15 +12,21 @@ use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, functions::Loss};
+use crate::metrics::{Mett, Metrics, MetricsRecorder};
 
-pub enum Batch {
-    SGD,
-    Mini(usize)
-}
+#[derive(Debug, Copy, Clone)]
+pub enum Eval { Train, Test }
 
-pub enum Eval {
-    Train,
-    Test
+#[derive(Debug, Copy, Clone)]
+pub enum Batch { SGD, Mini(usize) }
+
+impl Batch {
+    pub fn value(&self) -> usize {
+        match self {
+            Batch::SGD => 1,
+            Batch::Mini(ref size) => *size,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -30,6 +36,7 @@ pub struct Network {
     forward: Vec<ActFp>, // forward propagation, activation functions
     layers: Option<LayerStack>,
     cache: Option<TermCache>,
+    metrics: Option<Metrics>,
 }
 
 impl Network {
@@ -38,21 +45,24 @@ impl Network {
     fn empty() -> Self {
         Network {
             weights: vec![], biases: vec![], forward: vec![], 
-            layers: Some(LayerStack::new()), cache: None,
+            layers: Some(LayerStack::new()), cache: None, metrics: None,
         }
     }
+
+    /**** Public member functions ****/
 
     pub fn add<L: Layer<Output = LayerTerms> + 'static>(&mut self, layer: L) {
         self.layers.as_mut().unwrap().add(layer);
     }
 
-//    model.compile(Loss::Quadratic, 0.3, Metrics::AccuracyLoss); // adam
-    pub fn compile(&mut self, loss_type: Loss, learning_rate: f64) {
+    pub fn compile(&mut self, loss_type: Loss, learning_rate: f64, metrics_type: Vec<Mett>) {
         let (sizes, forward, backward) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
 
         let loss: Box<dyn Cost> = loss_type.into();
-        let (_cost_fp, cost_deriv_fp) = loss.pair();
+        let (cost_fp, cost_deriv_fp) = loss.pair();
+
+        let metrics = Some(Metrics::new(metrics_type, cost_fp));
 
         let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
@@ -72,29 +82,31 @@ impl Network {
         // initialize network properly
         let n = Network {
             weights, biases, forward,
-            layers: self.layers.take(), cache: None,
+            layers: self.layers.take(), cache: None, metrics,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
 
         self.cache = Some(TermCache::new(backward, &self.biases, sizes[total_layers-1],
-                                         learning_rate, 0, cost_deriv_fp));
+                                         learning_rate, Batch::SGD, cost_deriv_fp));
     }
 
-    pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch: Batch, eval: Eval) {
+    pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch_type: Batch, eval: Eval) {
         let mut cache = self.cache.take().unwrap();
+        cache.set_batch_type(batch_type);
 
-        match batch {
-            Batch::SGD => {
-                cache.set_batch_size(1);
-                self.train_sgd(subsets, epochs, &mut cache, eval);
-            },
-            Batch::Mini(batch_size) => {
-                cache.set_batch_size(batch_size);
-                self.train_minibatch(subsets, epochs, batch_size, &mut cache, eval);
-            },
+        match batch_type {
+            Batch::SGD => self.train_sgd(subsets, epochs, &mut cache, eval),
+            Batch::Mini(batch_size) => self.train_minibatch(subsets, epochs, batch_size, &mut cache, eval),
         }
     }
+
+    pub fn eval(&mut self, subsets: &TrainTestSubsetRef, eval: Eval) {
+        let mut recorder = self.metrics.as_mut().unwrap().recorder(None, (0, 0));
+        self.evaluate(subsets, &eval, &mut recorder);
+    }
+
+     /**** Private member functions ****/
 
     fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, tc: &mut TermCache, eval: Eval) {
         let (mut rng, mut random_index);
@@ -113,8 +125,9 @@ impl Network {
             );
         }
 
-        let result = self.evaluate(subsets, &eval);
-        println!("Accuracy {:?} {}/{} {} (SGD)", result.0, result.1, result.2, epochs);
+        let (batch, epoch) = (Some(Batch::SGD), (0, epochs));
+        let mut recorder = self.metrics.as_mut().unwrap().recorder(batch, epoch);
+        self.evaluate(subsets, &eval, &mut recorder);
     }
 
     fn train_minibatch(&mut self, subsets: &TrainTestSubsetRef, epochs: usize,
@@ -122,6 +135,8 @@ impl Network {
         let (mut x_minibatch, mut y_minibatch);
         let train = subsets.0;
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
+        let b = Some(Batch::Mini(batch_size));
+        let mut recorder;
 
         for e in 0..epochs {
             row_indices.shuffle(&mut rand::thread_rng());
@@ -137,8 +152,8 @@ impl Network {
                 );
             }
 
-            let result = self.evaluate(subsets, &eval);
-            println!("Epoch {}: accuracy {:?} {}/{} {} (MiniBatch)", e, result.0, result.1, result.2, epochs);
+            recorder = self.metrics.as_mut().unwrap().recorder(b, (e, epochs));
+            self.evaluate(subsets, &eval, &mut recorder);
         }
     }
 
@@ -211,30 +226,31 @@ impl Network {
         }
     }
 
-    pub fn evaluate(&self, subsets: &TrainTestSubsetRef, evaluation_type: &Eval) -> (f64, usize, usize) {
-        let s = match *evaluation_type {
+    fn evaluate(&self, subsets: &TrainTestSubsetRef, eval: &Eval,
+                recorder: &mut MetricsRecorder) {
+
+        let s = match *eval {
             Eval::Train => subsets.0, // train subset
             Eval::Test => subsets.1, // test subset
         };
 
+        // retrieve eval data, labels, and size
         let (x_data, y_data, n_data) : (&Array2<f64>, &Array2<f64>, usize) = (s.x, s.y, s.size);
 
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
         let mut empty: Option<&mut TermCache> = None;
-        let mut matches: usize = 0;
 
         // processes an x_test row of input values at a time
         for (x_sample, y) in x_data.axis_chunks_iter(Axis(0), 1).zip(y_data.iter()) {
             output = self.predict(x_sample.t(), &mut empty);
 
             if output.arg_max() == *y as usize {
-                matches += 1;
+                recorder.record_match();
             }
         }
 
-        let accuracy = matches as f64 / n_data as f64;
-
-        (accuracy, matches, n_data)
+        recorder.summarize(n_data);
+        recorder.display();
     }
 }
