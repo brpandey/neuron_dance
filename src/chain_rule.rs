@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 use ndarray::Array2;
 
-use crate::term_cache::{TermCache, TT};
+use crate::term_cache::TermCache;
+use crate::term_stack::TT;
 use crate::chain_layer::{
     ComputeLayer, HiddenLayerTerms,
     SharedHiddenTerms, SharedOutputTerms, OutputLayerTerms

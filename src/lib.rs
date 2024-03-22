@@ -1,5 +1,6 @@
 pub mod network;
 pub mod term_cache;
+pub mod term_stack;
 pub mod chain_rule;
 pub mod chain_layer;
 pub mod activation;
