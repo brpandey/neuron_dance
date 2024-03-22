@@ -3,12 +3,7 @@ use std::collections::HashMap;
 use crate::activation::ActFp;
 use crate::cost::CostDFp;
 use crate::layers::Batch;
-
-#[derive(Debug)]
-pub enum Classification {
-    Binary,
-    MultiClass,
-}
+use crate::types::Classification;
 
 #[derive(Debug)]
 pub struct TermCache {

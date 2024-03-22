@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use ndarray::Array2;
 
 use crate::cost::CostFp;
-use crate::network::Batch;
+use crate::types::Batch;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Mett { // Metrics Type

@@ -7,3 +7,4 @@ pub mod dataset;
 pub mod layers;
 pub mod cost;
 pub mod metrics;
+pub mod types;

@@ -13,21 +13,7 @@ use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, functions::Loss};
 use crate::metrics::{Mett, Metrics, MetricsRecorder};
-
-#[derive(Debug, Copy, Clone)]
-pub enum Eval { Train, Test }
-
-#[derive(Debug, Copy, Clone)]
-pub enum Batch { SGD, Mini(usize) }
-
-impl Batch {
-    pub fn value(&self) -> usize {
-        match self {
-            Batch::SGD => 1,
-            Batch::Mini(ref size) => *size,
-        }
-    }
-}
+use crate::types::{Batch, Eval};
 
 #[derive(Debug)]
 pub struct Network {
