@@ -5,6 +5,7 @@ use crate::cost::CostFp;
 use crate::types::Batch;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+
 pub enum Mett { // Metrics Type
     Accuracy,
     Cost,
@@ -20,24 +21,19 @@ impl Metrics {
     pub fn new(metrics_list: Vec<Mett>, cost_fp: CostFp) -> Self {
         // reduce metrics list into hash table for easy lookup
         let metrics_map: HashMap<Mett, bool> = metrics_list.into_iter().map(|v| (v, true)).collect();
-
-        Self {
-            metrics_map,
-            cost_fp,
-        }
+        Self { metrics_map, cost_fp, }
     }
 
-    pub fn recorder(&mut self, batch_type: Option<Batch>,
-                    epoch: (usize, usize)) -> MetricsRecorder {
-
-        MetricsRecorder::new(
+    pub fn create_tally(&mut self, batch_type: Option<Batch>,
+                    epoch: (usize, usize)) -> Tally {
+        Tally::new(
             self.metrics_map.clone(), self.cost_fp.clone(),
             batch_type, epoch
         )
     }
 }
 
-pub struct MetricsRecorder {
+pub struct Tally {
     metrics_map: HashMap<Mett, bool>,
     cost_fp: CostFp,
     batch_type: Option<Batch>,
@@ -49,10 +45,9 @@ pub struct MetricsRecorder {
     avg_loss: Option<f64>,
 }
 
-impl MetricsRecorder {
+impl Tally {
     pub fn new(metrics_map: HashMap<Mett, bool>, cost_fp: CostFp, batch_type: Option<Batch>,
                epoch: (usize, usize)) -> Self {
-
         Self {
             metrics_map,
             cost_fp,
@@ -66,13 +61,13 @@ impl MetricsRecorder {
         }
     }
 
-    pub fn record_match(&mut self) {
+    pub fn t_match(&mut self) { // tally or track matches
         if self.metrics_map.contains_key(&Mett::Accuracy) {
             self.total_matches += 1;
         }
     }
 
-    pub fn record_cost(&mut self, a: &Array2<f64>, y: &Array2<f64>) {
+    pub fn t_cost(&mut self, a: &Array2<f64>, y: &Array2<f64>) { // tally or track cost
         if self.metrics_map.contains_key(&Mett::Cost) {
             let cost = (self.cost_fp)(a, y);
             self.total_cost += cost;

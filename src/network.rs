@@ -12,7 +12,7 @@ use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, functions::Loss};
-use crate::metrics::{Mett, Metrics, MetricsRecorder};
+use crate::metrics::{Mett, Metrics, Tally};
 use crate::types::{Batch, Eval};
 
 #[derive(Debug)]
@@ -88,8 +88,8 @@ impl Network {
     }
 
     pub fn eval(&mut self, subsets: &TrainTestSubsetRef, eval: Eval) {
-        let mut recorder = self.metrics.as_mut().unwrap().recorder(None, (0, 0));
-        self.evaluate(subsets, &eval, &mut recorder);
+        let mut tally = self.metrics.as_mut().unwrap().create_tally(None, (0, 0));
+        self.evaluate(subsets, &eval, &mut tally);
     }
 
      /**** Private member functions ****/
@@ -112,8 +112,8 @@ impl Network {
         }
 
         let (batch, epoch) = (Some(Batch::SGD), (0, epochs));
-        let mut recorder = self.metrics.as_mut().unwrap().recorder(batch, epoch);
-        self.evaluate(subsets, &eval, &mut recorder);
+        let mut tally = self.metrics.as_mut().unwrap().create_tally(batch, epoch);
+        self.evaluate(subsets, &eval, &mut tally);
     }
 
     fn train_minibatch(&mut self, subsets: &TrainTestSubsetRef, epochs: usize,
@@ -122,7 +122,7 @@ impl Network {
         let train = subsets.0;
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
         let b = Some(Batch::Mini(batch_size));
-        let mut recorder;
+        let mut tally;
 
         for e in 0..epochs {
             row_indices.shuffle(&mut rand::thread_rng());
@@ -138,8 +138,8 @@ impl Network {
                 );
             }
 
-            recorder = self.metrics.as_mut().unwrap().recorder(b, (e, epochs));
-            self.evaluate(subsets, &eval, &mut recorder);
+            tally = self.metrics.as_mut().unwrap().create_tally(b, (e, epochs));
+            self.evaluate(subsets, &eval, &mut tally);
         }
     }
 
@@ -213,7 +213,7 @@ impl Network {
     }
 
     fn evaluate(&self, subsets: &TrainTestSubsetRef, eval: &Eval,
-                recorder: &mut MetricsRecorder) {
+                tally: &mut Tally) {
 
         let s = match *eval {
             Eval::Train => subsets.0, // train subset
@@ -232,11 +232,11 @@ impl Network {
             output = self.predict(x_sample.t(), &mut empty);
 
             if output.arg_max() == *y as usize {
-                recorder.record_match();
+                tally.t_match();
             }
         }
 
-        recorder.summarize(n_data);
-        recorder.display();
+        tally.summarize(n_data);
+        tally.display();
     }
 }
