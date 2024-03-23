@@ -35,7 +35,7 @@ impl Network {
         }
     }
 
-    /**** Public member functions ****/
+    /**** Public associated methods ****/
 
     pub fn add<L: Layer<Output = LayerTerms> + 'static>(&mut self, layer: L) {
         self.layers.as_mut().unwrap().add(layer);
@@ -44,11 +44,12 @@ impl Network {
     pub fn compile(&mut self, loss_type: Loss, learning_rate: f64, metrics_type: Vec<Mett>) {
         let (sizes, forward, backward) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
+        let output_size = sizes[total_layers-1];
 
         let loss: Box<dyn Cost> = loss_type.into();
         let (cost_fp, cost_deriv_fp) = loss.pair();
 
-        let metrics = Some(Metrics::new(metrics_type, cost_fp));
+        let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size));
 
         let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
@@ -73,8 +74,10 @@ impl Network {
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
 
-        self.cache = Some(TermCache::new(backward, &self.biases, sizes[total_layers-1],
-                                         learning_rate, Batch::SGD, cost_deriv_fp));
+        let tc = TermCache::new(backward, &self.biases, output_size,
+                                learning_rate, Batch::SGD, cost_deriv_fp);
+
+        self.cache = Some(tc);
     }
 
     pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch_type: Batch, eval: Eval) {
@@ -92,7 +95,7 @@ impl Network {
         self.evaluate(subsets, &eval, &mut tally);
     }
 
-     /**** Private member functions ****/
+     /**** Private associated methods ****/
 
     fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, tc: &mut TermCache, eval: Eval) {
         let (mut rng, mut random_index);
@@ -226,12 +229,17 @@ impl Network {
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
         let mut empty: Option<&mut TermCache> = None;
+        let mut label_index;
 
         // processes an x_test row of input values at a time
         for (x_sample, y) in x_data.axis_chunks_iter(Axis(0), 1).zip(y_data.iter()) {
             output = self.predict(x_sample.t(), &mut empty);
 
-            if output.arg_max() == *y as usize {
+            label_index = *y as usize;
+
+            tally.t_cost(&output, label_index);
+
+            if output.arg_max() == label_index {
                 tally.t_match();
             }
         }

@@ -93,4 +93,3 @@ impl<'a> Term<'a> {
         else { panic!("mismatched term types") }
     }
 }
-

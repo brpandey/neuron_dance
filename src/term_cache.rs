@@ -9,7 +9,7 @@ use crate::{
 #[derive(Debug)]
 pub struct TermCache {
     pub stack: TermStack,
-    one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors
+    one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors dim 1
     classification: Classification,
     output_size: usize,
     learning_rate: f64,
@@ -54,7 +54,7 @@ impl TermCache {
     // given output layer size
     fn precompute(output_size: usize) -> HashMap<usize, Array1<f64>> {
         let mut map = HashMap::new();
-        let mut zeros;
+        let mut zeros: Array1<f64>;
 
         for i in 0..output_size {
             zeros = Array1::zeros(output_size);
@@ -65,9 +65,7 @@ impl TermCache {
         map
     }
 
-    fn one_hot_cache(&self, index: usize) -> Option<&Array1<f64>> {
-        self.one_hot.get(&index)
-    }
+    fn one_hot(&self, index: usize) -> Option<&Array1<f64>> { self.one_hot.get(&index) }
 
     // 2 Activation & Cost Derivatives
 
@@ -95,7 +93,7 @@ impl TermCache {
             // e.g. where y is 10 x 1 or 10 x 32
             for i in 0..self.batch_type.value() { // 0..batch_size
                 let label = y[[i, 0]] as usize;
-                let encoded_label = self.one_hot_cache(label).unwrap();
+                let encoded_label = self.one_hot(label).unwrap();
                 output_labels.slice_mut(s![.., i]).assign(encoded_label);
             }
 

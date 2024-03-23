@@ -33,7 +33,7 @@ fn main() {
         model.add(Dense(50, Act::Sigmoid));
         model.add(Dense(10, Act::Sigmoid));
         model.compile(Loss::Quadratic, 0.3, vec![Mett::Accuracy, Mett::Cost]);
-        model.fit(&subsets, 20, Batch::Mini(32), Eval::Train);
+        model.fit(&subsets, 10, Batch::Mini(32), Eval::Train);
     }
 
     model.eval(&subsets, Eval::Test);
