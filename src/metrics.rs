@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use ndarray::Array2;
+use ndarray::{Array2, arr2};
 
 use crate::cost::CostFp;
 use crate::types::Batch;
@@ -79,11 +79,16 @@ impl Tally {
         }
     }
 
-    //    pub fn t_cost(&mut self, a: &Array2<f64>, y: &Array2<f64>) { // tally or track cost
     pub fn t_cost(&mut self, a: &Array2<f64>, y: usize) { // tally or track cost
         if self.metrics_map.contains_key(&Mett::Cost) {
-            let v_y = self.one_hot(y).unwrap();
-
+            let v_y: &Array2<f64>;
+            let temp;
+            if a.shape()[0] == 1 && a.shape()[1] == 1 {
+                temp = arr2(&[[y as f64]]);
+                v_y = &temp;
+            } else {
+                v_y = self.one_hot(y).unwrap();
+            }
 //            println!("t_cost: a output is {:?}, y is {:?}, vectored y is {:?}", &a, y, &v_y);
 
             let cost = (self.cost_fp)(a, v_y);
