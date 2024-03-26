@@ -9,7 +9,8 @@ impl FunctionCost for Quadratic {
     fn compute(a: &Array2<f64>, y: &Array2<f64>) -> f64 {
         let sub = a - y;
         let sq = &sub * &sub * 0.5;
-        let res = sq.sum(); //mean().unwrap();
+        let res = sq.sum();
+//        let res = sq.mean().unwrap();
 
  //       println!("Quadratic cost, result {:?}", &res);
         res

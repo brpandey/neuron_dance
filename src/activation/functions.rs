@@ -37,7 +37,7 @@ impl FromStr for Box<dyn Activation> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Act {
     Relu,
     Sigmoid,

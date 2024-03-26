@@ -2,7 +2,7 @@ use ndarray::{s, Array1, Array2};
 use std::collections::HashMap;
 
 use crate::{
-    activation::ActFp, cost::CostDFp, layers::Batch,
+    activation::{ActFp, functions::Act}, cost::{CostDFp, CostCDFp}, layers::Batch,
     types::Classification, term_stack::{TT, TermStack}
 };
 
@@ -14,12 +14,16 @@ pub struct TermCache {
     output_size: usize,
     learning_rate: f64,
     batch_type: Batch,
-    cost_d_fp: CostDFp,
+    cost_d_fps: (CostDFp, CostCDFp),
+    output_act_type: Act,
 }
 
 impl TermCache {
-    pub fn new(backward: Vec<ActFp>, biases: &[Array2<f64>], output_size: usize,
-               learning_rate: f64, batch_type: Batch, cost_d_fp: CostDFp) -> Self {
+    pub fn new(
+        backward: Vec<ActFp>, biases: &[Array2<f64>], output_size: usize,
+        learning_rate: f64, batch_type: Batch, cost_d_fps: (CostDFp, CostCDFp),
+        output_act_type: Act
+    ) -> Self {
 
         // Precompute one hot encoded vectors given output layer size
         let one_hot = Self::precompute(output_size);
@@ -33,7 +37,8 @@ impl TermCache {
             output_size,
             learning_rate,
             batch_type,
-            cost_d_fp,
+            cost_d_fps,
+            output_act_type,
         }
     }
 
@@ -69,7 +74,16 @@ impl TermCache {
 
     // 2 Activation & Cost Derivatives
 
-    pub fn nonlinear_derivative(&mut self) -> Array2<f64>
+    pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
+        let dc_da = self.partial_cost_derivative(y);
+        let da_dz = self.nonlinear_derivative();
+
+        // invoke cost specific combine deriv function with
+        // output activation type
+        (self.cost_d_fps.1)(dc_da, da_dz, self.output_act_type)
+    }
+
+    pub fn nonlinear_derivative(&mut self) -> Array2<f64> // returns da_dz
     {
         let z_last = self.stack.pop(TT::Linear).array();
         let a_derivative = self.stack.pop(TT::ActivationDerivative).fp();
@@ -77,7 +91,7 @@ impl TermCache {
         da_dz
     }
 
-    pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
+    fn partial_cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> { // returns dc_da
         let last_a: Array2<f64> = self.stack.pop(TT::Nonlinear).array();
 
         if let Classification::MultiClass = self.classification {
@@ -97,10 +111,10 @@ impl TermCache {
                 output_labels.slice_mut(s![.., i]).assign(encoded_label);
             }
 
-            (self.cost_d_fp)(&last_a, &output_labels.view()) //            &last_a - &output_labels
+            (self.cost_d_fps.0)(&last_a, &output_labels.view()) //            &last_a - &output_labels
         } else {
             // e.g. 1 x 1 or 1 x 32
-            (self.cost_d_fp)(&last_a, &y.t()) //            &last_a - &y.t()
+            (self.cost_d_fps.0)(&last_a, &y.t()) //            &last_a - &y.t()
         }
     }
 }

@@ -42,27 +42,29 @@ impl Network {
     }
 
     pub fn compile(&mut self, loss_type: Loss, learning_rate: f64, metrics_type: Vec<Mett>) {
-        let (sizes, forward, backward) = self.layers.as_mut().unwrap().reduce();
+        let (sizes, forward, backward, output_act) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
         let output_size = sizes[total_layers-1];
 
         let loss: Box<dyn Cost> = loss_type.into();
-        let (cost_fp, cost_deriv_fp) = loss.pair();
+        let (cost_fp, cost_deriv_fp, cost_comb_deriv_fp) = loss.triple();
 
         let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size));
 
         let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
-        let (mut x, mut y);
+        let (mut x, mut y, mut x_sqrt);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
 
         for i in 1..total_layers {
             x = sizes[i-1];
             y = sizes[i];
 
+            x_sqrt = (x as f64).sqrt();
+
             b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
             w = Array::random((y, x), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
 
-            weights.push(w);
+            weights.push(w/x_sqrt);
             biases.push(b);
         }
 
@@ -74,8 +76,12 @@ impl Network {
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
 
-        let tc = TermCache::new(backward, &self.biases, output_size,
-                                learning_rate, Batch::SGD, cost_deriv_fp);
+        let tc = TermCache::new(
+            backward, &self.biases, output_size,
+            learning_rate, Batch::SGD,
+            (cost_deriv_fp, cost_comb_deriv_fp),
+            output_act
+        );
 
         self.cache = Some(tc);
     }

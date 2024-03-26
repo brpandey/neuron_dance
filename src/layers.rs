@@ -46,7 +46,7 @@ impl LayerOrder {
 
 pub enum LayerTerms {
     Input(LayerOrder, usize), // order, input size
-    Dense(LayerOrder, usize, Box<dyn Activation>), // order, dense siz, act
+    Dense(LayerOrder, usize, Box<dyn Activation>, Act), // order, dense siz, act
 }
 
 impl Layer for Input1 {
@@ -70,8 +70,9 @@ impl Layer for Dense {
 
     fn reduce(&self) -> Self::Output {
         let size = self.0;
+        let act_type = self.1;
         let act: Box<dyn Activation> = self.1.into();
-        LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act)
+        LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type)
     }
 }
 
@@ -97,10 +98,10 @@ impl LayerStack {
 
 impl Layer for LayerStack {
     //tuple of vecs: (sizes, act fps, act deriv fps)
-    type Output = (Vec<usize>, Vec<ActFp>, Vec<ActFp>);
+    type Output = (Vec<usize>, Vec<ActFp>, Vec<ActFp>, Act);
 
     fn reduce(&self) -> Self::Output {
-        let acc = (vec![0], vec![], vec![]); // acc is type Output
+        let acc = (vec![0], vec![], vec![], Act::Sigmoid); // acc is type Output
         self.0.iter().enumerate().fold(acc, |mut acc, (i,l)| {
             match l.reduce() {
                 LayerTerms::Input(ref order, size) if order.valid(i) => {
@@ -109,11 +110,12 @@ impl Layer for LayerStack {
                     acc.0.swap_remove(0);
                     acc
                 },
-                LayerTerms::Dense(ref order, size, act) if order.valid(i) => {
+                LayerTerms::Dense(ref order, size, act, act_type) if order.valid(i) => {
                     let (act_fp, deriv_fp) = act.pair(); // activation and activation derivative functions
                     acc.0.push(size);
                     acc.1.push(act_fp);
                     acc.2.push(deriv_fp);
+                    acc.3 = act_type;
                     acc
                 },
                 _ => panic!("Layer order is incorrect, perhaps input layer is not first layer added?"),

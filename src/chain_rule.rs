@@ -5,7 +5,7 @@ use crate::term_cache::TermCache;
 use crate::term_stack::TT;
 use crate::chain_layer::{
     ComputeLayer, HiddenLayerTerms,
-    SharedHiddenTerms, SharedOutputTerms, OutputLayerTerms
+    SharedHiddenTerms, OutputLayerTerms
 };
 
 pub trait ChainRule {
@@ -55,17 +55,11 @@ impl <'a> ChainRuleComputation<'a> {
         // dc_db => dc_da * da_dz * dz_db   (or) dc_dz * dz_db
         // dc_dw => dc_da * da_dz * dz_dw.t (or) dc_dz * dz_dw.t
 
-        // create shared component
-        let shared = SharedOutputTerms {
-            dc_da: self.tc.cost_derivative(y), // e.g. C = (A2 − Y)^2
-            da_dz: self.tc.nonlinear_derivative(),  // e.g A2 = sigmoid (Z2)
-            dc_dz: None,
-        };
-
+        // e.g. C = (A2 − Y)^2, A2 = sigmoid (Z2)
         // create current layer's terms
         let mut layer_terms = ComputeLayer::Output(
             OutputLayerTerms {
-                shared,
+                dc_dz: Some(self.tc.cost_derivative(y)),
                 dz_db: 1.0,
                 dz_dw: self.tc.stack.pop(TT::Nonlinear).array(),
                 bias_shape: self.tc.stack.pop(TT::BiasShape).shape(),

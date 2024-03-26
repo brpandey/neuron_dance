@@ -6,7 +6,7 @@ use simple_network::{
 };
 
 fn main() {
-    let csv = false; //false;
+    let csv = false;
     let train_percentage = 2.0/3.0;     // train / total ratio, test = total - train
     let mut dataset: Box<dyn DataSet>;
 
@@ -30,10 +30,10 @@ fn main() {
     } else {
         model = Network::new();
         model.add(Input2(28, 28));
-        model.add(Dense(50, Act::Sigmoid));
+        model.add(Dense(30, Act::Sigmoid));
         model.add(Dense(10, Act::Sigmoid));
-        model.compile(Loss::Quadratic, 0.3, vec![Mett::Accuracy, Mett::Cost]);
-        model.fit(&subsets, 10, Batch::Mini(32), Eval::Train);
+        model.compile(Loss::CrossEntropy, 0.5, vec![Mett::Accuracy, Mett::Cost]);
+        model.fit(&subsets, 20, Batch::Mini(32), Eval::Test);
     }
 
     model.eval(&subsets, Eval::Test);
