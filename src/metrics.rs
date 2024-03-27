@@ -1,4 +1,4 @@
-use std::{fmt, collections::HashMap};
+use std::{{fmt, fmt::Display}, collections::HashMap};
 use ndarray::{Array2, arr2};
 
 use crate::cost::CostFp;
@@ -51,9 +51,7 @@ pub struct Tally {
     one_hot: HashMap<usize, Array2<f64>>,
     total_cost: f64,
     total_matches: usize,
-    total_size: usize,
-    accuracy: Option<AccuracyMetric>,
-    loss: Option<LossMetric>,
+    display_list: Vec<Box<dyn Display>>
 }
 
 impl Tally {
@@ -67,9 +65,7 @@ impl Tally {
             one_hot,
             total_cost: 0.0,
             total_matches: 0,
-            total_size: 0,
-            accuracy: None, // haven't computed yet
-            loss: None, // haven't computed yet
+            display_list: vec![],
         }
     }
 
@@ -98,68 +94,68 @@ impl Tally {
     }
 
     pub fn summarize(&mut self, n_total: usize) {
-        self.total_size = if n_total >= 1 { n_total } else { panic!("total size can't be zero") };
+        let total_size = if n_total >= 1 { n_total } else { panic!("total size can't be zero") };
+        self.display_list = vec![]; // reset
 
         if self.metrics_map.contains_key(&Mett::Accuracy) {
-            self.accuracy = Some(AccuracyMetric::new(self.total_matches, self.total_size));
+            self.display_list.push(AccuracyM::new(self.total_matches, total_size));
             self.total_matches = 0; // reset
         }
 
         if self.metrics_map.contains_key(&Mett::Cost) {
-            self.loss = Some(LossMetric::new(self.total_cost, self.total_size));
+            self.display_list.push(LossM::new(self.total_cost, total_size));
             self.total_cost = 0.0; // reset
         }
     }
 
     pub fn display(&self) {
-        // generate text related to batch type
+        // generate text related to batch type leveraging Display trait
         let b = self.batch_type.as_ref().map_or(String::from(""), |v| v.to_string());
 
-        // generate initial accuracy and loss texts
-        let mut a_txt = self.accuracy.as_ref().map(|v| format!("{} {}", v, b));
-        let mut l_txt = self.loss.as_ref().map(|v| format!("{} {}", v, b));
+        // generate initial metrics texts, {custom metric text} {batch text}
+        let mut m_txts: Vec<String> = self.display_list.iter()
+            .map(|v| format!("{} {}", v, b)).collect();
 
         // if necessary (if minibatch), prefix initial texts with epoch info
         if let Some(&Batch::Mini(_)) = self.batch_type.as_ref() {
-            let e_txt = format!("Epoch {}/{}:", self.epoch.0, self.epoch.1);
-            a_txt = self.accuracy.as_ref().map(|_| format!("{} {}", &e_txt, a_txt.unwrap()));
-            l_txt = self.loss.as_ref().map(|_| format!("{} {}", &e_txt, l_txt.unwrap()));
+            let e = format!("Epoch {}/{}:", self.epoch.0, self.epoch.1);
+            m_txts = m_txts.into_iter().map(|t| format!("{} {}", &e, t)).collect();
         }
 
-        // print metrics related display text
-        a_txt.as_ref().map(|v| println!("{v}"));
-        l_txt.as_ref().map(|v| println!("{v}"));
+        // print each specific metric's display text
+        m_txts.iter().for_each(|t| println!("{}", t));
+        println!("");
     }
 
     pub fn one_hot(&self, index: usize) -> Option<&Array2<f64>> { self.one_hot.get(&index) }
 }
 
 
-struct AccuracyMetric(f64, usize, usize);
+// define metric display structs
+struct AccuracyM(f64, usize, usize);
+struct LossM(f64, f64, usize);
 
-impl AccuracyMetric {
-    pub fn new(matches: usize, n_total: usize) -> Self {
+impl AccuracyM {
+    pub fn new(matches: usize, n_total: usize) -> Box<dyn Display> {
         if n_total == 0 { panic!("total size can't be zero"); }
-        AccuracyMetric(matches as f64/n_total as f64, matches, n_total)
+        Box::new(AccuracyM(matches as f64/n_total as f64, matches, n_total))
     }
 }
 
-impl fmt::Display for AccuracyMetric {
+impl fmt::Display for AccuracyM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Accuracy {:.4} {}/{}", self.0, self.1, self.2)
     }
 }
 
-struct LossMetric(f64, f64, usize);
-
-impl LossMetric {
-    pub fn new(total_cost: f64, n_total: usize) -> Self {
+impl LossM {
+    pub fn new(total_cost: f64, n_total: usize) -> Box<dyn Display> {
         if n_total == 0 { panic!("total size can't be zero"); }
-        LossMetric(total_cost/n_total as f64, total_cost, n_total)
+        Box::new(LossM(total_cost/n_total as f64, total_cost, n_total))
     }
 }
 
-impl fmt::Display for LossMetric {
+impl fmt::Display for LossM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Avg Loss {:.4} {:.4}/{}", self.0, self.1, self.2)
     }
