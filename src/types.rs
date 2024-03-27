@@ -1,3 +1,5 @@
+use std::fmt;
+
 // Types not exclusive to any module
 
 #[derive(Debug, Copy, Clone)]
@@ -14,6 +16,16 @@ impl Batch {
         }
     }
 }
+
+impl fmt::Display for Batch {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Batch::SGD => write!(f, "(SGD)"),
+            Batch::Mini(_) => write!(f, "(MiniBatch)"),
+        }
+    }
+}
+
 
 #[derive(Debug)]
 pub enum Classification {

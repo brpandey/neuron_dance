@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{fmt, collections::HashMap};
 use ndarray::{Array2, arr2};
 
 use crate::cost::CostFp;
@@ -52,8 +52,8 @@ pub struct Tally {
     total_cost: f64,
     total_matches: usize,
     total_size: usize,
-    accuracy: Option<f64>,
-    avg_loss: Option<f64>,
+    accuracy: Option<AccuracyMetric>,
+    loss: Option<LossMetric>,
 }
 
 impl Tally {
@@ -69,7 +69,7 @@ impl Tally {
             total_matches: 0,
             total_size: 0,
             accuracy: None, // haven't computed yet
-            avg_loss: None, // haven't computed yet
+            loss: None, // haven't computed yet
         }
     }
 
@@ -101,57 +101,66 @@ impl Tally {
         self.total_size = if n_total >= 1 { n_total } else { panic!("total size can't be zero") };
 
         if self.metrics_map.contains_key(&Mett::Accuracy) {
-            self.accuracy = Some(self.total_matches as f64 / self.total_size as f64);
+            self.accuracy = Some(AccuracyMetric::new(self.total_matches, self.total_size));
+            self.total_matches = 0; // reset
         }
 
         if self.metrics_map.contains_key(&Mett::Cost) {
-            self.avg_loss = Some(self.total_cost / self.total_size as f64);
+            self.loss = Some(LossMetric::new(self.total_cost, self.total_size));
+            self.total_cost = 0.0; // reset
         }
     }
 
     pub fn display(&self) {
-        // No batch type
-        if self.batch_type.is_none() {
-            if self.accuracy.is_some() {
-                println!("Accuracy {:.4} {}/{}", self.accuracy.as_ref().unwrap(),
-                         self.total_matches, self.total_size);
-            }
+        // generate text related to batch type
+        let b = self.batch_type.as_ref().map_or(String::from(""), |v| v.to_string());
 
-            if self.avg_loss.is_some() {
-                println!("Avg Loss {:.4} {:.4}/{}", self.avg_loss.as_ref().unwrap(),
-                         self.total_cost, self.total_size);
-            }
+        // generate initial accuracy and loss texts
+        let mut a_txt = self.accuracy.as_ref().map(|v| format!("{} {}", v, b));
+        let mut l_txt = self.loss.as_ref().map(|v| format!("{} {}", v, b));
 
-            return
+        // if necessary (if minibatch), prefix initial texts with epoch info
+        if let Some(&Batch::Mini(_)) = self.batch_type.as_ref() {
+            let e_txt = format!("Epoch {}/{}:", self.epoch.0, self.epoch.1);
+            a_txt = self.accuracy.as_ref().map(|_| format!("{} {}", &e_txt, a_txt.unwrap()));
+            l_txt = self.loss.as_ref().map(|_| format!("{} {}", &e_txt, l_txt.unwrap()));
         }
 
-        match self.batch_type.as_ref().unwrap() {
-            Batch::SGD => {
-                if self.accuracy.is_some() {
-                    println!("Accuracy {:.4} {}/{} {} (SGD)", self.accuracy.as_ref().unwrap(),
-                             self.total_matches, self.total_size, self.epoch.1);
-                }
-
-                if self.avg_loss.is_some() {
-                    println!("Avg Loss {:.4} {:.4}/{} {} (SGD)", self.avg_loss.as_ref().unwrap(),
-                             self.total_cost, self.total_size, self.epoch.1);
-                }
-
-            },
-            Batch::Mini(_) => {
-                if self.accuracy.is_some() {
-                    println!("Epoch {}: accuracy {:.4} {}/{} {} (MiniBatch)", self.epoch.0,
-                             self.accuracy.as_ref().unwrap(), self.total_matches, self.total_size, self.epoch.1);
-                }
-
-                if self.avg_loss.is_some() {
-                    println!("Epoch {}: avg loss {:.4} {:.4}/{} {} (MiniBatch)", self.epoch.0,
-                             self.avg_loss.as_ref().unwrap(), self.total_cost, self.total_size, self.epoch.1);
-                }
-
-            }
-        }
+        // print metrics related display text
+        a_txt.as_ref().map(|v| println!("{v}"));
+        l_txt.as_ref().map(|v| println!("{v}"));
     }
 
     pub fn one_hot(&self, index: usize) -> Option<&Array2<f64>> { self.one_hot.get(&index) }
+}
+
+
+struct AccuracyMetric(f64, usize, usize);
+
+impl AccuracyMetric {
+    pub fn new(matches: usize, n_total: usize) -> Self {
+        if n_total == 0 { panic!("total size can't be zero"); }
+        AccuracyMetric(matches as f64/n_total as f64, matches, n_total)
+    }
+}
+
+impl fmt::Display for AccuracyMetric {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Accuracy {:.4} {}/{}", self.0, self.1, self.2)
+    }
+}
+
+struct LossMetric(f64, f64, usize);
+
+impl LossMetric {
+    pub fn new(total_cost: f64, n_total: usize) -> Self {
+        if n_total == 0 { panic!("total size can't be zero"); }
+        LossMetric(total_cost/n_total as f64, total_cost, n_total)
+    }
+}
+
+impl fmt::Display for LossMetric {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Avg Loss {:.4} {:.4}/{}", self.0, self.1, self.2)
+    }
 }
