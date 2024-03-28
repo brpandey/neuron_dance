@@ -101,6 +101,11 @@ impl Network {
         self.evaluate(subsets, &eval, &mut tally);
     }
 
+    pub fn predict(&self, x: ArrayView2<f64>) -> Array2<f64> {
+        let mut none = None;
+        self.predict_(x, &mut none)
+    }
+
      /**** Private associated methods ****/
 
     fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, tc: &mut TermCache, eval: Eval) {
@@ -162,10 +167,10 @@ impl Network {
     fn forward_pass(&self, x: ArrayView2<f64>, tc: &mut TermCache) {
         tc.stack.reset(x.to_owned());
         let mut opt = Some(tc);
-        self.predict(x, &mut opt);
+        self.predict_(x, &mut opt);
     }
 
-    fn predict(&self, x: ArrayView2<f64>, opt: &mut Option<&mut TermCache>) -> Array2<f64> {
+    fn predict_(&self, x: ArrayView2<f64>, opt: &mut Option<&mut TermCache>) -> Array2<f64> {
         let mut z: Array2<f64>;
         let mut a: Array2<f64>;
         let mut acc = x.to_owned();
@@ -239,7 +244,7 @@ impl Network {
 
         // processes an x_test row of input values at a time
         for (x_sample, y) in x_data.axis_chunks_iter(Axis(0), 1).zip(y_data.iter()) {
-            output = self.predict(x_sample.t(), &mut empty);
+            output = self.predict_(x_sample.t(), &mut empty);
 
             label_index = *y as usize;
 
