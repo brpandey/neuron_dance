@@ -104,21 +104,25 @@ impl Tally {
     }
 
     pub fn display(&self) {
+        use std::collections::VecDeque;
         // generate text related to batch type leveraging Display trait
         let b = self.batch_type.as_ref().map_or(String::from(""), |v| v.to_string());
 
         // generate initial metrics texts, {custom metric text} {batch text}
-        let mut m_txts: Vec<String> = self.display_list.iter()
+        let mut m_txts: VecDeque<String> = self.display_list.iter()
             .map(|v| format!("{} {}", v, b)).collect();
 
         // if necessary (if minibatch), prefix initial texts with epoch info
         if let Some(&Batch::Mini(_)) = self.batch_type.as_ref() {
-            let e = format!("Epoch {}/{}:", self.epoch.0, self.epoch.1);
-            m_txts = m_txts.into_iter().map(|t| format!("{} {}", &e, t)).collect();
+            let e = format!("Epoch {}/{}", self.epoch.0, self.epoch.1);
+            m_txts.push_front(e);
+            m_txts = m_txts.into_iter().enumerate().map(|(i,t)| {
+                if i == 0 { t } else { format!("\t{}", t) }
+            }).collect();
         }
 
         // print each specific metric's display text
-        m_txts.iter().for_each(|t| println!("{}", t));
+        m_txts.iter().for_each(|t| println!("{t}"));
         println!("");
     }
 

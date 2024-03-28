@@ -86,7 +86,7 @@ impl DataSet for CSVData {
         // For example: n_features is 4
         // x_train shape is [897, 3], y_train shape is [897, 1], x_test shape is [448, 3], y_test shape is [448, 1]
         let tts = TrainTestSubsetData((x_train, y_train, n1, x_test, y_test, n2));
-        println!("Train test subset shapes are {}", &tts);
+        println!("Data subset shapes {}\n", &tts);
         tts
     }
 }

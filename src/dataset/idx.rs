@@ -51,7 +51,7 @@ impl DataSet for MnistData {
 
         // Extract data from boxed raws
         let tts = TrainTestSubsetData(self.destructure());
-        println!("Train test subset shapes are {}", &tts);
+        println!("Data subset shapes are {}\n", &tts);
         tts
     }
 }
