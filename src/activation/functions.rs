@@ -4,7 +4,7 @@ pub mod relu;
 pub mod sigmoid;
 // End Finish (1)
 
-use std::{convert::From, fmt, str::FromStr};
+use std::{convert::From, str::FromStr};
 use crate::activation::{Activation, functions::
                         {relu::Relu, sigmoid::Sigmoid}}; // Update (2)
 
@@ -15,13 +15,6 @@ pub trait FunctionAct {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ActivationParseError;
-
-// manual error msg implementation rather than pulling in external crate
-impl fmt::Display for ActivationParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Unknown activation type")
-    }
-}
 
 impl FromStr for Box<dyn Activation> {
     type Err = ActivationParseError;
@@ -43,14 +36,12 @@ pub enum Act {
     Sigmoid,
 }
 
-
 impl From<Act> for Box<dyn Activation> {
     fn from(activation_type: Act) -> Self {
         // Add new activation type here - Start (3)
         match activation_type {
             Act::Relu => Box::new(Relu),
             Act::Sigmoid => Box::new(Sigmoid),
-//            _ => Err(ActivationParseError),
         }
         // End Finish (3)
     }

@@ -12,8 +12,8 @@ use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, functions::Loss};
-use crate::metrics::{Mett, Metrics, Tally};
-use crate::types::{Batch, Eval};
+use crate::metrics::{Metrics, Tally};
+use crate::types::{Batch, Eval, Metr};
 
 #[derive(Debug)]
 pub struct Network {
@@ -41,7 +41,7 @@ impl Network {
         self.layers.as_mut().unwrap().add(layer);
     }
 
-    pub fn compile(&mut self, loss_type: Loss, learning_rate: f64, metrics_type: Vec<Mett>) {
+    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, metrics_type: Metr<'a>) {
         let (sizes, forward, backward, output_act) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
         let output_size = sizes[total_layers-1];

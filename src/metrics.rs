@@ -2,14 +2,7 @@ use std::{{fmt, fmt::Display}, collections::HashMap};
 use ndarray::{Array2, arr2};
 
 use crate::cost::CostFp;
-use crate::types::Batch;
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-
-pub enum Mett { // Metrics Type
-    Accuracy,
-    Cost,
-}
+use crate::types::{Batch, Metr, Mett};
 
 #[derive(Debug)]
 pub struct Metrics {
@@ -19,7 +12,9 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    pub fn new(metrics_list: Vec<Mett>, cost_fp: CostFp, output_size: usize) -> Self {
+    pub fn new<'a>(mut metrics_type: Metr<'a>, cost_fp: CostFp, output_size: usize) -> Self {
+        let metrics_list = metrics_type.to_vec();
+
         // reduce metrics list into hash table for easy lookup
         let metrics_map: HashMap<Mett, bool> = metrics_list.into_iter().map(|v| (v, true)).collect();
         let mut one_hot = HashMap::new();
