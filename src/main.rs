@@ -1,3 +1,5 @@
+use clap::{Arg, ArgAction, Command};
+use std::str::FromStr;
 use simple_network::{
     network::Network,
     dataset::{DataSet, csv::{CSVType, CSVData},
@@ -5,14 +7,22 @@ use simple_network::{
     layers::{Act, Batch, Eval, Loss, Metr, Input1, Input2, Dense},
 };
 
-pub enum NetworkType {
-    CSV1,
-    CSV2,
-    Mnist,
-}
-
 fn main() {
-    let ntype = NetworkType::Mnist;
+    let mut matches = Command::new("simple_network")
+        .about("Simple Neural Network")
+        .arg(
+            Arg::new("type")
+                .action(ArgAction::Set)
+                .value_parser(["csv1", "csv2", "mnist"])
+                .default_value("csv1")
+                .help("Specify network type")
+                .short('t')
+                .long("type")
+                .value_name("NETWORK TYPE")
+            )
+        .get_matches();
+
+    let ntype = matches.remove_one::<String>("type").unwrap().parse().unwrap();
     let train_percentage = 2.0/3.0;     // train / total ratio, test = total - train
     let mut dataset: Box<dyn DataSet>;
 
@@ -41,7 +51,7 @@ fn main() {
             model.add(Dense(12, Act::Relu));
             model.add(Dense(8, Act::Relu));
             model.add(Dense(2, Act::Sigmoid));
-            model.compile(Loss::CrossEntropy, 0.5, Metr(" accuracy"));
+            model.compile(Loss::CrossEntropy, 0.5, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini(20), Eval::Test); // using SGD approach (doesn't have momentum supported)
         },
         NetworkType::Mnist => {
@@ -54,4 +64,26 @@ fn main() {
         }
     }
     model.eval(&subsets, Eval::Test);
+}
+
+pub enum NetworkType {
+    CSV1,
+    CSV2,
+    Mnist,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct NTParseError;
+
+impl FromStr for NetworkType {
+    type Err = NTParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "csv1" => Ok(NetworkType::CSV1),
+            "csv2" => Ok(NetworkType::CSV2),
+            "mnist" => Ok(NetworkType::Mnist),
+            _ => Err(NTParseError),
+        }
+    }
 }
