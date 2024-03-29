@@ -188,8 +188,8 @@ impl Network {
         acc // return last computed activation values
     }
 
-    fn backward_pass<'b, 'c>(&self, y: &Array2<f64>, tc: &'b mut TermCache) -> ChainRuleComputation<'c>
-    where 'b: 'c // tc is around longer than crc
+    fn backward_pass<'a, 'b>(&self, y: &Array2<f64>, tc: &'a mut TermCache) -> ChainRuleComputation<'b>
+    where 'a: 'b // tc is around longer than crc
     {
         // Compute the chain rule values for each layer
         // Store the partial cost derivative for biases and weights from each layer,
