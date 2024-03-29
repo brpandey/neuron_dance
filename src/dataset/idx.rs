@@ -4,7 +4,7 @@ use ndarray::Array2;
 use std::fs::File;
 use std::io::{Cursor, Read};
 
-use crate::dataset::{DATASET_DIR, DataSet, TrainTestTuple, TrainTestSubsetData};
+use crate::dataset::{ROOT_DIR, DataSet, TrainTestTuple, TrainTestSubsetData};
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
@@ -90,7 +90,7 @@ impl Subset {
     }
 
     fn merge_path(&self, type_dir: &str, token: &str, suffix_path: &str) -> String {
-        format!("{}{}/{}-{}", DATASET_DIR, type_dir, token, suffix_path)
+        format!("{}/data/{}/{}-{}", ROOT_DIR, type_dir, token, suffix_path)
     }
 
     fn fetch(&self, type_dir_name: &str) -> Raw {
@@ -177,7 +177,7 @@ impl RawLabels {
     }
 }
 
-pub struct RawImages(Option<Array2<f64>>, usize, usize, usize);
+pub struct RawImages(Option<Array2<f64>>, usize); //, usize, usize);
 
 impl RawImages {
     const MAGIC: u32 = 2051;
@@ -198,6 +198,6 @@ impl RawImages {
         let flattened_shape = shape1 * shape2 as usize; // instead of a 28x28 matrix, we grab 784 * 1 in an array2
         let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64 / 255.0 as f64).collect(); // normalize to value between 0 and 1
         let data = Array2::from_shape_vec((n_images, flattened_shape), floats).unwrap(); // e.g. 10,000 x 784
-        Self(Some(data), n_images, shape1, shape2)
+        Self(Some(data), n_images)
     }
 }

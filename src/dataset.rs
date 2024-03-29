@@ -1,10 +1,10 @@
 use ndarray::Array2;
-use std::fmt;
+use std::{env, fmt};
 
 pub mod csv;
 pub mod idx;
 
-pub const DATASET_DIR: &str = "./src/dataset/raw/";
+pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 pub trait DataSet  {
     fn fetch(&mut self, token: &str);

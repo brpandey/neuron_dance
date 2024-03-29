@@ -4,11 +4,11 @@ use ndarray_csv::Array2Reader;
 use ndarray_rand::{RandomExt, SamplingStrategy, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 
-use crate::dataset::{DATASET_DIR, DataSet, TrainTestSubsetData};
+use crate::dataset::{ROOT_DIR, DataSet, TrainTestSubsetData};
 
 pub type CSVBox = Box<Array2<f64>>;
 
-//                  ctype  scale   data
+//                       ctype    scale   data
 pub struct CSVData<'a>(CSVType<'a>, f64, Option<CSVBox>);
 
 pub enum CSVType<'a> {
@@ -23,7 +23,7 @@ impl <'a> CSVType<'a> {
             CSVType::Custom(ref t) => CSVType::sanitize(t),
         };
 
-        format!("{}/csv/{}.csv", DATASET_DIR, token)
+        format!("{}/data/csv/{}.csv", ROOT_DIR, token)
     }
 
     pub fn sanitize(token: &str) -> &str {

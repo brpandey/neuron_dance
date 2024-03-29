@@ -48,8 +48,8 @@ fn main() {
         NetworkType::CSV2 => {
             model = Network::new();
             model.add(Input1(8));
-            model.add(Dense(12, Act::Relu));
             model.add(Dense(8, Act::Relu));
+//            model.add(Dense(8, Act::Relu));
             model.add(Dense(2, Act::Sigmoid));
             model.compile(Loss::CrossEntropy, 0.5, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini(20), Eval::Test); // using SGD approach (doesn't have momentum supported)
