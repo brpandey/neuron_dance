@@ -8,6 +8,7 @@ pub trait AlgebraExt<W = Self, B = Self> {
     fn weighted_sum(&self, w: &W, b: &B) -> Self::Output;
     fn activate(&self, f: &ActFp) -> Self::Output;
     fn ln(&self) -> Self::Output;
+    fn normalize(&self) -> f64;
 }
 
 impl AlgebraExt for Array2<f64> {
@@ -49,4 +50,8 @@ impl AlgebraExt for Array2<f64> {
         self.mapv(|v| v.log(std::f64::consts::E))
     }
 
+    #[inline]
+    fn normalize(&self) -> f64 {
+        (self*self).sum().sqrt()
+    }
 }

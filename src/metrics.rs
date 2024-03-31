@@ -1,6 +1,7 @@
 use std::{{fmt, fmt::Display}, collections::HashMap};
 use ndarray::{Array2, arr2};
 
+use crate::algebra::AlgebraExt;
 use crate::cost::CostFp;
 use crate::types::{Batch, Metr, Mett};
 
@@ -9,10 +10,11 @@ pub struct Metrics {
     metrics_map: HashMap<Mett, bool>,
     cost_fp: CostFp,
     one_hot: HashMap<usize, Array2<f64>>,
+    l2_rate: f64,
 }
 
 impl Metrics {
-    pub fn new<'a>(mut metrics_type: Metr<'a>, cost_fp: CostFp, output_size: usize) -> Self {
+    pub fn new<'a>(mut metrics_type: Metr<'a>, cost_fp: CostFp, output_size: usize, l2_rate: f64) -> Self {
         let metrics_list = metrics_type.to_vec();
 
         // reduce metrics list into hash table for easy lookup
@@ -26,13 +28,13 @@ impl Metrics {
             one_hot.insert(i, zeros);
         }
 
-        Self { metrics_map, cost_fp, one_hot }
+        Self { metrics_map, cost_fp, one_hot, l2_rate }
     }
 
     pub fn create_tally(&mut self, batch_type: Option<Batch>,
                     epoch: (usize, usize)) -> Tally {
         Tally::new(
-            self.metrics_map.clone(), self.cost_fp.clone(),
+            self.metrics_map.clone(), self.cost_fp.clone(), self.l2_rate,
             batch_type, epoch, self.one_hot.clone(),
         )
     }
@@ -41,6 +43,7 @@ impl Metrics {
 pub struct Tally {
     metrics_map: HashMap<Mett, bool>,
     cost_fp: CostFp,
+    l2_rate: f64,
     batch_type: Option<Batch>,
     epoch: (usize, usize), // current epoch, total epochs
     one_hot: HashMap<usize, Array2<f64>>,
@@ -50,11 +53,12 @@ pub struct Tally {
 }
 
 impl Tally {
-    pub fn new(metrics_map: HashMap<Mett, bool>, cost_fp: CostFp, batch_type: Option<Batch>,
+    pub fn new(metrics_map: HashMap<Mett, bool>, cost_fp: CostFp, l2_rate: f64, batch_type: Option<Batch>,
                epoch: (usize, usize), one_hot: HashMap<usize, Array2<f64>>) -> Self {
         Self {
             metrics_map,
             cost_fp,
+            l2_rate,
             batch_type,
             epoch,
             one_hot,
@@ -86,6 +90,17 @@ impl Tally {
             self.total_cost += cost;
 //            println!("total_cost is {:?},  cost is {:?}", self.total_cost, cost);
         }
+    }
+
+    // Regularized cost function is C = C0 + λ/2n ∑w^2 or C = C0 + ∑ λ/2n * w^2 ( ∑ across weights )
+    // where C0 is the original, unregularizeed cost function
+
+    pub fn regularize_cost(&mut self, w: &Array2<f64>, n_total: usize) {
+        if n_total == 0 { panic!("total size can't be zero") };
+
+        let w_norm = w.normalize();
+        let reg_term = 0.5 * (self.l2_rate/n_total as f64) * (w_norm * w_norm);
+        self.total_cost += reg_term;
     }
 
     pub fn summarize(&mut self, n_total: usize) {

@@ -13,6 +13,7 @@ pub struct TermCache {
     classification: Classification,
     output_size: usize,
     learning_rate: f64,
+    l2_rate: f64,
     batch_type: Batch,
     cost_d_fps: (CostDFp, CostCDFp),
     output_act_type: Act,
@@ -21,7 +22,7 @@ pub struct TermCache {
 impl TermCache {
     pub fn new(
         backward: Vec<ActFp>, biases: &[Array2<f64>], output_size: usize,
-        learning_rate: f64, batch_type: Batch, cost_d_fps: (CostDFp, CostCDFp),
+        learning_rate: f64, l2_rate: f64, batch_type: Batch, cost_d_fps: (CostDFp, CostCDFp),
         output_act_type: Act
     ) -> Self {
 
@@ -36,6 +37,7 @@ impl TermCache {
             classification,
             output_size,
             learning_rate,
+            l2_rate,
             batch_type,
             cost_d_fps,
             output_act_type,
@@ -48,6 +50,8 @@ impl TermCache {
             Batch::Mini(batch_size) => self.learning_rate/batch_size as f64,
         }
     }
+
+    pub fn l2_regularization_rate(&self) -> f64 { self.l2_rate }
 
     pub fn set_batch_type(&mut self, batch_type: Batch) {
         self.batch_type = batch_type;

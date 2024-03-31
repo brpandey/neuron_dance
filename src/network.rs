@@ -41,7 +41,7 @@ impl Network {
         self.layers.as_mut().unwrap().add(layer);
     }
 
-    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, metrics_type: Metr<'a>) {
+    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
         let (sizes, forward, backward, output_act) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
         let output_size = sizes[total_layers-1];
@@ -49,7 +49,7 @@ impl Network {
         let loss: Box<dyn Cost> = loss_type.into();
         let (cost_fp, cost_deriv_fp, cost_comb_deriv_fp) = loss.triple();
 
-        let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size));
+        let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size, l2_rate));
 
         let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y, mut x_sqrt);
@@ -78,7 +78,7 @@ impl Network {
 
         let tc = TermCache::new(
             backward, &self.biases, output_size,
-            learning_rate, Batch::SGD,
+            learning_rate, l2_rate, Batch::SGD,
             (cost_deriv_fp, cost_comb_deriv_fp),
             output_act
         );
@@ -121,7 +121,8 @@ impl Network {
 
             self.train_iteration(
                 x_single.t(), &y_single,
-                tc, tc.learning_rate()
+                tc, tc.learning_rate(),
+                tc.l2_regularization_rate(), train.size,
             );
         }
 
@@ -148,7 +149,8 @@ impl Network {
                 // transpose to ensure proper matrix multi fit
                 self.train_iteration(
                     x_minibatch.t(), &y_minibatch,
-                    tc, tc.learning_rate()
+                    tc, tc.learning_rate(),
+                    tc.l2_regularization_rate(), train.size,
                 );
             }
 
@@ -157,10 +159,11 @@ impl Network {
         }
     }
 
-    fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>, cache: &mut TermCache, lr: f64) {
+    fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>,
+                       cache: &mut TermCache, lr: f64, l2_rate: f64, total_size: usize) {
         self.forward_pass(x_iteration, cache);
         let chain_rule_compute = self.backward_pass(y_iteration, cache);
-        self.update_iteration(chain_rule_compute, lr);
+        self.update_iteration(chain_rule_compute, lr, l2_rate, total_size);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
@@ -208,7 +211,7 @@ impl Network {
         crc
     }
 
-    fn update_iteration(&mut self, crc: ChainRuleComputation, learning_rate: f64) {
+    fn update_iteration(&mut self, crc: ChainRuleComputation, learning_rate: f64, l2_rate: f64, n_total: usize) {
         // Apply delta contributions to current biases and weights by subtracting
         // since we are taking the negative gradient using the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
@@ -221,8 +224,13 @@ impl Network {
             *b -= &db.mapv(|x| x * learning_rate)
         }
 
+        //  weight_decay factor is 1−ηλ/n
+        let weight_decay = 1.0-learning_rate*(l2_rate/n_total as f64);
+
         for (w, dw) in self.weights.iter_mut().zip(w_deltas) {
-            *w -= &dw.mapv(|x| x * learning_rate)
+            let delta = &dw.mapv(|x| x * learning_rate);
+//            println!("1) w dw is {:?}, \n2) w scaled dw w/ learning rate applied is {:?}, \n3) orig weight is {:?}\n", dw, delta, w);
+            *w = &*w*weight_decay - delta
         }
     }
 
@@ -253,6 +261,10 @@ impl Network {
             if output.arg_max() == label_index {
                 tally.t_match();
             }
+        }
+
+        for w in self.weights.iter() {
+            tally.regularize_cost(w, n_data);
         }
 
         tally.summarize(n_data);

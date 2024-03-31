@@ -42,25 +42,26 @@ fn main() {
             model.add(Input1(3));
             model.add(Dense(3, Act::Relu));
             model.add(Dense(1, Act::Sigmoid));
-            model.compile(Loss::Quadratic, 0.2, Metr(" accuracy , cost"));
+            model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
         },
         NetworkType::CSV2 => {
             model = Network::new();
             model.add(Input1(8));
             model.add(Dense(8, Act::Relu));
-//            model.add(Dense(8, Act::Relu));
-            model.add(Dense(2, Act::Sigmoid));
-            model.compile(Loss::CrossEntropy, 0.5, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini(20), Eval::Test); // using SGD approach (doesn't have momentum supported)
+            model.add(Dense(3, Act::Relu));
+            model.add(Dense(1, Act::Sigmoid));
+            model.compile(Loss::CrossEntropy, 0.5, 0.3, Metr("accuracy, cost"));
+            model.fit(&subsets, 100000, Batch::SGD, Eval::Train);
+//            model.fit(&subsets, 100, Batch::Mini(20), Eval::Test); // using SGD approach (doesn't have momentum supported)
         },
         NetworkType::Mnist => {
             model = Network::new();
             model.add(Input2(28, 28));
-            model.add(Dense(30, Act::Sigmoid));
+            model.add(Dense(100, Act::Sigmoid));
             model.add(Dense(10, Act::Sigmoid));
-            model.compile(Loss::CrossEntropy, 0.5, Metr("accuracy,cost "));
-            model.fit(&subsets, 4, Batch::Mini(32), Eval::Test);
+            model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy,cost "));
+            model.fit(&subsets, 30, Batch::Mini(10), Eval::Test);
         }
     }
     model.eval(&subsets, Eval::Test);
