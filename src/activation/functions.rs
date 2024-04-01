@@ -2,11 +2,12 @@
 // Add new activation module type here - Start (1)
 pub mod relu;
 pub mod sigmoid;
+pub mod tanh;
 // End Finish (1)
 
 use std::{convert::From, str::FromStr};
 use crate::activation::{Activation, functions::
-                        {relu::Relu, sigmoid::Sigmoid}}; // Update (2)
+                        {relu::Relu, sigmoid::Sigmoid, tanh::Tanh}}; // Update (2)
 
 pub trait FunctionAct {
     fn compute(x: f64) -> f64;
@@ -24,6 +25,7 @@ impl FromStr for Box<dyn Activation> {
         match s {
             "relu" => Ok(Box::new(Relu)),
             "sigmoid" => Ok(Box::new(Sigmoid)),
+            "tanh" => Ok(Box::new(Tanh)),
             _ => Err(ActivationParseError),
         }
         // End Finish (3)
@@ -34,6 +36,7 @@ impl FromStr for Box<dyn Activation> {
 pub enum Act {
     Relu,
     Sigmoid,
+    Tanh,
 }
 
 impl From<Act> for Box<dyn Activation> {
@@ -42,6 +45,7 @@ impl From<Act> for Box<dyn Activation> {
         match activation_type {
             Act::Relu => Box::new(Relu),
             Act::Sigmoid => Box::new(Sigmoid),
+            Act::Tanh => Box::new(Tanh),
         }
         // End Finish (3)
     }
