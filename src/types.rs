@@ -30,7 +30,17 @@ impl fmt::Display for Batch {
 #[derive(Debug)]
 pub enum Classification {
     Binary,
-    MultiClass,
+    MultiClass(usize),
+}
+
+impl Classification {
+    pub fn new(size: usize) -> Self {
+        if size > 1 {
+            Classification::MultiClass(size)
+        } else {
+            Classification::Binary
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

@@ -11,7 +11,6 @@ pub struct TermCache {
     pub stack: TermStack,
     one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors dim 1
     classification: Classification,
-    output_size: usize,
     learning_rate: f64,
     l2_rate: f64,
     batch_type: Batch,
@@ -28,14 +27,13 @@ impl TermCache {
 
         // Precompute one hot encoded vectors given output layer size
         let one_hot = Self::precompute(output_size);
-        let classification = if output_size > 1 { Classification::MultiClass } else { Classification::Binary };
+        let classification = Classification::new(output_size);
         let stack = TermStack::new(backward, biases);
 
         TermCache {
             stack,
             one_hot,
             classification,
-            output_size,
             learning_rate,
             l2_rate,
             batch_type,
@@ -61,15 +59,15 @@ impl TermCache {
 
     // precompute one hot vector encodings for derivative calculations
     // given output layer size
-    fn precompute(output_size: usize) -> HashMap<usize, Array1<f64>> {
+    fn precompute(size: usize) -> HashMap<usize, Array1<f64>> {
         let mut map = HashMap::new();
         let mut zeros: Array1<f64>;
 
         // For example if the output size was two, the map would be:
         // 0 => [1,0] // top neuron fires if output 0
         // 1 => [0,1] // bottom neuron fires if output 1
-        for i in 0..output_size {
-            zeros = Array1::zeros(output_size);
+        for i in 0..size {
+            zeros = Array1::zeros(size);
             zeros[i] = 1.;
             map.insert(i, zeros);
         }
@@ -101,33 +99,36 @@ impl TermCache {
     fn partial_cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> { // returns dc_da
         let last_a: Array2<f64> = self.stack.pop(TT::Nonlinear).array();
 
-        if let Classification::MultiClass = self.classification {
-            // Output labels is a matrix that accounts for output size and mini batch size
+        match self.classification {
+            Classification::MultiClass(output_size) => {
+                // Output labels is a matrix that accounts for output size and mini batch size
 
-            // take the min if we are on the last batch and it doesn't contain
-            // all batch size elements e.g. a remainder
-            let actual_batch_size = std::cmp::min(self.batch_type.value(), y.shape()[0]);
+                // take the min if we are on the last batch and it doesn't contain
+                // all batch size elements e.g. a remainder
+                let actual_batch_size = std::cmp::min(self.batch_type.value(), y.shape()[0]);
 
-            let mut output_labels: Array2<f64> =
-                Array2::zeros((self.output_size, actual_batch_size));
+                let mut output_labels: Array2<f64> =
+                    Array2::zeros((output_size, actual_batch_size));
 
-            // map y to output_labels by:
-            // expanding each label value into a one hot encoded value - store result in normalized labels
-            // perform for each label in batch
+                // map y to output_labels by:
+                // expanding each label value into a one hot encoded value - store result in normalized labels
+                // perform for each label in batch
 
-            // e.g. where y is 10 x 1 or 10 x 32
-            for i in 0..actual_batch_size {
-                let label = y[[i, 0]] as usize; // y is the label data, in form of a single column
-                // one hot encode the label, so 0 would be [1,0] and 1 would be [0,1] for output layer size 2
-                let encoded_label = self.one_hot(label).unwrap();
-                // assign encoded label on the column level (vertical)
-                output_labels.slice_mut(s![.., i]).assign(encoded_label); 
-            }
+                // e.g. where y is 10 output size x 1 batch size or 10 output size x 32 batch size
+                for i in 0..actual_batch_size {
+                    let label = y[[i, 0]] as usize; // y is the label data, in form of a single column
+                    // one hot encode the label, so 0 would be [1,0] and 1 would be [0,1] for output layer size 2
+                    let encoded_label = self.one_hot(label).unwrap();
+                    // assign encoded label on the column level (vertical)
+                    output_labels.slice_mut(s![.., i]).assign(encoded_label); 
+                }
 
-            (self.cost_d_fps.0)(&last_a, &output_labels.view())
-        } else {
-            // e.g. 1 x 1 or 1 x 32
-            (self.cost_d_fps.0)(&last_a, &y.t())
+                (self.cost_d_fps.0)(&last_a, &output_labels.view())
+            },
+          Classification::Binary => {
+              // e.g. 1 x 1 or 1 x 32
+              (self.cost_d_fps.0)(&last_a, &y.t())
+          }
         }
     }
 }
