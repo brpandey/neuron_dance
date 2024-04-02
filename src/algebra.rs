@@ -1,18 +1,22 @@
-use ndarray::Array2;
+use ndarray::{Array1, Array2, Axis};
 use crate::activation::ActFp;
 
 pub trait AlgebraExt<W = Self, B = Self> {
-    type Output;
+    type OutputA;
+    type OutputB;
 
     fn arg_max(&self) -> usize;
-    fn weighted_sum(&self, w: &W, b: &B) -> Self::Output;
-    fn activate(&self, f: &ActFp) -> Self::Output;
-    fn ln(&self) -> Self::Output;
+    fn weighted_sum(&self, w: &W, b: &B) -> Self::OutputA;
+    fn activate(&self, f: &ActFp) -> Self::OutputA;
+    fn ln(&self) -> Self::OutputA;
     fn normalize(&self) -> f64;
+    fn min_axis(&self, axis: Axis) -> Self::OutputB;
+    fn max_axis(&self, axis: Axis) -> Self::OutputB;
 }
 
 impl AlgebraExt for Array2<f64> {
-    type Output = Self;
+    type OutputA = Self;
+    type OutputB = Array1<f64>;
 
     fn arg_max(&self) -> usize {
         let mut max_acc_index = 0;
@@ -54,4 +58,15 @@ impl AlgebraExt for Array2<f64> {
     fn normalize(&self) -> f64 {
         (self*self).sum().sqrt()
     }
+
+    #[inline]
+    fn min_axis(&self, axis: Axis) -> Self::OutputB {
+        self.map_axis(axis, |v| *v.iter().min_by(|a,b| a.total_cmp(b)).unwrap())
+    }
+
+    #[inline]
+    fn max_axis(&self, axis: Axis) -> Self::OutputB {
+        self.map_axis(axis, |v| *v.iter().max_by(|a,b| a.total_cmp(b)).unwrap())
+    }
+
 }

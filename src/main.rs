@@ -33,9 +33,9 @@ fn main() {
         NetworkType::Mnist => Box::new(MnistData::new(MnistType::Regular)),
     };
 
-    let tts = dataset.train_test_split(train_percentage);
+    let mut tts = dataset.train_test_split(train_percentage);
+    let mut subsets = tts.get_ref();
     let mut model;
-    let subsets = tts.get_ref();
 
     match ntype {
         NetworkType::CSV1 => {
@@ -47,15 +47,16 @@ fn main() {
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
         },
         NetworkType::CSV2 => {
+            tts = tts.min_max_scale(0.0, 1.0); // scale down the disparate features on a 0 to 1 scale so the model scales better
+            subsets = tts.get_ref();
+
             model = Network::new();
             model.add(Input1(8));
-            //model.add(Dense(100, Act::Tanh));
             model.add(Dense(12, Act::Relu));
-            model.add(Dense(4, Act::Relu));
+            model.add(Dense(8, Act::Relu));
             model.add(Dense(1, Act::Sigmoid));
-            model.compile(Loss::CrossEntropy, 0.5, 0.3, Metr("accuracy, cost"));
-            model.fit(&subsets, 150, Batch::Mini(10), Eval::Train);
-//            model.fit(&subsets, 100, Batch::Mini(20), Eval::Test); // using SGD approach (doesn't have momentum supported)
+            model.compile(Loss::CrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
+            model.fit(&subsets, 120, Batch::Mini(10), Eval::Train);
         },
         NetworkType::Iris => {
             model = Network::new();
