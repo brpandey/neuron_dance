@@ -47,7 +47,7 @@ fn main() {
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
         },
         NetworkType::CSV2 => {
-            tts = tts.min_max_scale(0.0, 1.0); // scale down the disparate features on a 0 to 1 scale so the model scales better
+            tts = tts.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
             subsets = tts.get_ref();
 
             model = Network::new();
