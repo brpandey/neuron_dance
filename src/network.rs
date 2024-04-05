@@ -41,8 +41,9 @@ impl Network {
         self.layers.as_mut().unwrap().add(layer);
     }
 
+    // Not technically compiling but more reducing, however keeping the name for posterity
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
-        let (sizes, forward, backward, output_act) = self.layers.as_mut().unwrap().reduce();
+        let (sizes, forward, backward, output_act, weight_inits) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
         let output_size = sizes[total_layers-1];
 
@@ -52,19 +53,18 @@ impl Network {
         let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size, l2_rate));
 
         let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
-        let (mut x, mut y, mut x_sqrt);
+        let (mut x, mut y);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
 
-        for i in 1..total_layers {
-            x = sizes[i-1];
-            y = sizes[i];
+        for (i, weit) in (1..total_layers).zip(weight_inits.iter()) {
+            x = sizes[i-1]; // # current layer inputs
+            y = sizes[i]; // # current layer neurons (outputs)
 
-            x_sqrt = (x as f64).sqrt();
-
+            // Note: z = wx + b, w is on left and x is transposed from csv row into vertical collumn
             b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
-            w = Array::random((y, x), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
+            w = weit.random_distr(y, x); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
 
-            weights.push(w/x_sqrt);
+            weights.push(w);
             biases.push(b);
         }
 
@@ -270,4 +270,7 @@ impl Network {
         tally.summarize(n_data);
         tally.display();
     }
+
+
+
 }

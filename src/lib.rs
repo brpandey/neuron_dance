@@ -10,3 +10,4 @@ pub mod layers;
 pub mod cost;
 pub mod metrics;
 pub mod types;
+pub mod weight;

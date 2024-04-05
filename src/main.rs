@@ -4,7 +4,7 @@ use simple_network::{
     network::Network,
     dataset::{DataSet, csv::{CSVType, CSVData},
               idx::{MnistType, MnistData}},
-    layers::{Act, Batch, Eval, Loss, Metr, Input1, Input2, Dense},
+    layers::{Act, Batch, Eval, Loss, Metr, Input1, Input2, Dense, Weit},
 };
 
 fn main() {
@@ -37,12 +37,14 @@ fn main() {
     let mut subsets = tts.get_ref();
     let mut model;
 
+    let wd = Weit::Default;
+
     match ntype {
         NetworkType::CSV1 => {
             model = Network::new();
             model.add(Input1(3));
-            model.add(Dense(3, Act::Relu));
-            model.add(Dense(1, Act::Sigmoid));
+            model.add(Dense(3, Act::Relu, wd));
+            model.add(Dense(1, Act::Sigmoid, wd));
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
         },
@@ -52,26 +54,26 @@ fn main() {
 
             model = Network::new();
             model.add(Input1(8));
-            model.add(Dense(12, Act::Relu));
-            model.add(Dense(8, Act::Relu));
-            model.add(Dense(1, Act::Sigmoid));
+            model.add(Dense(12, Act::Relu, wd));
+            model.add(Dense(8, Act::Relu, wd));
+            model.add(Dense(1, Act::Sigmoid, wd));
             model.compile(Loss::CrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
             model.fit(&subsets, 120, Batch::Mini(10), Eval::Train);
         },
         NetworkType::Iris => {
             model = Network::new();
             model.add(Input1(4));
-            model.add(Dense(10, Act::Relu));
-            model.add(Dense(10, Act::Relu));
-            model.add(Dense(3, Act::Sigmoid));
+            model.add(Dense(10, Act::Relu, wd));
+            model.add(Dense(10, Act::Relu, wd));
+            model.add(Dense(3, Act::Sigmoid, wd));
             model.compile(Loss::CrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
             model.fit(&subsets, 100, Batch::Mini(5), Eval::Test);
         },
         NetworkType::Mnist => { // 784, 400, 400, 10
             model = Network::new();
             model.add(Input2(28, 28));
-            model.add(Dense(100, Act::Sigmoid));
-            model.add(Dense(10, Act::Sigmoid));
+            model.add(Dense(100, Act::Sigmoid, wd));
+            model.add(Dense(10, Act::Sigmoid, wd));
             model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini(10), Eval::Test);
         }

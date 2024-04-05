@@ -7,12 +7,13 @@ use crate::activation::{Activation, ActFp};
 
 pub struct Input1(pub usize);
 pub struct Input2(pub usize, pub usize);
-pub struct Dense(pub usize, pub Act);
+pub struct Dense(pub usize, pub Act, pub Weit);
 
 // re-export types into Layer, to consolidate interface
 pub use crate::activation::functions::Act;
 pub use crate::cost::functions::Loss;
 pub use crate::types::{Batch, Eval, Metr};
+pub use crate::weight::Weit;
 
 pub trait Layer {
     type Output;
@@ -45,7 +46,7 @@ impl LayerOrder {
 
 pub enum LayerTerms {
     Input(LayerOrder, usize), // order, input size
-    Dense(LayerOrder, usize, Box<dyn Activation>, Act), // order, dense siz, act
+    Dense(LayerOrder, usize, Box<dyn Activation>, Act, Weit), // order, dense siz, act
 }
 
 impl Layer for Input1 {
@@ -71,7 +72,15 @@ impl Layer for Dense {
         let size = self.0;
         let act_type = self.1;
         let act: Box<dyn Activation> = self.1.into();
-        LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type)
+
+        let wd = if let Weit::Default = self.2 {
+            match act_type {
+                Act::Tanh | Act::Sigmoid => Weit::GlorotU,
+                Act::Relu => Weit::He,
+            }
+        } else { self.2 };
+
+        LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type, wd)
     }
 }
 
@@ -97,10 +106,10 @@ impl LayerStack {
 
 impl Layer for LayerStack {
     //tuple of vecs: (sizes, act fps, act deriv fps)
-    type Output = (Vec<usize>, Vec<ActFp>, Vec<ActFp>, Act);
+    type Output = (Vec<usize>, Vec<ActFp>, Vec<ActFp>, Act, Vec<Weit>);
 
     fn reduce(&self) -> Self::Output {
-        let acc = (vec![0], vec![], vec![], Act::Sigmoid); // acc is type Output
+        let acc = (vec![0], vec![], vec![], Act::Sigmoid, vec![]); // acc is type Output
         self.0.iter().enumerate().fold(acc, |mut acc, (i,l)| {
             match l.reduce() {
                 LayerTerms::Input(ref order, size) if order.valid(i) => {
@@ -109,12 +118,13 @@ impl Layer for LayerStack {
                     acc.0.swap_remove(0);
                     acc
                 },
-                LayerTerms::Dense(ref order, size, act, act_type) if order.valid(i) => {
+                LayerTerms::Dense(ref order, size, act, act_type, weit) if order.valid(i) => {
                     let (act_fp, deriv_fp) = act.pair(); // activation and activation derivative functions
                     acc.0.push(size);
                     acc.1.push(act_fp);
                     acc.2.push(deriv_fp);
                     acc.3 = act_type;
+                    acc.4.push(weit);
                     acc
                 },
                 _ => panic!("Layer order is incorrect, perhaps input layer is not first layer added?"),
