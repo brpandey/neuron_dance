@@ -62,7 +62,7 @@ impl Network {
 
             // Note: z = wx + b, w is on left and x is transposed from csv row into vertical collumn
             b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
-            w = weit.random_distr(y, x); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
+            w = weit.random(y, x); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
 
             weights.push(w);
             biases.push(b);
@@ -270,7 +270,4 @@ impl Network {
         tally.summarize(n_data);
         tally.display();
     }
-
-
-
 }

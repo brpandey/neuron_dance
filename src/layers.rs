@@ -7,7 +7,7 @@ use crate::activation::{Activation, ActFp};
 
 pub struct Input1(pub usize);
 pub struct Input2(pub usize, pub usize);
-pub struct Dense(pub usize, pub Act, pub Weit);
+pub struct Dense(pub usize, pub Act);
 
 // re-export types into Layer, to consolidate interface
 pub use crate::activation::functions::Act;
@@ -73,14 +73,15 @@ impl Layer for Dense {
         let act_type = self.1;
         let act: Box<dyn Activation> = self.1.into();
 
-        let wd = if let Weit::Default = self.2 {
-            match act_type {
-                Act::Tanh | Act::Sigmoid => Weit::GlorotU,
-                Act::Relu => Weit::He,
-            }
-        } else { self.2 };
+        let w_distr = match act_type {
+            // act functions w default weight initializations
+            Act::Tanh | Act::Sigmoid => Weit::GlorotU,
+            Act::Relu => Weit::He,
+            // act functions with weight initialization specified
+            Act::Tanh_(weit) | Act::Sigmoid_(weit) | Act::Relu_(weit) => weit, 
+        };
 
-        LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type, wd)
+        LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type, w_distr)
     }
 }
 

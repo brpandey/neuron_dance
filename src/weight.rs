@@ -6,7 +6,6 @@ use ndarray_rand::RandomExt;
 // Weight Initialization Types
 #[derive(Copy, Clone, Debug)]
 pub enum Weit {
-    Default,
     He,
     GlorotN,
     GlorotU,
@@ -15,15 +14,15 @@ pub enum Weit {
 }
 
 impl Weit {
-    pub fn random_distr(&self, fan_out: usize, fan_in: usize) -> Array2<f64> {
+    pub fn random(&self, fan_out: usize, fan_in: usize) -> Array2<f64> {
         let fan_avg = (fan_in+fan_out) as f64 / 2.0;
 
         let either = match self {
-            // XavierN/GlorotN - Tanh, Sigmoid, Softmax
             Weit::GlorotN => {
                 let glorot_term = 1.0/(fan_avg).sqrt();
                 Left(Normal::new(0., glorot_term).unwrap())
             },
+            // XavierN/GlorotU - Tanh, Sigmoid, Softmax
             Weit::GlorotU => {
                 let glorot_term = 3.0/(fan_avg).sqrt();
                 Right(Uniform::new(-glorot_term, glorot_term).unwrap())
@@ -42,7 +41,6 @@ impl Weit {
                 let lecunn_term = 1.0/(fan_in as f64).sqrt();
                 Left(Normal::new(0., lecunn_term).unwrap())
             },
-            Weit::Default => unreachable!(),
         };
 
         match either {
