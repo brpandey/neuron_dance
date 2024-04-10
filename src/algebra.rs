@@ -12,6 +12,7 @@ pub trait AlgebraExt<W = Self, B = Self> {
     fn normalize(&self) -> f64;
     fn min_axis(&self, axis: Axis) -> Self::OutputB;
     fn max_axis(&self, axis: Axis) -> Self::OutputB;
+    fn sqrt(&self) -> Self::OutputA;
 }
 
 impl AlgebraExt for Array2<f64> {
@@ -69,4 +70,14 @@ impl AlgebraExt for Array2<f64> {
         self.map_axis(axis, |v| *v.iter().max_by(|a,b| a.total_cmp(b)).unwrap())
     }
 
+    #[inline]
+    fn sqrt(&self) -> Self {
+        self.mapv(|v| v.sqrt())
+    }
+/*
+    #[inline]
+    fn exp(&self) -> Self {
+        self.mapv(|v| v.exp())
+    }
+    */
 }

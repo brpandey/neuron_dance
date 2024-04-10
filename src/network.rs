@@ -14,6 +14,7 @@ use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, functions::Loss};
 use crate::metrics::{Metrics, Tally};
 use crate::types::{Batch, Eval, Metr};
+use crate::optimizer::{Optt, Optimizer};
 
 #[derive(Debug)]
 pub struct Network {
@@ -23,6 +24,7 @@ pub struct Network {
     layers: Option<LayerStack>,
     cache: Option<TermCache>,
     metrics: Option<Metrics>,
+    opt: Option<Box<dyn Optimizer>>,
 }
 
 impl Network {
@@ -31,7 +33,8 @@ impl Network {
     fn empty() -> Self {
         Network {
             weights: vec![], biases: vec![], forward: vec![], 
-            layers: Some(LayerStack::new()), cache: None, metrics: None,
+            layers: Some(LayerStack::new()), cache: None,
+            metrics: None, opt: None,
         }
     }
 
@@ -42,12 +45,14 @@ impl Network {
     }
 
     // Not technically compiling but more reducing, however keeping the name for posterity
-    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
+    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>, optt: Optt) {
         let (sizes, forward, backward, output_act, weight_inits) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
         let output_size = sizes[total_layers-1];
 
         let loss: Box<dyn Cost> = loss_type.into();
+        let opt: Option<Box<dyn Optimizer>> = Some(optt.into());
+
         let (cost_fp, cost_deriv_fp, cost_comb_deriv_fp) = loss.triple();
 
         let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size, l2_rate));
@@ -71,7 +76,8 @@ impl Network {
         // initialize network properly
         let n = Network {
             weights, biases, forward,
-            layers: self.layers.take(), cache: None, metrics,
+            layers: self.layers.take(),
+            cache: None, metrics, opt,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
@@ -122,7 +128,7 @@ impl Network {
             self.train_iteration(
                 x_single.t(), &y_single,
                 tc, tc.learning_rate(),
-                tc.l2_regularization_rate(), train.size,
+                tc.l2_regularization_rate(), train.size, 0,
             );
         }
 
@@ -150,7 +156,7 @@ impl Network {
                 self.train_iteration(
                     x_minibatch.t(), &y_minibatch,
                     tc, tc.learning_rate(),
-                    tc.l2_regularization_rate(), train.size,
+                    tc.l2_regularization_rate(), train.size, e,
                 );
             }
 
@@ -160,10 +166,10 @@ impl Network {
     }
 
     fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>,
-                       cache: &mut TermCache, lr: f64, l2_rate: f64, total_size: usize) {
+                       cache: &mut TermCache, lr: f64, l2_rate: f64, total_size: usize, t: usize) {
         self.forward_pass(x_iteration, cache);
         let chain_rule_compute = self.backward_pass(y_iteration, cache);
-        self.update_iteration(chain_rule_compute, lr, l2_rate, total_size);
+        self.update_iteration(chain_rule_compute, lr, l2_rate, total_size, t);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
@@ -211,26 +217,40 @@ impl Network {
         crc
     }
 
-    fn update_iteration(&mut self, crc: ChainRuleComputation, learning_rate: f64, l2_rate: f64, n_total: usize) {
+    fn update_iteration(&mut self, crc: ChainRuleComputation, learning_rate: f64, l2_rate: f64, n_total: usize, t: usize) {
         // Apply delta contributions to current biases and weights by subtracting
         // since we are taking the negative gradient using the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
 
         // Intuitively, if the deltas are negative, invert their sign and add them
         // if the deltas are positive, invert their sign and subtract them
+
+        let bias_key = "db";
+        let weight_key = "dw";
+        let mut key;
+        let mut momentum;
+        let mut velocity;
+
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
 
-        for (b, db) in self.biases.iter_mut().zip(b_deltas) {
-            *b -= &db.mapv(|x| x * learning_rate)
+        for (i, (b, db)) in self.biases.iter_mut().zip(b_deltas).enumerate() {
+            key = [bias_key, &i.to_string()].concat();
+            momentum = self.opt.as_mut().unwrap().calculate(key, &db, t);
+            velocity = momentum.mapv(|x| x * learning_rate);
+
+            *b -= &velocity;
         }
 
         //  weight_decay factor is 1−ηλ/n
         let weight_decay = 1.0-learning_rate*(l2_rate/n_total as f64);
 
-        for (w, dw) in self.weights.iter_mut().zip(w_deltas) {
-            let delta = &dw.mapv(|x| x * learning_rate);
-//            println!("1) w dw is {:?}, \n2) w scaled dw w/ learning rate applied is {:?}, \n3) orig weight is {:?}\n", dw, delta, w);
-            *w = &*w*weight_decay - delta
+        for (i, (w, dw)) in self.weights.iter_mut().zip(w_deltas).enumerate() {
+            key = [weight_key, &i.to_string()].concat();
+            momentum = self.opt.as_mut().unwrap().calculate(key, &dw, t);
+            velocity = momentum.mapv(|x| x * learning_rate);
+
+            *w = &*w*weight_decay - velocity;
+            //*w -= velocity;
         }
     }
 
