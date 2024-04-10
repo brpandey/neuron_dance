@@ -72,8 +72,8 @@ fn main() {
             model.add(Input2(28, 28));
             model.add(Dense(100, Act::Sigmoid_(Weit::GlorotN)));
             model.add(Dense(10, Act::Sigmoid_(Weit::GlorotN)));
-            model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"), Optt::Adam);
-            model.fit(&subsets, 20, Batch::Mini(32), Eval::Test);
+            model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"), Optt::Default);
+            model.fit(&subsets, 10, Batch::Mini(10), Eval::Test);
         }
     }
     model.eval(&subsets, Eval::Test);
