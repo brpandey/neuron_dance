@@ -18,8 +18,8 @@ use crate::weight::Weit;
 pub trait FunctionAct {
 
     // perform non-linear activation
-    fn activate(x: &Array2<f64>) -> Array2<f64> {
-        x.mapv(|v| Self::compute(v))
+    fn activate(z: &Array2<f64>) -> Array2<f64> {
+        z.mapv(|v| Self::compute(v))
     }
 
     fn compute(x: f64) -> f64 { x }
@@ -53,11 +53,11 @@ impl FromStr for Box<dyn Activation> {
 #[derive(Debug, Copy, Clone)]
 pub enum Act {
     Relu, // uses default weight initialization type
-    Relu_(Weit), // with supplied weight initialization type
+    ReluW(Weit), // with supplied weight initialization type
     Sigmoid,
-    Sigmoid_(Weit),
+    SigmoidW(Weit),
     Tanh,
-    Tanh_(Weit),
+    TanhW(Weit),
     Softmax,
     LeakyRelu,
 }
@@ -66,9 +66,9 @@ impl From<Act> for Box<dyn Activation> {
     fn from(activation_type: Act) -> Self {
         // Add new activation type here - Start (3)
         match activation_type {
-            Act::Relu | Act::Relu_(_) => Box::new(Relu),
-            Act::Sigmoid | Act::Sigmoid_(_) => Box::new(Sigmoid),
-            Act::Tanh | Act::Tanh_(_) => Box::new(Tanh),
+            Act::Relu | Act::ReluW(_) => Box::new(Relu),
+            Act::Sigmoid | Act::SigmoidW(_) => Box::new(Sigmoid),
+            Act::Tanh | Act::TanhW(_) => Box::new(Tanh),
             Act::Softmax => Box::new(Softmax),
             Act::LeakyRelu => Box::new(LeakyRelu),
         }

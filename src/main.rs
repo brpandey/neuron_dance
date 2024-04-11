@@ -54,7 +54,7 @@ fn main() {
             model.add(Input1(8));
             model.add(Dense(12, Act::Relu));
             model.add(Dense(8, Act::Relu));
-            model.add(Dense(1, Act::Sigmoid_(Weit::GlorotN)));
+            model.add(Dense(1, Act::SigmoidW(Weit::GlorotN)));
             model.compile(Loss::CrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
             model.fit(&subsets, 120, Batch::Mini(10), Eval::Train);
         },
@@ -72,8 +72,8 @@ fn main() {
             model.add(Input2(28, 28));
 //            model.add(Dense(100, Act::Sigmoid));
 //            model.add(Dense(10, Act::Sigmoid));
-            model.add(Dense(100, Act::Sigmoid_(Weit::GlorotN)));
-            model.add(Dense(10, Act::Sigmoid_(Weit::GlorotN)));
+            model.add(Dense(100, Act::SigmoidW(Weit::GlorotN)));
+            model.add(Dense(10, Act::SigmoidW(Weit::GlorotN)));
             model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 20, Batch::Mini_(10, Optim::Default), Eval::Test);
         }
