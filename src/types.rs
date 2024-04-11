@@ -1,4 +1,5 @@
 use std::{fmt, str::FromStr};
+use crate::optimizer::Optim;
 
 // Types not exclusive to any module
 
@@ -6,13 +7,17 @@ use std::{fmt, str::FromStr};
 pub enum Eval { Train, Test }
 
 #[derive(Debug, Copy, Clone)]
-pub enum Batch { SGD, Mini(usize) }
+pub enum Batch { SGD, Mini(usize), Mini_(usize, Optim) }
 
 impl Batch {
+    pub fn is_mini(&self) -> bool {
+        if let Batch::Mini(_) | Batch::Mini_(_,_) = self { return true }
+        return false
+    }
     pub fn value(&self) -> usize {
         match self {
             Batch::SGD => 1,
-            Batch::Mini(ref size) => *size,
+            Batch::Mini(ref size) | Batch::Mini_(ref size, _) => *size,
         }
     }
 }
@@ -21,7 +26,8 @@ impl fmt::Display for Batch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Batch::SGD => write!(f, "(SGD)"),
-            Batch::Mini(_) => write!(f, "(MiniBatch)"),
+            Batch::Mini(_) | Batch::Mini_(_, Optim::Default) => write!(f, "(MiniBatch)"),
+            Batch::Mini_(_, optt) => write!(f, "(MiniBatch + {} optimizer)", &optt),
         }
     }
 }

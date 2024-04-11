@@ -45,7 +45,8 @@ impl TermCache {
     pub fn learning_rate(&self) -> f64 {
         match self.batch_type {
             Batch::SGD => self.learning_rate,
-            Batch::Mini(batch_size) => self.learning_rate/batch_size as f64,
+            Batch::Mini(batch_size) | Batch::Mini_(batch_size, _) =>
+                self.learning_rate/batch_size as f64,
         }
     }
 

@@ -14,7 +14,7 @@ use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, functions::Loss};
 use crate::metrics::{Metrics, Tally};
 use crate::types::{Batch, Eval, Metr};
-use crate::optimizer::{Optt, Optimizer};
+use crate::optimizer::{Optim, Optimizer};
 
 #[derive(Debug)]
 pub struct Network {
@@ -24,7 +24,7 @@ pub struct Network {
     layers: Option<LayerStack>,
     cache: Option<TermCache>,
     metrics: Option<Metrics>,
-    opt: Option<Box<dyn Optimizer>>,
+    optim: Option<(Box<dyn Optimizer>, Optim)>,
 }
 
 impl Network {
@@ -34,7 +34,7 @@ impl Network {
         Network {
             weights: vec![], biases: vec![], forward: vec![], 
             layers: Some(LayerStack::new()), cache: None,
-            metrics: None, opt: None,
+            metrics: None, optim: None,
         }
     }
 
@@ -45,13 +45,12 @@ impl Network {
     }
 
     // Not technically compiling but more reducing, however keeping the name for posterity
-    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>, optt: Optt) {
+    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
         let (sizes, forward, backward, output_act, weight_inits) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
         let output_size = sizes[total_layers-1];
 
         let loss: Box<dyn Cost> = loss_type.into();
-        let opt: Option<Box<dyn Optimizer>> = Some(optt.into());
 
         let (cost_fp, cost_deriv_fp, cost_comb_deriv_fp) = loss.triple();
 
@@ -77,7 +76,7 @@ impl Network {
         let n = Network {
             weights, biases, forward,
             layers: self.layers.take(),
-            cache: None, metrics, opt,
+            cache: None, metrics, optim: None,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
@@ -94,11 +93,19 @@ impl Network {
 
     pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch_type: Batch, eval: Eval) {
         let mut cache = self.cache.take().unwrap();
+        let mut optt = Optim::Default;
+
         cache.set_batch_type(batch_type);
 
         match batch_type {
             Batch::SGD => self.train_sgd(subsets, epochs, &mut cache, eval),
-            Batch::Mini(batch_size) => self.train_minibatch(subsets, epochs, batch_size, &mut cache, eval),
+            Batch::Mini(_) => (),
+            Batch::Mini_(_, o) => optt = o,
+        }
+
+        if batch_type.is_mini() { // set optimizer if mini batch type
+            self.optim = Some((optt.into(), optt));
+            self.train_minibatch(subsets, epochs, batch_type.value(), &mut cache, eval)
         }
     }
 
@@ -142,7 +149,7 @@ impl Network {
         let (mut x_minibatch, mut y_minibatch);
         let train = subsets.0;
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
-        let b = Some(Batch::Mini(batch_size));
+        let b = Some(Batch::Mini_(batch_size, self.optim.as_ref().unwrap().1.clone()));
         let mut tally;
 
         for e in 0..epochs {
@@ -225,17 +232,14 @@ impl Network {
         // Intuitively, if the deltas are negative, invert their sign and add them
         // if the deltas are positive, invert their sign and subtract them
 
-        let bias_key = "db";
-        let weight_key = "dw";
-        let mut key;
-        let mut momentum;
-        let mut velocity;
+        let (bias_key, weight_key) = ("db", "dw");
+        let (mut key, mut momentum, mut velocity);
 
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
 
         for (i, (b, db)) in self.biases.iter_mut().zip(b_deltas).enumerate() {
             key = [bias_key, &i.to_string()].concat();
-            momentum = self.opt.as_mut().unwrap().calculate(key, &db, t);
+            momentum = self.optim.as_mut().unwrap().0.calculate(key, &db, t);
             velocity = momentum.mapv(|x| x * learning_rate);
 
             *b -= &velocity;
@@ -246,7 +250,7 @@ impl Network {
 
         for (i, (w, dw)) in self.weights.iter_mut().zip(w_deltas).enumerate() {
             key = [weight_key, &i.to_string()].concat();
-            momentum = self.opt.as_mut().unwrap().calculate(key, &dw, t);
+            momentum = self.optim.as_mut().unwrap().0.calculate(key, &dw, t);
             velocity = momentum.mapv(|x| x * learning_rate);
 
             *w = &*w*weight_decay - velocity;

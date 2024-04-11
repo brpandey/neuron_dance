@@ -5,10 +5,16 @@ pub mod adam;
 
 use crate::optimizer::adam::Adam;
 
-#[derive(Debug)]
-pub enum Optt {
+#[derive(Debug, Copy, Clone)]
+pub enum Optim {
     Default,
     Adam,
+}
+
+impl std::fmt::Display for Optim { // use debug fmt imp for display
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub trait Optimizer {
@@ -17,11 +23,11 @@ pub trait Optimizer {
     }
 }
 
-impl From<Optt> for Box<dyn Optimizer> {
-    fn from(optimzer_type: Optt) -> Self {
+impl From<Optim> for Box<dyn Optimizer> {
+    fn from(optimzer_type: Optim) -> Self {
         match optimzer_type {
-            Optt::Default => Box::new(Default),
-            Optt::Adam => Box::new(Adam::new()),
+            Optim::Default => Box::new(Default),
+            Optim::Adam => Box::new(Adam::new()),
         }
     }
 }
@@ -33,6 +39,6 @@ impl std::fmt::Debug for Box<dyn Optimizer> {
 }
 
 
-pub struct Default;
+pub struct Default; // default optimizer is none
 
 impl Optimizer for Default {}
