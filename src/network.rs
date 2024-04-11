@@ -186,9 +186,9 @@ impl Network {
 
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
-        for ((w, b), a_func) in self.weights.iter().zip(self.biases.iter()).zip(self.forward.iter()) {
+        for ((w, b), act_fun) in self.weights.iter().zip(self.biases.iter()).zip(self.forward.iter()) {
             z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
-            a = z.activate(a_func); // non-linear, σ(z)
+            a = (act_fun)(&z); // non-linear,  σ(z)
 
             acc = a;
             opt.as_mut().map(|c| c.stack.push(z, &acc));
@@ -250,7 +250,6 @@ impl Network {
             velocity = momentum.mapv(|x| x * learning_rate);
 
             *w = &*w*weight_decay - velocity;
-            //*w -= velocity;
         }
     }
 

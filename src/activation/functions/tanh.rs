@@ -13,7 +13,7 @@ impl FunctionAct for Tanh {
         res
     }
 
-    fn derivative(x: f64) -> f64 {
+    fn gradient(x: f64) -> f64 {
         let t = Self::compute(x); // <Tanh as Function>::compute(x);
 
         let res = 1.0 - (t*t);

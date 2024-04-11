@@ -92,7 +92,7 @@ impl TermCache {
     {
         let z_last = self.stack.pop(TT::Linear).array();
         let a_derivative = self.stack.pop(TT::ActivationDerivative).fp();
-        let da_dz = z_last.mapv(|v| a_derivative(v));
+        let da_dz = (a_derivative)(&z_last);
         da_dz
     }
 

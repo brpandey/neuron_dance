@@ -1,14 +1,14 @@
 use crate::activation::functions::FunctionAct;
 
 #[derive(Clone, Debug)]
-pub struct Relu;
+pub struct LeakyRelu;
 
-impl FunctionAct for Relu {
+impl FunctionAct for LeakyRelu {
     fn compute(x: f64) -> f64 {
-        x.max(0.0)
+        x.max(0.01*x)
     }
 
     fn gradient(x: f64) -> f64 {
-        if x > 0.0 { 1.0 } else { 0.0 }
+        if x > 0.0 { 1.0 } else { 0.01 }
     }
 }

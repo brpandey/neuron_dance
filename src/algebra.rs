@@ -1,23 +1,22 @@
 use ndarray::{Array1, Array2, Axis};
-use crate::activation::ActFp;
 
 pub trait AlgebraExt<W = Self, B = Self> {
-    type OutputA;
-    type OutputB;
+    type Output;
+    type Output1;
 
     fn arg_max(&self) -> usize;
-    fn weighted_sum(&self, w: &W, b: &B) -> Self::OutputA;
-    fn activate(&self, f: &ActFp) -> Self::OutputA;
-    fn ln(&self) -> Self::OutputA;
+    fn weighted_sum(&self, w: &W, b: &B) -> Self::Output;
+    fn exp(&self) -> Self::Output;
+    fn ln(&self) -> Self::Output;
     fn normalize(&self) -> f64;
-    fn min_axis(&self, axis: Axis) -> Self::OutputB;
-    fn max_axis(&self, axis: Axis) -> Self::OutputB;
-    fn sqrt(&self) -> Self::OutputA;
+    fn min_axis(&self, axis: Axis) -> Self::Output1;
+    fn max_axis(&self, axis: Axis) -> Self::Output1;
+    fn sqrt(&self) -> Self::Output;
 }
 
 impl AlgebraExt for Array2<f64> {
-    type OutputA = Self;
-    type OutputB = Array1<f64>;
+    type Output = Self;
+    type Output1 = Array1<f64>;
 
     fn arg_max(&self) -> usize {
         let mut max_acc_index = 0;
@@ -39,19 +38,13 @@ impl AlgebraExt for Array2<f64> {
 
     // Z = W*X + B
     #[inline]
-    fn weighted_sum(&self, w: &Self, b: &Self) -> Self {
+    fn weighted_sum(&self, w: &Self, b: &Self) -> Self::Output {
         w.dot(self) + b
     }
 
     #[inline]
-    // perform non-linear activation
-    fn activate(&self, f: &ActFp) -> Self {
-        self.mapv(|v| f(v))
-    }
-
-    #[inline]
     // perform natural logarithm - ln
-    fn ln(&self) -> Self {
+    fn ln(&self) -> Self::Output {
         self.mapv(|v| v.log(std::f64::consts::E))
     }
 
@@ -61,23 +54,22 @@ impl AlgebraExt for Array2<f64> {
     }
 
     #[inline]
-    fn min_axis(&self, axis: Axis) -> Self::OutputB {
+    fn min_axis(&self, axis: Axis) -> Self::Output1 {
         self.map_axis(axis, |v| *v.iter().min_by(|a,b| a.total_cmp(b)).unwrap())
     }
 
     #[inline]
-    fn max_axis(&self, axis: Axis) -> Self::OutputB {
+    fn max_axis(&self, axis: Axis) -> Self::Output1 {
         self.map_axis(axis, |v| *v.iter().max_by(|a,b| a.total_cmp(b)).unwrap())
     }
 
     #[inline]
-    fn sqrt(&self) -> Self {
+    fn sqrt(&self) -> Self::Output {
         self.mapv(|v| v.sqrt())
     }
-/*
+
     #[inline]
-    fn exp(&self) -> Self {
+    fn exp(&self) -> Self::Output {
         self.mapv(|v| v.exp())
     }
-    */
 }

@@ -79,7 +79,8 @@ impl Layer for Dense {
             Act::Tanh | Act::Sigmoid => Weit::GlorotU,
             Act::Relu => Weit::He,
             // act functions with weight initialization specified
-            Act::Tanh_(weit) | Act::Sigmoid_(weit) | Act::Relu_(weit) => weit, 
+            Act::Tanh_(weit) | Act::Sigmoid_(weit) | Act::Relu_(weit) => weit,
+            Act::Softmax | Act::LeakyRelu => todo!(),
         };
 
         LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type, w_distr)
