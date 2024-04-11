@@ -27,7 +27,7 @@ impl fmt::Display for Batch {
         match self {
             Batch::SGD => write!(f, "(SGD)"),
             Batch::Mini(_) | Batch::Mini_(_, Optim::Default) => write!(f, "(MiniBatch)"),
-            Batch::Mini_(_, optt) => write!(f, "(MiniBatch + {} optimizer)", &optt),
+            Batch::Mini_(_, optt) => write!(f, "(MiniBatch + {})", &optt),
         }
     }
 }

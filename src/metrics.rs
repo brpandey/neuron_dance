@@ -128,7 +128,7 @@ impl Tally {
             .map(|v| format!("{} {}", v, b)).collect();
 
         // if necessary (if minibatch), prefix initial texts with epoch info
-        if self.batch_type.as_ref().unwrap().is_mini() {
+        if self.batch_type.as_ref().map_or(false, |b| b.is_mini()) {
             let e = format!("Epoch {}/{}", self.epoch.0, self.epoch.1);
             m_txts.push_front(e);
             m_txts = m_txts.into_iter().enumerate().map(|(i,t)| {
