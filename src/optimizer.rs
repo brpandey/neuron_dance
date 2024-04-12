@@ -1,3 +1,13 @@
+/// Optimizer
+/// Optimizers help to facilitate a faster gradient descent optimization
+/// by utilizing more contextual information to speed up the gradient descent process
+
+/// Gradient descent optimization:
+/// θ = θ − η ⋅ ∇θ T(θ).
+/// Minimize target function T by updating parameters to opposite direction of
+/// derivative of the target function with respect to the params (e.g w, b)
+/// Hence w - η ⋅ dT/dw or b - η ⋅ dT/db)
+
 use std::borrow::Cow;
 use ndarray::Array2;
 

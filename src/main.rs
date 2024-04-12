@@ -67,11 +67,11 @@ fn main() {
             model.compile(Loss::CrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
             model.fit(&subsets, 100, Batch::Mini(5), Eval::Test);
         },
-        NetworkType::Mnist => { // 784, 400, 400, 10
+        NetworkType::Mnist => { // Layers near input learn more basic qualities of the dataset thus bigger size
             model = Network::new();
             model.add(Input2(28, 28));
             model.add(Dense(100, Act::SigmoidW(Weit::GlorotN)));
-            model.add(Dense(10, Act::SigmoidW(Weit::GlorotN)));
+            model.add(Dense(10, Act::SigmoidW(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini_(10, Optim::Adam), Eval::Test);
         }

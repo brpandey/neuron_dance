@@ -1,3 +1,18 @@
+/// Groups the common library of simple units or activation functions
+/// which when used in totality help model more complex target functions
+
+/// Defines activation trait object interface allowing us
+/// to collect the vectorized activate and derivative functions
+/// of each activation type
+
+/// The simpler activation units (functions) use parameters
+/// which allow us to use gradient descent optimization to tweak
+/// these values once its clear how they all work together in different
+/// layers
+
+/// The simple units make micro decisions given their params and forward
+/// their answer in their output
+
 pub mod functions;
 
 use std::fmt::Debug;

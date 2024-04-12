@@ -1,3 +1,9 @@
+/// Network
+/// Represents a neural network model with its weight and bias connections
+/// In totality it represents an idealized function sculpted by its training data
+/// Through successive approximations the model minimizes the respective target or loss function
+/// increasing its accuracy and utility in predicting new unseen data
+
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
 use std::iter::Iterator;
@@ -44,7 +50,6 @@ impl Network {
         self.layers.as_mut().unwrap().add(layer);
     }
 
-    // Not technically compiling but more reducing, however keeping the name for posterity
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
         let (sizes, forward, backward, output_act, weight_inits) = self.layers.as_mut().unwrap().reduce();
         let total_layers = self.layers.as_ref().unwrap().len();
@@ -59,6 +64,8 @@ impl Network {
         let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
         let (mut x, mut y);
         let (mut b, mut w) : (Array2<f64>, Array2<f64>);
+
+        // Dense layers invoke y neurons on an x-element input tensor, producing a y element output tensor
 
         for (i, weit) in (1..total_layers).zip(weight_inits.iter()) {
             x = sizes[i-1]; // # current layer inputs
@@ -91,6 +98,7 @@ impl Network {
         self.cache = Some(tc);
     }
 
+    /// Train model with relevant dataset given the specified hyperparameters
     pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch_type: Batch, eval: Eval) {
         let mut cache = self.cache.take().unwrap();
         let mut optt = Optim::Default;
@@ -121,6 +129,7 @@ impl Network {
 
      /**** Private associated methods ****/
 
+    /// Sgd employs 1 sample chosen at random from the data set for gradient descent
     fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, tc: &mut TermCache, eval: Eval) {
         let (mut rng, mut random_index);
         let (mut x_single, mut y_single);
@@ -144,6 +153,10 @@ impl Network {
         self.evaluate(subsets, &eval, &mut tally);
     }
 
+    /// Minibatch uses batch_size samples chosen at random for gradient descent
+    /// until it has covered all of the data set to form a single epoch out of a handful of epochs.
+
+    /// Note: Probably more accurate to call it train stochastic mini batch
     fn train_minibatch(&mut self, subsets: &TrainTestSubsetRef, epochs: usize,
                        batch_size: usize, tc: &mut TermCache, eval: Eval) {
         let (mut x_minibatch, mut y_minibatch);
@@ -186,10 +199,15 @@ impl Network {
         self.predict_(x, &mut opt);
     }
 
+    /// After model has been trained, apply new data on the model and its inherent
+    /// parameters (weights, biases) to generate the output classes
     fn predict_(&self, x: ArrayView2<f64>, opt: &mut Option<&mut TermCache>) -> Array2<f64> {
         let mut z: Array2<f64>;
         let mut a: Array2<f64>;
         let mut acc = x.to_owned();
+
+        // An artificial neutron contains both a linear function (weighted_sum) with parameters
+        // and a nonlinear activation function (act_fun)
 
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
@@ -226,21 +244,20 @@ impl Network {
 
     fn update_iteration(&mut self, crc: ChainRuleComputation, learning_rate: f64, l2_rate: f64, n_total: usize, t: usize) {
         // Apply delta contributions to current biases and weights by subtracting
-        // since we are taking the negative gradient using the chain rule to find a local
+        // The negative gradient uses the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
 
-        // Intuitively, if the deltas are negative, invert their sign and add them
-        // if the deltas are positive, invert their sign and subtract them
-
         let (bias_key, weight_key) = ("db", "dw");
-        let (mut key, mut momentum, mut velocity);
+        let (mut key, mut adj, mut velocity);
 
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
 
         for (i, (b, db)) in self.biases.iter_mut().zip(b_deltas).enumerate() {
             key = [bias_key, &i.to_string()].concat();
-            momentum = self.optim.as_mut().unwrap().0.calculate(key, &db, t);
-            velocity = momentum.mapv(|x| x * learning_rate);
+            // optimizer, if enabled, is used to calibrate the constant learning rate
+            // more accurately with more data
+            adj = self.optim.as_mut().unwrap().0.calculate(key, &db, t);
+            velocity = adj.mapv(|x| x * learning_rate);
 
             *b -= &velocity;
         }
@@ -250,13 +267,17 @@ impl Network {
 
         for (i, (w, dw)) in self.weights.iter_mut().zip(w_deltas).enumerate() {
             key = [weight_key, &i.to_string()].concat();
-            momentum = self.optim.as_mut().unwrap().0.calculate(key, &dw, t);
-            velocity = momentum.mapv(|x| x * learning_rate);
+            // optimizer, if enabled, is used to calibrate the constant learning rate
+            // more accurately with more data
+            adj = self.optim.as_mut().unwrap().0.calculate(key, &dw, t);
+            velocity = adj.mapv(|x| x * learning_rate);
 
             *w = &*w*weight_decay - velocity;
         }
     }
 
+    /// Compare the classes represented by the prediction output with the known classes
+    /// represented by the data set's test y data. Upon match, increase the model's accuracy
     fn evaluate(&self, subsets: &TrainTestSubsetRef, eval: &Eval,
                 tally: &mut Tally) {
 

@@ -1,3 +1,11 @@
+/// Algebra
+
+/// AlgebraExt provides extended tensor convenience functions specifically for Array2
+/// Could be used to represent n dimensional tensors at some point
+
+/// Array2<f64> is ArrayBase<OwnedRepr<f64>, Ix2>
+/// ArrayView2<f64> is ArrayBase<ViewRepr<&'a f64>, Ix2>>;
+
 use ndarray::{Array1, Array2, Axis};
 
 pub trait AlgebraExt<W = Self, B = Self> {
@@ -18,6 +26,7 @@ impl AlgebraExt for Array2<f64> {
     type Output = Self;
     type Output1 = Array1<f64>;
 
+    // finds tensor index containing highest degree of belief (highest activation)
     fn arg_max(&self) -> usize {
         let mut max_acc_index = 0;
 
@@ -26,9 +35,9 @@ impl AlgebraExt for Array2<f64> {
             return self[[0, 0]].round() as usize
         }
 
-        // Find the index of the current neuron with the highest activation
+        // start by comparing value from first column (0) of 2d array by index
         for (i, &v) in self.iter().enumerate() {
-            if v > self[[max_acc_index, 0]] { // compare value from first column (0) of 2d array by index
+            if v > self[[max_acc_index, 0]] { 
                 max_acc_index = i;
             }
         }

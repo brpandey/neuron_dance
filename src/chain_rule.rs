@@ -1,3 +1,6 @@
+/// Chain rule
+/// Aggregates gradients of each layer into a reduction
+
 use std::collections::VecDeque;
 use ndarray::Array2;
 

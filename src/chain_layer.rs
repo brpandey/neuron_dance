@@ -1,3 +1,7 @@
+/// Chain Layer
+
+/// Compute Layer finds individual gradient or rate of change for each layer
+
 use ndarray::{Array2, Axis};
 
 use crate::chain_rule::ChainRule;
