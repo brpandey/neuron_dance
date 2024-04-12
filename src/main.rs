@@ -1,6 +1,6 @@
 use clap::{Arg, ArgAction, Command};
 use std::str::FromStr;
-use simple_network::{
+use neuron_dance::{
     network::Network,
     dataset::{DataSet, csv::{CSVType, CSVData},
               idx::{MnistType, MnistData}},
@@ -70,10 +70,10 @@ fn main() {
         NetworkType::Mnist => { // 784, 400, 400, 10
             model = Network::new();
             model.add(Input2(28, 28));
-            model.add(Dense(100, Act::Sigmoid));
-            model.add(Dense(10, Act::Sigmoid));
-//            model.add(Dense(100, Act::SigmoidW(Weit::GlorotU)));
-//            model.add(Dense(10, Act::SigmoidW(Weit::GlorotU)));
+//            model.add(Dense(100, Act::Sigmoid));
+//            model.add(Dense(10, Act::Sigmoid));
+            model.add(Dense(100, Act::SigmoidW(Weit::GlorotU)));
+            model.add(Dense(10, Act::SigmoidW(Weit::GlorotU)));
             model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini_(10, Optim::Adam), Eval::Test);
         }

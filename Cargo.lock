@@ -357,6 +357,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "neuron_dance"
+version = "0.1.0"
+dependencies = [
+ "blas-src",
+ "byteorder",
+ "clap",
+ "csv",
+ "either",
+ "flate2",
+ "ndarray",
+ "ndarray-csv",
+ "ndarray-rand",
+ "rand",
+ "rand_isaac",
+ "statrs",
+]
+
+[[package]]
 name = "num-complex"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -527,24 +545,6 @@ dependencies = [
  "num-traits",
  "paste",
  "wide",
-]
-
-[[package]]
-name = "simple_network"
-version = "0.1.0"
-dependencies = [
- "blas-src",
- "byteorder",
- "clap",
- "csv",
- "either",
- "flate2",
- "ndarray",
- "ndarray-csv",
- "ndarray-rand",
- "rand",
- "rand_isaac",
- "statrs",
 ]
 
 [[package]]
