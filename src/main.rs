@@ -8,8 +8,8 @@ use neuron_dance::{
 };
 
 fn main() {
-    let mut matches = Command::new("simple_network")
-        .about("Simple Neural Network")
+    let mut matches = Command::new("neuron_dance")
+        .about("Neuron Dance")
         .arg(
             Arg::new("type")
                 .action(ArgAction::Set)
@@ -70,10 +70,8 @@ fn main() {
         NetworkType::Mnist => { // 784, 400, 400, 10
             model = Network::new();
             model.add(Input2(28, 28));
-//            model.add(Dense(100, Act::Sigmoid));
-//            model.add(Dense(10, Act::Sigmoid));
-            model.add(Dense(100, Act::SigmoidW(Weit::GlorotU)));
-            model.add(Dense(10, Act::SigmoidW(Weit::GlorotU)));
+            model.add(Dense(100, Act::SigmoidW(Weit::GlorotN)));
+            model.add(Dense(10, Act::SigmoidW(Weit::GlorotN)));
             model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini_(10, Optim::Adam), Eval::Test);
         }
