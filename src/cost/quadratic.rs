@@ -1,7 +1,7 @@
 use ndarray::{Array2, ArrayView2};
 
 use crate::algebra::AlgebraExt;
-use crate::cost::functions::FunctionCost;
+use crate::cost::FunctionCost;
 
 #[derive(Clone, Debug)]
 pub struct Quadratic;

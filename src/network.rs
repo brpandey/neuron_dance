@@ -17,7 +17,7 @@ use crate::term_cache::TermCache;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
-use crate::cost::{Cost, functions::Loss};
+use crate::cost::{Cost, Loss};
 use crate::metrics::{Metrics, Tally};
 use crate::types::{Batch, Eval, Metr};
 use crate::optimizer::{Optim, Optimizer, ParamKey};

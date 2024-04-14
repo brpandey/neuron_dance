@@ -11,7 +11,7 @@ pub struct Dense(pub usize, pub Act);
 
 // re-export types into Layer, to consolidate interface
 pub use crate::activation::Act;
-pub use crate::cost::functions::Loss;
+pub use crate::cost::Loss;
 pub use crate::types::{Batch, Eval, Metr};
 pub use crate::weight::Weit;
 pub use crate::optimizer::Optim;
