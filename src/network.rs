@@ -20,7 +20,7 @@ use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, functions::Loss};
 use crate::metrics::{Metrics, Tally};
 use crate::types::{Batch, Eval, Metr};
-use crate::optimizer::{Optim, Optimizer};
+use crate::optimizer::{Optim, Optimizer, ParamKey};
 
 #[derive(Debug)]
 pub struct Network {
@@ -246,17 +246,14 @@ impl Network {
         // Apply delta contributions to current biases and weights by subtracting
         // The negative gradient uses the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
-
-        let (bias_key, weight_key) = ("db", "dw");
-        let (mut key, mut adj, mut velocity);
+        let (mut adj, mut velocity);
 
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
 
         for (i, (b, db)) in self.biases.iter_mut().zip(b_deltas).enumerate() {
-            key = [bias_key, &i.to_string()].concat();
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
-            adj = self.optim.as_mut().unwrap().0.calculate(key, &db, t);
+            adj = self.optim.as_mut().unwrap().0.calculate(ParamKey::BiasGradient(i as u8), &db, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *b -= &velocity;
@@ -266,10 +263,9 @@ impl Network {
         let weight_decay = 1.0-learning_rate*(l2_rate/n_total as f64);
 
         for (i, (w, dw)) in self.weights.iter_mut().zip(w_deltas).enumerate() {
-            key = [weight_key, &i.to_string()].concat();
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
-            adj = self.optim.as_mut().unwrap().0.calculate(key, &dw, t);
+            adj = self.optim.as_mut().unwrap().0.calculate(ParamKey::WeightGradient(i as u8), &dw, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *w = &*w*weight_decay - velocity;

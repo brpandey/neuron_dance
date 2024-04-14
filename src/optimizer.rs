@@ -8,18 +8,38 @@
 /// derivative of the target function with respect to the params (e.g w, b)
 /// Hence w - η ⋅ dT/dw or b - η ⋅ dT/db)
 
+pub mod adam;
+pub mod amsgrad;
+pub mod nadam;
+
 use std::borrow::Cow;
 use ndarray::Array2;
 
-pub mod adam;
-
-use crate::optimizer::adam::Adam;
+use crate::optimizer::{adam::Adam, amsgrad::AmsGrad, nadam::NAdam};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Optim {
     Default,
     Adam,
+    AMSGrad,
+    NAdam,
 }
+
+#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
+pub enum ParamKey {
+    WeightGradient(u8),
+    BiasGradient(u8),
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
+pub enum HistType { // Historical Type
+    Mean,
+    Variance,
+    Vhat,
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
+pub struct CompositeKey(ParamKey, HistType);
 
 impl std::fmt::Display for Optim { // use debug fmt imp for display
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -28,7 +48,7 @@ impl std::fmt::Display for Optim { // use debug fmt imp for display
 }
 
 pub trait Optimizer {
-    fn calculate<'a>(&mut self, _key: String, value: &'a Array2<f64>, _t: usize) -> Cow<'a, Array2<f64>> {
+    fn calculate<'a>(&mut self, _key: ParamKey, value: &'a Array2<f64>, _t: usize) -> Cow<'a, Array2<f64>> {
         Cow::Borrowed(value)
     }
 }
@@ -38,6 +58,8 @@ impl From<Optim> for Box<dyn Optimizer> {
         match optimzer_type {
             Optim::Default => Box::new(Default),
             Optim::Adam => Box::new(Adam::new()),
+            Optim::AMSGrad => Box::new(AmsGrad::new()),
+            Optim::NAdam => Box::new(NAdam::new()),
         }
     }
 }

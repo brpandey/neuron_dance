@@ -15,16 +15,16 @@
 /// especially as we reach the trough of our loss function when the gradient contributions get smaller and smaller
 /// and the learning rate is still constant. It prevents the velocity from slowing down by slightly boosting it
 
-use ndarray::Array2;
+use ndarray::{Array2, Dim};
 use std::collections::HashMap;
 use std::borrow::Cow;
 
-use crate::optimizer::Optimizer;
+use crate::optimizer::{Optimizer, ParamKey, HistType, CompositeKey};
 use crate::algebra::AlgebraExt;
 
 pub struct Adam {
-    means: HashMap<String, Array2<f64>>, // first order mean value for param value
-    variances: HashMap<String, Array2<f64>>, // second order variances for param value
+    hist_types: Vec<HistType>,
+    historical: HashMap<CompositeKey, Array2<f64>>, // stores first order mean and variances for param
     beta1: f64, // first order moment beta
     beta2: f64, // second order moment beta
     epsilon: f64, // stabilizer to ensure denominator is never zero, should sqrt of second moment be 0
@@ -33,47 +33,54 @@ pub struct Adam {
 impl Adam {
     pub fn new() -> Self {
         Self {
-            means: HashMap::new(),
-            variances: HashMap::new(),
+            hist_types: Vec::from(&[HistType::Mean, HistType::Variance]),
+            historical: HashMap::new(),
             beta1: 0.9, // use 90 percent of prior historical average, but only 10% of new value
             beta2: 0.999, // use 99 percent of prior historical average -- avoid fluctuations!
             epsilon: 1e-8,
         }
     }
 
-    // Smooth out the value using the past historical average, to get a blend of
-    // the two values: average and most recent value (e.g. specific param's gradient)
-    // greater weight is given to the historical average and less weight to the new value
-    fn smooth(decay_rate: f64, average: &Array2<f64>, value: &Array2<f64>) -> Array2<f64> {
-        decay_rate*average + (1.0-decay_rate)*value
+    // Initialize new historical values to be zero tensors
+    pub fn initialize(key: ParamKey, shape: Dim<[usize; 2]>, hist_types: &[HistType],
+                      store: &mut HashMap<CompositeKey, Array2<f64>>)
+    {
+        hist_types.iter().fold(store, |acc, p_type| {
+            // Generate composite keys in the form ParamKey, HistType
+            let composite_key = CompositeKey(key.clone(), *p_type);
+            if !acc.contains_key(&composite_key) { // if not found initialize with zero'd tensor
+                acc.insert(composite_key.clone(), Array2::zeros(shape));
+            }
+            acc
+        });
     }
 
+    #[inline]
     // Offset the cost of originally initializing value to 0
-    fn bias_correct(value: &Array2<f64>, decay_rate: f64, t: usize) -> Array2<f64> {
+    pub fn bias_correct(value: &Array2<f64>, decay_rate: f64, t: usize) -> Array2<f64> {
         value/(1.0-decay_rate.powf(t as f64 + 1.0))
     }
 }
 
 impl Optimizer for Adam {
-    // Produce adjustment value given specific param's key and value e.g. "dw0", and gradient value dw
-    fn calculate<'a>(&mut self, key: String, value: &'a Array2<f64>, t: usize) -> Cow<'a, Array2<f64>> {
+    // Produce adjustment value given specific param's key and value e.g. dw0, and gradient value dw
+    fn calculate<'a>(&mut self, key: ParamKey, value: &'a Array2<f64>, t: usize) -> Cow<'a, Array2<f64>> {
+        //let shape = (value.shape()[0], value.shape()[1]);
+        Adam::initialize(key, value.raw_dim(), &self.hist_types, &mut self.historical);
 
-        if !self.means.contains_key(key.as_str()) && !self.variances.contains_key(key.as_str()) {
-            let shape = (value.shape()[0], value.shape()[1]);
-            self.means.insert(key.clone(), Array2::zeros(shape));
-            self.variances.insert(key.clone(), Array2::zeros(shape));
-        }
+        // 1 Grab historical value
 
-        let mean = self.means.get_mut(&key).unwrap();
-        let variance = self.variances.get_mut(&key).unwrap();
-
-        // Smooth two historical averages blending in new value so as not to be
+        // 2 Smooth the historical averages (mean and var) blending in new value so as not to be
         // susceptible to gradient variations, then update values for each param, e.g. dw or db
-        *mean = Self::smooth(self.beta1, mean, value);
-        *variance = Self::smooth(self.beta2, variance, &(value*value));
 
-        // Account for errors/biases since mean and variance were initalized to 0's
+        // 3 Account for errors/biases since mean and variance were initalized to 0's
+
+        let mean = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Mean)).unwrap();
+        *mean = mean.smooth(self.beta1, value);
         let m_hat = Self::bias_correct(mean, self.beta1, t);
+
+        let variance = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Variance)).unwrap();
+        *variance = variance.smooth(self.beta2, &(value*value));
         let v_hat = Self::bias_correct(variance, self.beta2, t);
 
         // The adaptive momentum estimates are two fold:

@@ -6,7 +6,7 @@
 /// Array2<f64> is ArrayBase<OwnedRepr<f64>, Ix2>
 /// ArrayView2<f64> is ArrayBase<ViewRepr<&'a f64>, Ix2>>;
 
-use ndarray::{Array1, Array2, Axis};
+use ndarray::{Array1, Array2, Axis, Zip};
 
 pub trait AlgebraExt<W = Self, B = Self> {
     type Output;
@@ -19,7 +19,9 @@ pub trait AlgebraExt<W = Self, B = Self> {
     fn normalize(&self) -> f64;
     fn min_axis(&self, axis: Axis) -> Self::Output1;
     fn max_axis(&self, axis: Axis) -> Self::Output1;
+    fn maximum(&self, other: &Self) -> Self::Output;
     fn sqrt(&self) -> Self::Output;
+    fn smooth(&self, decay_rate: f64, value: &Array2<f64>) -> Self::Output;
 }
 
 impl AlgebraExt for Array2<f64> {
@@ -80,5 +82,27 @@ impl AlgebraExt for Array2<f64> {
     #[inline]
     fn exp(&self) -> Self::Output {
         self.mapv(|v| v.exp())
+    }
+
+    // Smooth out the value using the past historical average (self), to get a blend of
+    // the two values: average and most recent value (e.g. specific param's gradient)
+    // greater weight is given to the historical average and less weight to the new value
+
+    #[inline]
+    fn smooth(&self, decay_rate: f64, value: &Array2<f64>) -> Self::Output { 
+        decay_rate*self + (1.0-decay_rate)*value
+    }
+
+    fn maximum(&self, other: &Self) -> Self::Output {
+        let mut output = Array2::<f64>::zeros(self.raw_dim());
+
+        if self.shape() == other.shape() {
+            Zip::from(&mut output)
+                .and(self)
+                .and(other)
+                .for_each(|m, &x, &y| *m = x.max(y));
+        }
+
+        output
     }
 }

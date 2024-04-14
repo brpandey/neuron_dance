@@ -73,7 +73,7 @@ fn main() {
             model.add(Dense(100, Act::SigmoidW(Weit::GlorotN)));
             model.add(Dense(10, Act::SigmoidW(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini_(10, Optim::Adam), Eval::Test);
+            model.fit(&subsets, 10, Batch::Mini_(10, Optim::NAdam), Eval::Test);
         }
     }
     model.eval(&subsets, Eval::Test);
