@@ -1,6 +1,6 @@
 use ndarray::{Array2, ArrayView2};
 
-use crate::activation::functions::Act;
+use crate::activation::Act;
 use crate::algebra::AlgebraExt;
 use crate::cost::FunctionCost;
 

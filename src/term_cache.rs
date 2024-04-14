@@ -2,7 +2,7 @@ use ndarray::{s, Array1, Array2};
 use std::collections::HashMap;
 
 use crate::{
-    activation::{ActFp, functions::Act}, cost::{CostDFp, CostCDFp}, layers::Batch,
+    activation::{ActFp, Act}, cost::{CostDFp, CostCDFp}, layers::Batch,
     types::Classification, term_stack::{TT, TermStack}
 };
 

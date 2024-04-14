@@ -1,4 +1,4 @@
-use crate::activation::functions::FunctionAct;
+use crate::activation::FunctionAct;
 
 #[derive(Clone, Debug)]
 pub struct Sigmoid;

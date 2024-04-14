@@ -6,7 +6,7 @@ use ndarray::{Array2, ArrayView2};
 
 use crate::cost::{Cost, functions::
                   {quadratic::Quadratic, cross_entropy::CrossEntropy}}; // Update (2)
-use crate::activation::functions::Act;
+use crate::activation::Act;
 
 pub trait FunctionCost {
     fn compute(y: &Array2<f64>, a: &Array2<f64>) -> f64;

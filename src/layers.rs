@@ -10,7 +10,7 @@ pub struct Input2(pub usize, pub usize);
 pub struct Dense(pub usize, pub Act);
 
 // re-export types into Layer, to consolidate interface
-pub use crate::activation::functions::Act;
+pub use crate::activation::Act;
 pub use crate::cost::functions::Loss;
 pub use crate::types::{Batch, Eval, Metr};
 pub use crate::weight::Weit;

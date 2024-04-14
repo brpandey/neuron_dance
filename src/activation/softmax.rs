@@ -1,5 +1,5 @@
 use ndarray::{Array2, Axis};
-use crate::activation::functions::FunctionAct;
+use crate::activation::FunctionAct;
 use crate::algebra::AlgebraExt;
 
 #[derive(Clone, Debug)]

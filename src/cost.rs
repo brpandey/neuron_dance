@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use ndarray::{Array2, ArrayView2};
 
 use crate::cost::functions::FunctionCost;
-use crate::activation::functions::Act;
+use crate::activation::Act;
 
 pub type CostFp = fn(&Array2<f64>, &Array2<f64>) -> f64; // function pointer
 pub type CostDFp = fn(&Array2<f64>, &ArrayView2<f64>) -> Array2<f64>; // function pointer
