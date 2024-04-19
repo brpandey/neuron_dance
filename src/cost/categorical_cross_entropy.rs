@@ -2,16 +2,16 @@ use ndarray::{Array2, ArrayView2};
 
 use crate::activation::{Act, softmax::Softmax};
 use crate::algebra::AlgebraExt;
-use crate::cost::FunctionCost;
+use crate::cost::Objective;
 
 #[derive(Clone, Debug)]
 pub struct CategoricalCrossEntropy;
 
 const EPSILON: f64 = 1e-20;
 
-impl FunctionCost for CategoricalCrossEntropy {
+impl Objective for CategoricalCrossEntropy {
 
-    fn compute(a: &Array2<f64>, y: &Array2<f64>) -> f64 {
+    fn evaluate(a: &Array2<f64>, y: &Array2<f64>) -> f64 {
         // C = -1/n ∑(y * ln(a)
 
         let n = a.shape()[1] as f64;
@@ -28,7 +28,7 @@ impl FunctionCost for CategoricalCrossEntropy {
     fn combine_derivative(dc_da: Array2<f64>, da_dz: Array2<f64>, z_last: Array2<f64>, act: Act) -> Array2<f64> {
         // if the output activation is softmax then for categorical cross entropy, the da_dz term cancels out
         let ret = match act {
-            Act::Sigmoid | Act::SigmoidW(_) => dc_da * &da_dz,
+            Act::Sigmoid | Act::Sigmoid_(_) => dc_da * &da_dz,
             //Act::Softmax | Act::Softmax_(_) => dc_da,
             Act::Softmax | Act::Softmax_(_) => Softmax::batch_derivative(dc_da, da_dz, z_last),
             _ => dc_da * &da_dz,
@@ -43,7 +43,7 @@ impl FunctionCost for CategoricalCrossEntropy {
 mod tests {
     use super::*;
     use ndarray::arr2;
-    use crate::cost::FunctionCost;
+    use crate::cost::Objective;
 
     #[test]
     fn basic1() {
@@ -57,7 +57,7 @@ mod tests {
 
         y.swap_axes(0, 1);
 
-        let answer = CategoricalCrossEntropy::compute(&a, &y);
+        let answer = CategoricalCrossEntropy::evaluate(&a, &y);
 
         assert_eq!(answer, 0.7135581778200729);
     }
@@ -76,7 +76,7 @@ mod tests {
 
         y.swap_axes(0, 1);
 
-        let answer = CategoricalCrossEntropy::compute(&a, &y);
+        let answer = CategoricalCrossEntropy::evaluate(&a, &y);
 
         assert_eq!(answer, 0.47570545188004854);
 
@@ -90,7 +90,7 @@ mod tests {
         let mut y = arr2(&[[1.0, 0.0, 0.0]]);
         y.swap_axes(0, 1);
 
-        let answer = CategoricalCrossEntropy::compute(&a, &y);
+        let answer = CategoricalCrossEntropy::evaluate(&a, &y);
 
         assert_eq!(answer, 0.35667494393873245);
 

@@ -29,9 +29,6 @@ use crate::activation::{relu::Relu, sigmoid::Sigmoid, tanh::Tanh,
 
 use crate::weight::Weit;
 
-
-//use crate::activation::functions::FunctionAct;
-
 pub type ActFp = fn(&Array2<f64>) -> Array2<f64>; // function pointer
 
 pub trait Activation : Debug  {
@@ -39,21 +36,21 @@ pub trait Activation : Debug  {
 }
 
 // blanket implementation for all function types T
-impl<T: FunctionAct + Debug + Clone + 'static> Activation for T {
+impl<T: Decider + Debug + Clone + 'static> Activation for T {
     // return both activate, activate derivative func in a tuple
     fn pair(&self) -> (ActFp, ActFp) {
-        (<T as FunctionAct>::activate, <T as FunctionAct>::derivative)
+        (<T as Decider>::activate, <T as Decider>::derivative)
     }
 }
 
-pub trait FunctionAct {
+pub trait Decider {
 
     // perform non-linear activation
     fn activate(z: &Array2<f64>) -> Array2<f64> {
-        z.mapv(|v| Self::compute(v))
+        z.mapv(|v| Self::decide(v))
     }
 
-    fn compute(x: f64) -> f64 { x }
+    fn decide(x: f64) -> f64 { x }
     fn gradient(x: f64) -> f64 { x }
 
     fn derivative(z: &Array2<f64>) -> Array2<f64> { // derivative is vectorized
@@ -84,11 +81,11 @@ impl FromStr for Box<dyn Activation> {
 #[derive(Debug, Copy, Clone)]
 pub enum Act {
     Relu, // uses default weight initialization type
-    ReluW(Weit), // with supplied weight initialization type
+    Relu_(Weit), // with supplied weight initialization type
     Sigmoid,
-    SigmoidW(Weit),
+    Sigmoid_(Weit),
     Tanh,
-    TanhW(Weit),
+    Tanh_(Weit),
     Softmax,
     Softmax_(Weit),
     LeakyRelu,
@@ -98,9 +95,9 @@ impl From<Act> for Box<dyn Activation> {
     fn from(activation_type: Act) -> Self {
         // Add new activation type here - Start (3)
         match activation_type {
-            Act::Relu | Act::ReluW(_) => Box::new(Relu),
-            Act::Sigmoid | Act::SigmoidW(_) => Box::new(Sigmoid),
-            Act::Tanh | Act::TanhW(_) => Box::new(Tanh),
+            Act::Relu | Act::Relu_(_) => Box::new(Relu),
+            Act::Sigmoid | Act::Sigmoid_(_) => Box::new(Sigmoid),
+            Act::Tanh | Act::Tanh_(_) => Box::new(Tanh),
             Act::Softmax | Act::Softmax_(_) => Box::new(Softmax),
             Act::LeakyRelu => Box::new(LeakyRelu),
         }

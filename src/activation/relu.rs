@@ -1,10 +1,10 @@
-use crate::activation::FunctionAct;
+use crate::activation::Decider;
 
 #[derive(Clone, Debug)]
 pub struct Relu;
 
-impl FunctionAct for Relu {
-    fn compute(x: f64) -> f64 {
+impl Decider for Relu {
+    fn decide(x: f64) -> f64 {
         x.max(0.0)
     }
 

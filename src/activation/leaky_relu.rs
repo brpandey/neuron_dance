@@ -1,10 +1,10 @@
-use crate::activation::FunctionAct;
+use crate::activation::Decider;
 
 #[derive(Clone, Debug)]
 pub struct LeakyRelu;
 
-impl FunctionAct for LeakyRelu {
-    fn compute(x: f64) -> f64 {
+impl Decider for LeakyRelu {
+    fn decide(x: f64) -> f64 {
         x.max(0.01*x)
     }
 

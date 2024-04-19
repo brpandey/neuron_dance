@@ -1,11 +1,11 @@
-use crate::activation::FunctionAct;
+use crate::activation::Decider;
 use crate::algebra::AlgebraExt;
 use ndarray::{Array2, Axis};
 
 #[derive(Clone, Debug)]
 pub struct Softmax;
 
-impl FunctionAct for Softmax {
+impl Decider for Softmax {
     // Softmax requires vectorized implementations of activate and derivative
     // Since it looks for max and sum values
 
@@ -69,7 +69,7 @@ impl Softmax {
 mod tests {
     use super::*;
     use ndarray::arr2;
-    use crate::activation::FunctionAct;
+    use crate::activation::Decider;
 
     #[test]
     fn basic1() {

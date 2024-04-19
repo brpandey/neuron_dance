@@ -2,13 +2,13 @@ use ndarray::{Array2, ArrayView2};
 
 use crate::activation::Act;
 use crate::algebra::AlgebraExt;
-use crate::cost::FunctionCost;
+use crate::cost::Objective;
 
 #[derive(Clone, Debug)]
 pub struct BinaryCrossEntropy;
 
-impl FunctionCost for BinaryCrossEntropy {
-    fn compute(a: &Array2<f64>, y: &Array2<f64>) -> f64 {
+impl Objective for BinaryCrossEntropy {
+    fn evaluate(a: &Array2<f64>, y: &Array2<f64>) -> f64 {
         // C = -1/n ∑(y * ln(a)+(1−y)ln(1−a)) or
         // C = 1/n ∑(-y * ln(a)-(1−y)ln(1−a))
 
