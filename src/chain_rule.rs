@@ -90,7 +90,7 @@ impl <'a> ChainRuleComputation<'a> {
         let shared = SharedHiddenTerms {
             dc_dz2,
             dz2_da1: w.clone(), // Z2 = W2A1 + B, w is just W2
-            da1_dz1: self.tc.nonlinear_derivative(), // derivative of e.g. relu applied to Z1,
+            da1_dz1: self.tc.nonlinear_derivative().0, // derivative of e.g. relu applied to Z1,
             dc_dz1: None
         }; // last field is result
 

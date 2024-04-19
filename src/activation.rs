@@ -90,6 +90,7 @@ pub enum Act {
     Tanh,
     TanhW(Weit),
     Softmax,
+    Softmax_(Weit),
     LeakyRelu,
 }
 
@@ -100,7 +101,7 @@ impl From<Act> for Box<dyn Activation> {
             Act::Relu | Act::ReluW(_) => Box::new(Relu),
             Act::Sigmoid | Act::SigmoidW(_) => Box::new(Sigmoid),
             Act::Tanh | Act::TanhW(_) => Box::new(Tanh),
-            Act::Softmax => Box::new(Softmax),
+            Act::Softmax | Act::Softmax_(_) => Box::new(Softmax),
             Act::LeakyRelu => Box::new(LeakyRelu),
         }
     }

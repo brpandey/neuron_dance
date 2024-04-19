@@ -76,11 +76,11 @@ impl Layer for Dense {
 
         let w_distr = match act_type {
             // act functions w default weight initializations
-            Act::Tanh | Act::Sigmoid => Weit::GlorotU,
+            Act::Softmax | Act::Tanh | Act::Sigmoid => Weit::GlorotU,
             Act::Relu => Weit::He,
             // act functions with weight initialization specified
-            Act::TanhW(weit) | Act::SigmoidW(weit) | Act::ReluW(weit) => weit,
-            Act::Softmax | Act::LeakyRelu => todo!(),
+            Act::TanhW(weit) | Act::SigmoidW(weit) | Act::Softmax_(weit) | Act::ReluW(weit) => weit,
+            Act::LeakyRelu => todo!(),
         };
 
         LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type, w_distr)

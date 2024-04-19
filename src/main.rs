@@ -1,11 +1,14 @@
 use clap::{Arg, ArgAction, Command};
-use std::str::FromStr;
 use neuron_dance::{
+    dataset::{
+        csv::{CSVData, CSVType},
+        idx::{MnistData, MnistType},
+        DataSet,
+    },
+    layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit},
     network::Network,
-    dataset::{DataSet, csv::{CSVType, CSVData},
-              idx::{MnistType, MnistData}},
-    layers::{Act, Batch, Eval, Loss, Metr, Input1, Input2, Dense, Weit, Optim},
 };
+use std::str::FromStr;
 
 fn main() {
     let mut matches = Command::new("neuron_dance")
@@ -13,17 +16,21 @@ fn main() {
         .arg(
             Arg::new("type")
                 .action(ArgAction::Set)
-                .value_parser(["csv1", "csv2", "iris", "mnist"])
+                .value_parser(["csv1", "csv2", "iris", "mnist", "fash"])
                 .default_value("csv1")
                 .help("Specify network type")
                 .short('t')
                 .long("type")
-                .value_name("NETWORK TYPE")
-            )
+                .value_name("NETWORK TYPE"),
+        )
         .get_matches();
 
-    let ntype = matches.remove_one::<String>("type").unwrap().parse().unwrap();
-    let train_percentage = 2.0/3.0;     // train / total ratio, test = total - train
+    let ntype = matches
+        .remove_one::<String>("type")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let train_percentage = 2.0 / 3.0; // train / total ratio, test = total - train
     let mut dataset: Box<dyn DataSet>;
 
     dataset = match ntype {
@@ -31,6 +38,7 @@ fn main() {
         NetworkType::CSV2 => Box::new(CSVData::new(CSVType::Custom("diabetes"))),
         NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom("iris"))),
         NetworkType::Mnist => Box::new(MnistData::new(MnistType::Regular)),
+        NetworkType::FashionMnist => Box::new(MnistData::new(MnistType::Fashion)),
     };
 
     let mut tts = dataset.train_test_split(train_percentage);
@@ -45,7 +53,7 @@ fn main() {
             model.add(Dense(1, Act::Sigmoid));
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
-        },
+        }
         NetworkType::CSV2 => {
             tts = tts.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
             subsets = tts.get_ref();
@@ -55,25 +63,35 @@ fn main() {
             model.add(Dense(12, Act::Relu));
             model.add(Dense(8, Act::Relu));
             model.add(Dense(1, Act::SigmoidW(Weit::GlorotN)));
-            model.compile(Loss::CrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
+            model.compile(Loss::BinaryCrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
             model.fit(&subsets, 120, Batch::Mini(10), Eval::Train);
-        },
+        }
         NetworkType::Iris => {
             model = Network::new();
             model.add(Input1(4));
             model.add(Dense(10, Act::Relu));
             model.add(Dense(10, Act::Relu));
             model.add(Dense(3, Act::Sigmoid));
-            model.compile(Loss::CrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
+            model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
             model.fit(&subsets, 100, Batch::Mini(5), Eval::Test);
-        },
-        NetworkType::Mnist => { // Layers near input learn more basic qualities of the dataset thus bigger size
+        }
+        NetworkType::Mnist => {
+            // Layers near input learn more basic qualities of the dataset thus bigger size
             model = Network::new();
             model.add(Input2(28, 28));
             model.add(Dense(100, Act::SigmoidW(Weit::GlorotN)));
             model.add(Dense(10, Act::SigmoidW(Weit::GlorotN))); // Layers near output learn more advanced qualities
-            model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini_(10, Optim::NAdam), Eval::Test);
+            model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
+            model.fit(&subsets, 10, Batch::Mini_(10, Optim::Default), Eval::Test);
+        }
+        NetworkType::FashionMnist => {
+            // Layers near input learn more basic qualities of the dataset thus bigger size
+            model = Network::new();
+            model.add(Input2(28, 28));
+            model.add(Dense(128, Act::Relu));
+            model.add(Dense(10, Act::Softmax_(Weit::GlorotN))); // Layers near output learn more advanced qualities
+            model.compile(Loss::CategoricalCrossEntropy, 0.1, 5.0, Metr("accuracy"));
+            model.fit(&subsets, 10, Batch::Mini_(5, Optim::Adam), Eval::Test);
         }
     }
     model.eval(&subsets, Eval::Test);
@@ -84,6 +102,7 @@ pub enum NetworkType {
     CSV2,
     Iris,
     Mnist,
+    FashionMnist,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -98,6 +117,7 @@ impl FromStr for NetworkType {
             "csv2" => Ok(NetworkType::CSV2),
             "iris" => Ok(NetworkType::Iris),
             "mnist" => Ok(NetworkType::Mnist),
+            "fash" => Ok(NetworkType::FashionMnist),
             _ => Err(NTParseError),
         }
     }
