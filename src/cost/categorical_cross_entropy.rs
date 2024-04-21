@@ -1,8 +1,9 @@
 use ndarray::{Array2, ArrayView2};
 
-use crate::activation::{Act, softmax::Softmax};
+use crate::activation::{Act, ActFp, softmax::Softmax};
 use crate::algebra::AlgebraExt;
-use crate::cost::Objective;
+use crate::cost::{Objective, CostDFp};
+use crate::gradient::CombinateRule;
 
 #[derive(Clone, Debug)]
 pub struct CategoricalCrossEntropy;
@@ -20,21 +21,15 @@ impl Objective for CategoricalCrossEntropy {
     }
 
     fn derivative(a: &Array2<f64>, y: &ArrayView2<f64>) -> Array2<f64> {
-//        let res = a - y; 
         -y/(a + EPSILON)
     }
 
-    // override the default trait implementation
-    fn combine_derivative(dc_da: Array2<f64>, da_dz: Array2<f64>, z_last: Array2<f64>, act: Act) -> Array2<f64> {
-        // if the output activation is softmax then for categorical cross entropy, the da_dz term cancels out
-        let ret = match act {
-            Act::Sigmoid | Act::Sigmoid_(_) => dc_da * &da_dz,
-            //Act::Softmax | Act::Softmax_(_) => dc_da,
-            Act::Softmax | Act::Softmax_(_) => Softmax::batch_derivative(dc_da, da_dz, z_last),
-            _ => dc_da * &da_dz,
-        };
-
-        ret
+    fn combinate_rule(f: CostDFp, f_a: Array2<f64>, _f_y: ArrayView2<f64>, g: ActFp, g_z: Array2<f64>, act: Act) -> CombinateRule {
+        match act {
+            // Act::Softmax | Act::Softmax_(_) => CombinateRule::TermOnly(f_a - f_y), // the shortcut way since terms cancel
+            Act::Softmax | Act::Softmax_(_) => CombinateRule::CostDotActMatrix(f, f_a, Softmax::batch_derivative, g_z),
+            _ => CombinateRule::Default(f, f_a, g, g_z),
+        }
     }
 }
 

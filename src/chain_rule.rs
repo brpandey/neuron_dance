@@ -83,14 +83,14 @@ impl <'a> ChainRuleComputation<'a> {
     // Bias and weight delta values are folded into the respective collections
     pub fn fold_layer(&mut self, dc_dz2: Array2<f64>, w: &Array2<f64>) -> Array2<f64>{
         // Main equations
-        // dc_db = dc_dz2 * dz2_da1 * da1_dz1 * dz1_db1   (or) dc_dz1 * dz1_db1
-        // dc_dw = dc_dz2 * dz2_da1 * da1_dz1 * dz1_dw1.t (or) dc_dz1 * dz1_dw1.t
+        // dc_db = (dc_dz2 * dz2_da1 * da1_dz1) * dz1_db1   (or) dc_dz1 * dz1_db1
+        // dc_dw = (dc_dz2 * dz2_da1 * da1_dz1) * dz1_dw1.t (or) dc_dz1 * dz1_dw1.t
 
         // create shared component
         let shared = SharedHiddenTerms {
             dc_dz2,
             dz2_da1: w.clone(), // Z2 = W2A1 + B, w is just W2
-            da1_dz1: self.tc.nonlinear_derivative().0, // derivative of e.g. relu applied to Z1,
+            da1_dz1: self.tc.nonlinear_derivative(), // derivative of e.g. relu applied to Z1,
             dc_dz1: None
         }; // last field is result
 

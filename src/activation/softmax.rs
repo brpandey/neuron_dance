@@ -16,7 +16,7 @@ impl Decider for Softmax {
     fn activate(z: &Array2<f64>) -> Array2<f64> {
         let max = z.max_axis(Axis(0)); //.into_shape((1, cols)).unwrap();
         let expd = (z - &max).exp();
-		    &expd / &expd.sum_axis(Axis(0))
+        &expd / &expd.sum_axis(Axis(0))
     }
 
     // Assumes z only grabs one row in Array2, the first row
@@ -43,7 +43,7 @@ impl Decider for Softmax {
 }
 
 impl Softmax {
-    pub fn batch_derivative(dc_da: Array2<f64>, _da_dz: Array2<f64>, z_last: Array2<f64>) -> Array2<f64> {
+    pub fn batch_derivative(dc_da: Array2<f64>, z_last: Array2<f64>) -> Array2<f64> {
         let z_iter = z_last.axis_iter(Axis(1)); // grab z values by column
         let c_iter = dc_da.axis_iter(Axis(1)); // grab c values by column
         let output_size = dc_da.shape()[0];
@@ -52,10 +52,10 @@ impl Softmax {
         // For each col this calc is being down and then pushed back into aggregate acc dc_dz
         // dc_dz = dc_da dot da_dz
 
-		// Compute batch dc_dz based on taking the individual cost gradient and z single values
+		    // Compute batch dc_dz based on taking the individual cost gradient and z single values
         dc_dz = c_iter.zip(z_iter).fold(dc_dz, |mut acc, (cost_grad_single, z_col)| {
             let z_single = z_col.to_owned().into_shape((output_size, 1)).unwrap(); // put z into array2
-            let softmax_grad_single = Softmax::derivative(&z_single); // get da_dz single
+            let softmax_grad_single = Softmax::derivative(&z_single); // get da_dz single - jacobian matrix
             let dc_dz_single = softmax_grad_single.dot(&cost_grad_single); // e.g. da_dz - jacobian matrix (10x10) dot 10x1 dc_da
             let _ = acc.push_column(dc_dz_single.view());
             acc

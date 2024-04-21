@@ -1,9 +1,9 @@
-use ndarray::{s, Array1, Array2};
+use ndarray::{s, Array1, Array2, CowArray, Ix2};
 use std::collections::HashMap;
 
 use crate::{
     activation::{Act, ActFp},
-    cost::{CostCDFp, CostDFp},
+    cost::{CostDFp, CostCRFp},
     layers::Batch,
     term_stack::{TermStack, TT},
     types::Classification,
@@ -17,7 +17,7 @@ pub struct TermCache {
     learning_rate: f64,
     l2_rate: f64,
     batch_type: Batch,
-    cost_d_fps: (CostDFp, CostCDFp),
+    cost_d_fps: (CostDFp, CostCRFp),
     output_act_type: Act,
 }
 
@@ -29,9 +29,10 @@ impl TermCache {
         learning_rate: f64,
         l2_rate: f64,
         batch_type: Batch,
-        cost_d_fps: (CostDFp, CostCDFp),
+        cost_d_fps: (CostDFp, CostCRFp),
         output_act_type: Act,
     ) -> Self {
+
         // Precompute one hot encoded vectors given output layer size
         let one_hot = Self::precompute(output_size);
         let classification = Classification::new(output_size);
@@ -48,6 +49,8 @@ impl TermCache {
             output_act_type,
         }
     }
+
+    // 0 Hyperparameters?
 
     pub fn learning_rate(&self) -> f64 {
         match self.batch_type {
@@ -92,27 +95,31 @@ impl TermCache {
 
     // 2 Activation & Cost Derivatives
 
+    // returns dc_dz (not dc_da)
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
-        let dc_da = self.partial_cost_derivative(y);
-        let (da_dz, z_last) = self.nonlinear_derivative();
+        let y_cow = self.one_hot_target(y);
+        let last_a = self.stack.pop(TT::Nonlinear).array();
 
-        // invoke cost specific combine deriv function with
-        // output activation type
-        (self.cost_d_fps.1)(dc_da, da_dz, z_last, self.output_act_type)
+        let z_last = self.stack.pop(TT::Linear).array();
+        let a_derivative = *self.stack.pop(TT::ActivationDerivative).fp();
+
+        // Generate appropriate combinate rule given particular cost function and activation type
+        // Feed in relevant parameters
+
+        let rule = (self.cost_d_fps.1)(self.cost_d_fps.0, last_a, y_cow.view(), a_derivative, z_last, self.output_act_type);
+        rule.apply(y_cow.view())
     }
 
-    pub fn nonlinear_derivative(&mut self) -> (Array2<f64>, Array2<f64>) // returns da_dz
+    pub fn nonlinear_derivative(&mut self) -> Array2<f64> // returns da_dz
     {
         let z_last = self.stack.pop(TT::Linear).array();
         let a_derivative = self.stack.pop(TT::ActivationDerivative).fp();
         let da_dz = (a_derivative)(&z_last);
 
-        (da_dz, z_last)
+        da_dz
     }
 
-    fn partial_cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> { // returns dc_da
-        let last_a: Array2<f64> = self.stack.pop(TT::Nonlinear).array();
-
+    fn one_hot_target<'a, 'b>(&'a mut self, y: &'b Array2<f64>) -> CowArray<'b, f64, Ix2> {
         match self.classification {
             Classification::MultiClass(output_size) => {
                 // Output labels is a matrix that accounts for output size and mini batch size
@@ -137,12 +144,11 @@ impl TermCache {
                     output_labels.slice_mut(s![.., i]).assign(encoded_label);
                 }
 
-                // apply cost derivative
-                (self.cost_d_fps.0)(&last_a, &output_labels.view())
+                CowArray::from(output_labels)
             }
             Classification::Binary => {
                 // e.g. 1 x 1 or 1 x 32
-                (self.cost_d_fps.0)(&last_a, &y.t())
+                CowArray::from(y.t())
             }
         }
     }

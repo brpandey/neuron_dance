@@ -1,8 +1,9 @@
 use ndarray::{Array2, ArrayView2};
 
-use crate::activation::Act;
+use crate::activation::{Act, ActFp};
 use crate::algebra::AlgebraExt;
-use crate::cost::Objective;
+use crate::cost::{Objective, CostDFp};
+use crate::gradient::CombinateRule;
 
 #[derive(Clone, Debug)]
 pub struct BinaryCrossEntropy;
@@ -20,17 +21,15 @@ impl Objective for BinaryCrossEntropy {
     }
 
     fn derivative(a: &Array2<f64>, y: &ArrayView2<f64>) -> Array2<f64> {
-  //    a - y; 
         (a - y) / a * ( 1.0 - a )
     }
 
     // override the default trait implementation
-    fn combine_derivative(dc_da: Array2<f64>, da_dz: Array2<f64>, _z_last: Array2<f64>, act: Act) -> Array2<f64> {
-        // if the output activation is sigmoid then for cross entropy, the da_dz term cancels out
+    fn combinate_rule(f: CostDFp, f_a: Array2<f64>, _f_y: ArrayView2<f64>, g: ActFp, g_z: Array2<f64>, act: Act) -> CombinateRule {
         match act {
-            Act::Sigmoid => dc_da * &da_dz, // this can be reduced to (a-y) 
-//            Act::Sigmoid => dc_da,
-            _ => dc_da * &da_dz,
+            //Act::Sigmoid | Act::Sigmoid_(_) => CombinateRule::TermOnly(f_a - f_y), // the shortcut way since terms cancel
+            Act::Sigmoid | Act::Sigmoid_(_) => CombinateRule::Default(f, f_a, g, g_z),
+                _ => CombinateRule::Default(f, f_a, g, g_z)
         }
     }
 }

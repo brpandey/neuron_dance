@@ -30,6 +30,7 @@ use crate::activation::{relu::Relu, sigmoid::Sigmoid, tanh::Tanh,
 use crate::weight::Weit;
 
 pub type ActFp = fn(&Array2<f64>) -> Array2<f64>; // function pointer
+pub type ActBDFp = fn(Array2<f64>, Array2<f64>) -> Array2<f64>;
 
 pub trait Activation : Debug  {
     fn pair(&self) -> (ActFp, ActFp);
