@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::{
     activation::{Act, ActFp},
     cost::{CostDFp, CostCRFp},
-    gradient_stack::{GradientStack, GTT},
+    gradient_stack::{GradientStack, GT},
     types::{Batch, Classification},
 };
 
@@ -76,26 +76,26 @@ impl GradientCache {
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
         // cost derivative params
         let y_cow = self.one_hot_target(y);
-        let last_a = self.stack.pop(GTT::Nonlinear).array();
+        let last_a = self.stack.pop(GT::Nonlinear).array();
 
         // activation derivative params
-        let z_last = self.stack.pop(GTT::Linear).array();
-        let a_derivative = *self.stack.pop(GTT::ActivationDerivative).fp();
+        let last_z = self.stack.pop(GT::Linear).array();
+        let a_derivative = *self.stack.pop(GT::ActivationDerivative).fp();
 
         // Generate appropriate combinate rule given particular cost function and activation type
         // Feed in relevant parameters
 
         let rule = (self.cost_d_fps.1)(self.cost_d_fps.0, last_a, y_cow.view(),
-                                       a_derivative, z_last, self.output_act_type);
+                                       a_derivative, last_z, self.output_act_type);
 
         rule.apply(y_cow.view())
     }
 
-    pub fn nonlinear_derivative(&mut self) -> Array2<f64> // returns da_dz
+    pub fn activation_derivative(&mut self) -> Array2<f64> // returns da_dz
     {
-        let z_last = self.stack.pop(GTT::Linear).array();
-        let a_derivative = self.stack.pop(GTT::ActivationDerivative).fp();
-        let da_dz = (a_derivative)(&z_last);
+        let last_z = self.stack.pop(GT::Linear).array();
+        let a_derivative = self.stack.pop(GT::ActivationDerivative).fp();
+        let da_dz = (a_derivative)(&last_z);
 
         da_dz
     }

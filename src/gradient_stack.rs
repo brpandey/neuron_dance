@@ -39,16 +39,16 @@ impl GradientStack {
         self.a_values.push(a.to_owned());
     }
 
-    pub fn pop(&mut self, kind: GTT) -> Term {
+    pub fn pop(&mut self, kind: GT) -> Term {
         match kind {
-            GTT::Linear => Term::Linear(self.z_values.pop()),
-            GTT::Nonlinear => Term::Nonlinear(self.a_values.pop()),
-            GTT::ActivationDerivative => {
+            GT::Linear => Term::Linear(self.z_values.pop()),
+            GT::Nonlinear => Term::Nonlinear(self.a_values.pop()),
+            GT::ActivationDerivative => {
                 let f = self.funcs.get(self.index.0).unwrap();
                 if self.index.0 != 0 { self.index.0 -= 1; }
                 Term::ActivationDerivative(f)
             },
-            GTT::BiasShape => {
+            GT::BiasShape => {
                 let s = self.shapes.get(self.index.1).unwrap();
                 if self.index.1 != 0 { self.index.1 -= 1; }
                 Term::BiasShape(s.0, s.1)
@@ -57,10 +57,10 @@ impl GradientStack {
     }
 }
 
-// Gradient Term Types - used for gradient calculation
-pub enum GTT { // Gradient Term Type
-    Linear,
-    Nonlinear,
+// Gradient Token - Input tokens describing types used for gradient calculation
+pub enum GT {
+    Linear, // Z values
+    Nonlinear, // A values
     ActivationDerivative,
     BiasShape,
 }

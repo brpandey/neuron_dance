@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use ndarray::Array2;
 
 use crate::gradient_cache::GradientCache;
-use crate::gradient_stack::GTT;
+use crate::gradient_stack::GT;
 use crate::chain_layer::{
     ComputeLayer, HiddenLayerTerms,
     SharedHiddenTerms, OutputLayerTerms
@@ -64,8 +64,8 @@ impl <'a> ChainRuleComputation<'a> {
             OutputLayerTerms {
                 dc_dz: Some(self.gc.cost_derivative(y)),
                 dz_db: 1.0,
-                dz_dw: self.gc.stack.pop(GTT::Nonlinear).array(),
-                bias_shape: self.gc.stack.pop(GTT::BiasShape).shape(),
+                dz_dw: self.gc.stack.pop(GT::Nonlinear).array(),
+                bias_shape: self.gc.stack.pop(GT::BiasShape).shape(),
             }
         );
 
@@ -90,7 +90,7 @@ impl <'a> ChainRuleComputation<'a> {
         let shared = SharedHiddenTerms {
             dc_dz2,
             dz2_da1: w.clone(), // Z2 = W2A1 + B, w is just W2
-            da1_dz1: self.gc.nonlinear_derivative(), // derivative of e.g. relu applied to Z1,
+            da1_dz1: self.gc.activation_derivative(), // derivative of e.g. relu applied to Z1,
             dc_dz1: None
         }; // last field is result
 
@@ -99,8 +99,8 @@ impl <'a> ChainRuleComputation<'a> {
             HiddenLayerTerms {
                 shared,
                 dz1_db1: 1.0,         // For example Z1 = W1X + B1
-                dz1_dw1: self.gc.stack.pop(GTT::Nonlinear).array(),
-                bias_shape: self.gc.stack.pop(GTT::BiasShape).shape(),
+                dz1_dw1: self.gc.stack.pop(GT::Nonlinear).array(),
+                bias_shape: self.gc.stack.pop(GT::BiasShape).shape(),
             }
         );
 
