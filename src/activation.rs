@@ -51,8 +51,8 @@ pub trait Decider {
         z.mapv(|v| Self::decide(v))
     }
 
-    fn decide(x: f64) -> f64 { x }
-    fn gradient(x: f64) -> f64 { x }
+    fn decide(z: f64) -> f64 { z }
+    fn gradient(z: f64) -> f64 { z }
 
     fn derivative(z: &Array2<f64>) -> Array2<f64> { // derivative is vectorized
         z.mapv(|v| Self::gradient(v))

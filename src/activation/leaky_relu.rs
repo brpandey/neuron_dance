@@ -4,11 +4,11 @@ use crate::activation::Decider;
 pub struct LeakyRelu;
 
 impl Decider for LeakyRelu {
-    fn decide(x: f64) -> f64 {
-        x.max(0.01*x)
+    fn decide(z: f64) -> f64 {
+        z.max(0.01*z)
     }
 
-    fn gradient(x: f64) -> f64 {
-        if x > 0.0 { 1.0 } else { 0.01 }
+    fn gradient(z: f64) -> f64 {
+        if z > 0.0 { 1.0 } else { 0.01 }
     }
 }

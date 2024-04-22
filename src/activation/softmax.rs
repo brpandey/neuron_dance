@@ -9,10 +9,6 @@ impl Decider for Softmax {
     // Softmax requires vectorized implementations of activate and derivative
     // Since it looks for max and sum values
 
-    // Formula
-    // expd = e^(x - max(x))
-    // expd / expd.sum(axis=0)
-
     fn activate(z: &Array2<f64>) -> Array2<f64> {
         let max = z.max_axis(Axis(0)); //.into_shape((1, cols)).unwrap();
         let expd = (z - &max).exp();
@@ -43,8 +39,8 @@ impl Decider for Softmax {
 }
 
 impl Softmax {
-    pub fn batch_derivative(dc_da: Array2<f64>, z_last: Array2<f64>) -> Array2<f64> {
-        let z_iter = z_last.axis_iter(Axis(1)); // grab z values by column
+    pub fn batch_derivative(dc_da: Array2<f64>, last_z: Array2<f64>) -> Array2<f64> {
+        let z_iter = last_z.axis_iter(Axis(1)); // grab z values by column
         let c_iter = dc_da.axis_iter(Axis(1)); // grab c values by column
         let output_size = dc_da.shape()[0];
         let mut dc_dz = Array2::zeros((output_size, 0));

@@ -4,12 +4,12 @@ use crate::activation::Decider;
 pub struct Sigmoid;
 
 impl Decider for Sigmoid {
-    fn decide(x: f64) -> f64 {
-        1.0 / (1.0 + (-x).exp())
+    fn decide(z: f64) -> f64 {
+        1.0 / (1.0 + (-z).exp())
     }
 
-    fn gradient(x: f64) -> f64 {
-        let s = Self::decide(x); // <Sigmoid as Function>::decide(x);
+    fn gradient(z: f64) -> f64 {
+        let s = Self::decide(z); // <Sigmoid as Function>::decide(z);
         s * (1.0 - s)
     }
 }

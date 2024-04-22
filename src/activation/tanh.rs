@@ -4,20 +4,20 @@ use crate::activation::Decider;
 pub struct Tanh;
 
 impl Decider for Tanh {
-    fn decide(x: f64) -> f64 {
-        let numerator = (x).exp() - (-x).exp();
-        let denometer = (x).exp() + (-x).exp();
+    fn decide(z: f64) -> f64 {
+        let t1 = (z).exp() - (-z).exp();
+        let t2 = (z).exp() + (-z).exp();
 
-        let res = numerator / denometer;
-//        println!("tanh decide - t1 {:?}, t2 {:?}, res {:?}, x {:?}", &term1, &term2, &res, x);
+        let res = t1 / t2;
+//        println!("tanh decide - t1 {:?}, t2 {:?}, res {:?}, z {:?}", &term1, &term2, &res, z);
         res
     }
 
-    fn gradient(x: f64) -> f64 {
-        let t = Self::decide(x); // <Tanh as Function>::decide(x);
+    fn gradient(z: f64) -> f64 {
+        let t = Self::decide(z); // <Tanh as Function>::decide(z);
 
         let res = 1.0 - (t*t);
-//        println!("tanh derivative - t {:?}, res {:?}, x {:?}", &t, &res, x);
+//        println!("tanh derivative - t {:?}, res {:?}, z {:?}", &t, &res, z);
         res
     }
 }
