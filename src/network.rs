@@ -14,6 +14,7 @@ use statrs::distribution::Normal;
 
 use crate::{activation::ActFp, algebra::AlgebraExt}; // import local traits
 use crate::term_cache::TermCache;
+use crate::hypers::Hypers;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
 use crate::layers::{Layer, LayerStack, LayerTerms};
@@ -28,6 +29,7 @@ pub struct Network {
     biases: Vec<Array2<f64>>,
     forward: Vec<ActFp>, // forward propagation, activation functions
     layers: Option<LayerStack>,
+    hypers: Hypers,
     cache: Option<TermCache>,
     metrics: Option<Metrics>,
     optim: Option<(Box<dyn Optimizer>, Optim)>,
@@ -39,7 +41,7 @@ impl Network {
     fn empty() -> Self {
         Network {
             weights: vec![], biases: vec![], forward: vec![], 
-            layers: Some(LayerStack::new()), cache: None,
+            layers: Some(LayerStack::new()), hypers: Hypers::empty(), cache: None,
             metrics: None, optim: None,
         }
     }
@@ -79,18 +81,19 @@ impl Network {
             biases.push(b);
         }
 
+        let hypers = Hypers::new(learning_rate, l2_rate);
+
         // initialize network properly
         let n = Network {
             weights, biases, forward,
             layers: self.layers.take(),
-            cache: None, metrics, optim: None,
+            cache: None, hypers, metrics, optim: None,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
 
         let tc = TermCache::new(
             backward, &self.biases, output_size,
-            learning_rate, l2_rate, Batch::SGD,
             (cost_deriv_fp, cost_comb_deriv_fp),
             output_act
         );
@@ -103,6 +106,7 @@ impl Network {
         let mut cache = self.cache.take().unwrap();
         let mut optt = Optim::Default;
 
+        self.hypers.set_batch_type(batch_type);
         cache.set_batch_type(batch_type);
 
         match batch_type {
@@ -143,8 +147,8 @@ impl Network {
 
             self.train_iteration(
                 x_single.t(), &y_single,
-                tc, tc.learning_rate(),
-                tc.l2_regularization_rate(), train.size, 0,
+                tc, self.hypers.learning_rate(),
+                self.hypers.l2_regularization_rate(), train.size, 0,
             );
         }
 
@@ -175,8 +179,8 @@ impl Network {
                 // transpose to ensure proper matrix multi fit
                 self.train_iteration(
                     x_minibatch.t(), &y_minibatch,
-                    tc, tc.learning_rate(),
-                    tc.l2_regularization_rate(), train.size, e,
+                    tc, self.hypers.learning_rate(),
+                    self.hypers.l2_regularization_rate(), train.size, e,
                 );
             }
 
@@ -211,6 +215,7 @@ impl Network {
 
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
+
         for ((w, b), act_fun) in self.weights.iter().zip(self.biases.iter()).zip(self.forward.iter()) {
             z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
             a = (act_fun)(&z); // non-linear,  σ(z)

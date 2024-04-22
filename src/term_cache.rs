@@ -4,9 +4,8 @@ use std::collections::HashMap;
 use crate::{
     activation::{Act, ActFp},
     cost::{CostDFp, CostCRFp},
-    layers::Batch,
     term_stack::{TermStack, TT},
-    types::Classification,
+    types::{Batch, Classification},
 };
 
 #[derive(Debug)]
@@ -14,8 +13,6 @@ pub struct TermCache {
     pub stack: TermStack,
     one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors dim 1
     classification: Classification,
-    learning_rate: f64,
-    l2_rate: f64,
     batch_type: Batch,
     cost_d_fps: (CostDFp, CostCRFp),
     output_act_type: Act,
@@ -26,9 +23,6 @@ impl TermCache {
         backward: Vec<ActFp>,
         biases: &[Array2<f64>],
         output_size: usize,
-        learning_rate: f64,
-        l2_rate: f64,
-        batch_type: Batch,
         cost_d_fps: (CostDFp, CostCRFp),
         output_act_type: Act,
     ) -> Self {
@@ -42,27 +36,10 @@ impl TermCache {
             stack,
             one_hot,
             classification,
-            learning_rate,
-            l2_rate,
-            batch_type,
+            batch_type: Batch::SGD,
             cost_d_fps,
             output_act_type,
         }
-    }
-
-    // 0 Hyperparameters?
-
-    pub fn learning_rate(&self) -> f64 {
-        match self.batch_type {
-            Batch::SGD => self.learning_rate,
-            Batch::Mini(batch_size) | Batch::Mini_(batch_size, _) => {
-                self.learning_rate / batch_size as f64
-            }
-        }
-    }
-
-    pub fn l2_regularization_rate(&self) -> f64 {
-        self.l2_rate
     }
 
     pub fn set_batch_type(&mut self, batch_type: Batch) {
@@ -97,16 +74,20 @@ impl TermCache {
 
     // returns dc_dz (not dc_da)
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
+        // cost derivative params
         let y_cow = self.one_hot_target(y);
         let last_a = self.stack.pop(TT::Nonlinear).array();
 
+        // activation derivative params
         let z_last = self.stack.pop(TT::Linear).array();
         let a_derivative = *self.stack.pop(TT::ActivationDerivative).fp();
 
         // Generate appropriate combinate rule given particular cost function and activation type
         // Feed in relevant parameters
 
-        let rule = (self.cost_d_fps.1)(self.cost_d_fps.0, last_a, y_cow.view(), a_derivative, z_last, self.output_act_type);
+        let rule = (self.cost_d_fps.1)(self.cost_d_fps.0, last_a, y_cow.view(),
+                                       a_derivative, z_last, self.output_act_type);
+        
         rule.apply(y_cow.view())
     }
 

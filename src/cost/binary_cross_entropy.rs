@@ -28,8 +28,8 @@ impl Objective for BinaryCrossEntropy {
     fn combinate_rule(f: CostDFp, f_a: Array2<f64>, _f_y: ArrayView2<f64>, g: ActFp, g_z: Array2<f64>, act: Act) -> CombinateRule {
         match act {
             //Act::Sigmoid | Act::Sigmoid_(_) => CombinateRule::TermOnly(f_a - f_y), // the shortcut way since terms cancel
-            Act::Sigmoid | Act::Sigmoid_(_) => CombinateRule::Default(f, f_a, g, g_z),
-                _ => CombinateRule::Default(f, f_a, g, g_z)
+            Act::Sigmoid | Act::Sigmoid_(_) => CombinateRule::Default(f, f_a, None, g, g_z),
+                _ => CombinateRule::Default(f, f_a, None, g, g_z)
         }
     }
 }

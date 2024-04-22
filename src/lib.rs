@@ -13,3 +13,4 @@ pub mod types;
 pub mod weight;
 pub mod optimizer;
 pub mod gradient;
+pub mod hypers;

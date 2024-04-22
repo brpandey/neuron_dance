@@ -36,7 +36,7 @@ pub trait Objective {
     fn derivative(y: &Array2<f64>, a: &ArrayView2<f64>) -> Array2<f64>; // produces dc_da
     // construct relevant derivative combinator rule
     fn combinate_rule(f: CostDFp, f_a: Array2<f64>, _f_y: ArrayView2<f64>, g: ActFp, g_z: Array2<f64>, _act: Act) -> CombinateRule {
-        CombinateRule::Default(f, f_a, g, g_z)
+        CombinateRule::Default(f, f_a, None, g, g_z)
     }
 }
 

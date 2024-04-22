@@ -27,8 +27,8 @@ impl Objective for CategoricalCrossEntropy {
     fn combinate_rule(f: CostDFp, f_a: Array2<f64>, _f_y: ArrayView2<f64>, g: ActFp, g_z: Array2<f64>, act: Act) -> CombinateRule {
         match act {
             // Act::Softmax | Act::Softmax_(_) => CombinateRule::TermOnly(f_a - f_y), // the shortcut way since terms cancel
-            Act::Softmax | Act::Softmax_(_) => CombinateRule::CostDotActMatrix(f, f_a, Softmax::batch_derivative, g_z),
-            _ => CombinateRule::Default(f, f_a, g, g_z),
+            Act::Softmax | Act::Softmax_(_) => CombinateRule::CostDotActMatrix(f, f_a, None, Softmax::batch_derivative, g_z),
+            _ => CombinateRule::Default(f, f_a, None, g, g_z),
         }
     }
 }
