@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use crate::{
     activation::{Act, ActFp},
     cost::{CostDFp, CostCRFp},
-    term_stack::{TermStack, TT},
+    gradient_stack::{GradientStack, GTT},
     types::{Batch, Classification},
 };
 
 #[derive(Debug)]
-pub struct TermCache {
-    pub stack: TermStack,
+pub struct GradientCache {
+    pub stack: GradientStack,
     one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors dim 1
     classification: Classification,
     batch_type: Batch,
@@ -18,7 +18,7 @@ pub struct TermCache {
     output_act_type: Act,
 }
 
-impl TermCache {
+impl GradientCache {
     pub fn new(
         backward: Vec<ActFp>,
         biases: &[Array2<f64>],
@@ -30,9 +30,9 @@ impl TermCache {
         // Precompute one hot encoded vectors given output layer size
         let one_hot = Self::precompute(output_size);
         let classification = Classification::new(output_size);
-        let stack = TermStack::new(backward, biases);
+        let stack = GradientStack::new(backward, biases);
 
-        TermCache {
+        GradientCache {
             stack,
             one_hot,
             classification,
@@ -76,25 +76,25 @@ impl TermCache {
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
         // cost derivative params
         let y_cow = self.one_hot_target(y);
-        let last_a = self.stack.pop(TT::Nonlinear).array();
+        let last_a = self.stack.pop(GTT::Nonlinear).array();
 
         // activation derivative params
-        let z_last = self.stack.pop(TT::Linear).array();
-        let a_derivative = *self.stack.pop(TT::ActivationDerivative).fp();
+        let z_last = self.stack.pop(GTT::Linear).array();
+        let a_derivative = *self.stack.pop(GTT::ActivationDerivative).fp();
 
         // Generate appropriate combinate rule given particular cost function and activation type
         // Feed in relevant parameters
 
         let rule = (self.cost_d_fps.1)(self.cost_d_fps.0, last_a, y_cow.view(),
                                        a_derivative, z_last, self.output_act_type);
-        
+
         rule.apply(y_cow.view())
     }
 
     pub fn nonlinear_derivative(&mut self) -> Array2<f64> // returns da_dz
     {
-        let z_last = self.stack.pop(TT::Linear).array();
-        let a_derivative = self.stack.pop(TT::ActivationDerivative).fp();
+        let z_last = self.stack.pop(GTT::Linear).array();
+        let a_derivative = self.stack.pop(GTT::ActivationDerivative).fp();
         let da_dz = (a_derivative)(&z_last);
 
         da_dz

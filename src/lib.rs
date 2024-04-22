@@ -1,6 +1,4 @@
 pub mod network;
-pub mod term_cache;
-pub mod term_stack;
 pub mod chain_rule;
 pub mod chain_layer;
 pub mod activation;
@@ -13,4 +11,6 @@ pub mod types;
 pub mod weight;
 pub mod optimizer;
 pub mod gradient;
+pub mod gradient_cache;
+pub mod gradient_stack;
 pub mod hypers;

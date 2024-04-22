@@ -13,7 +13,7 @@ use rand::{Rng, seq::SliceRandom};
 use statrs::distribution::Normal;
 
 use crate::{activation::ActFp, algebra::AlgebraExt}; // import local traits
-use crate::term_cache::TermCache;
+use crate::gradient_cache::GradientCache;
 use crate::hypers::Hypers;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
@@ -30,7 +30,7 @@ pub struct Network {
     forward: Vec<ActFp>, // forward propagation, activation functions
     layers: Option<LayerStack>,
     hypers: Hypers,
-    cache: Option<TermCache>,
+    cache: Option<GradientCache>,
     metrics: Option<Metrics>,
     optim: Option<(Box<dyn Optimizer>, Optim)>,
 }
@@ -92,13 +92,13 @@ impl Network {
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
 
-        let tc = TermCache::new(
+        let gc = GradientCache::new(
             backward, &self.biases, output_size,
             (cost_deriv_fp, cost_comb_deriv_fp),
             output_act
         );
 
-        self.cache = Some(tc);
+        self.cache = Some(gc);
     }
 
     /// Train model with relevant dataset given the specified hyperparameters
@@ -134,7 +134,7 @@ impl Network {
      /**** Private associated methods ****/
 
     /// Sgd employs 1 sample chosen at random from the data set for gradient descent
-    fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, tc: &mut TermCache, eval: Eval) {
+    fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, gc: &mut GradientCache, eval: Eval) {
         let (mut rng, mut random_index);
         let (mut x_single, mut y_single);
         let train = subsets.0;
@@ -147,7 +147,7 @@ impl Network {
 
             self.train_iteration(
                 x_single.t(), &y_single,
-                tc, self.hypers.learning_rate(),
+                gc, self.hypers.learning_rate(),
                 self.hypers.l2_regularization_rate(), train.size, 0,
             );
         }
@@ -162,7 +162,7 @@ impl Network {
 
     /// Note: Probably more accurate to call it train stochastic mini batch
     fn train_minibatch(&mut self, subsets: &TrainTestSubsetRef, epochs: usize,
-                       batch_size: usize, tc: &mut TermCache, eval: Eval) {
+                       batch_size: usize, gc: &mut GradientCache, eval: Eval) {
         let (mut x_minibatch, mut y_minibatch);
         let train = subsets.0;
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
@@ -179,7 +179,7 @@ impl Network {
                 // transpose to ensure proper matrix multi fit
                 self.train_iteration(
                     x_minibatch.t(), &y_minibatch,
-                    tc, self.hypers.learning_rate(),
+                    gc, self.hypers.learning_rate(),
                     self.hypers.l2_regularization_rate(), train.size, e,
                 );
             }
@@ -190,22 +190,23 @@ impl Network {
     }
 
     fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>,
-                       cache: &mut TermCache, lr: f64, l2_rate: f64, total_size: usize, t: usize) {
-        self.forward_pass(x_iteration, cache);
-        let chain_rule_compute = self.backward_pass(y_iteration, cache);
+                       gc: &mut GradientCache, lr: f64, l2_rate: f64, total_size: usize, t: usize) {
+
+        self.forward_pass(x_iteration, gc);
+        let chain_rule_compute = self.backward_pass(y_iteration, gc);
         self.update_iteration(chain_rule_compute, lr, l2_rate, total_size, t);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
-    fn forward_pass(&self, x: ArrayView2<f64>, tc: &mut TermCache) {
-        tc.stack.reset(x.to_owned());
-        let mut opt = Some(tc);
-        self.predict_(x, &mut opt);
+    fn forward_pass(&self, x: ArrayView2<f64>, gc: &mut GradientCache) {
+        gc.stack.reset(x.to_owned());
+        let mut wrapped = Some(gc);
+        self.predict_(x, &mut wrapped);
     }
 
     /// After model has been trained, apply new data on the model and its inherent
     /// parameters (weights, biases) to generate the output classes
-    fn predict_(&self, x: ArrayView2<f64>, opt: &mut Option<&mut TermCache>) -> Array2<f64> {
+    fn predict_(&self, x: ArrayView2<f64>, wrapped: &mut Option<&mut GradientCache>) -> Array2<f64> {
         let mut z: Array2<f64>;
         let mut a: Array2<f64>;
         let mut acc = x.to_owned();
@@ -221,13 +222,13 @@ impl Network {
             a = (act_fun)(&z); // non-linear,  σ(z)
 
             acc = a;
-            opt.as_mut().map(|c| c.stack.push(z, &acc));
+            wrapped.as_mut().map(|c| c.stack.push(z, &acc));
         }
 
         acc // return last computed activation values
     }
 
-    fn backward_pass<'a, 'b>(&self, y: &Array2<f64>, tc: &'a mut TermCache) -> ChainRuleComputation<'b>
+    fn backward_pass<'a, 'b>(&self, y: &Array2<f64>, gc: &'a mut GradientCache) -> ChainRuleComputation<'b>
     where 'a: 'b // tc is around longer than crc
     {
         // Compute the chain rule values for each layer
@@ -235,7 +236,7 @@ impl Network {
         // starting with last layer first
 
         let total_layers = self.layers.as_ref().unwrap().len();
-        let mut crc = ChainRuleComputation::new(tc);
+        let mut crc = ChainRuleComputation::new(gc);
         let acc0: Array2<f64> = crc.init(y);
 
         // zip number of iterations with corresponding weight (start from back to front layer)
@@ -251,14 +252,15 @@ impl Network {
         // Apply delta contributions to current biases and weights by subtracting
         // The negative gradient uses the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
-        let (mut adj, mut velocity);
+        let (mut adj, mut velocity, mut key);
 
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
 
         for (i, (b, db)) in self.biases.iter_mut().zip(b_deltas).enumerate() {
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
-            adj = self.optim.as_mut().unwrap().0.calculate(ParamKey::BiasGradient(i as u8), &db, t);
+            key = ParamKey::BiasGradient(i as u8);
+            adj = self.optim.as_mut().unwrap().0.calculate(key, &db, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *b -= &velocity;
@@ -270,7 +272,8 @@ impl Network {
         for (i, (w, dw)) in self.weights.iter_mut().zip(w_deltas).enumerate() {
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
-            adj = self.optim.as_mut().unwrap().0.calculate(ParamKey::WeightGradient(i as u8), &dw, t);
+            key = ParamKey::WeightGradient(i as u8);
+            adj = self.optim.as_mut().unwrap().0.calculate(key, &dw, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *w = &*w*weight_decay - velocity;
@@ -292,7 +295,7 @@ impl Network {
 
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
-        let mut empty: Option<&mut TermCache> = None;
+        let mut empty: Option<&mut GradientCache> = None;
         let mut label_index;
 
         // processes an x_test row of input values at a time

@@ -1,11 +1,11 @@
 use ndarray::Array2;
 use crate::activation::ActFp;
 
-// TermStack is a collection of term stacks used primarily
+// GradientStack is a collection of term stacks used primarily
 // while computing the chain rule during back propagation
 
 #[derive(Debug)]
-pub struct TermStack {
+pub struct GradientStack {
     z_values: Vec<Array2<f64>>, // linear values
     a_values: Vec<Array2<f64>>, // non-linear activation values
     funcs: Vec<ActFp>, // activation derivative functions
@@ -13,13 +13,13 @@ pub struct TermStack {
     index: (usize, usize), // function, bias shape
 }
 
-impl TermStack {
+impl GradientStack {
     pub fn new(backward: Vec<ActFp>, biases: &[Array2<f64>]) -> Self {
         // Compute bias shapes
         let shapes: Vec<(usize, usize)> =
             biases.iter().map(|b| (b.shape()[0], b.shape()[1])).collect();
 
-        TermStack {
+        GradientStack {
             z_values: vec![],
             a_values: vec![],
             funcs: backward, // activation derivative functions (backprop)
@@ -39,16 +39,16 @@ impl TermStack {
         self.a_values.push(a.to_owned());
     }
 
-    pub fn pop(&mut self, kind: TT) -> Term {
+    pub fn pop(&mut self, kind: GTT) -> Term {
         match kind {
-            TT::Linear => Term::Linear(self.z_values.pop()),
-            TT::Nonlinear => Term::Nonlinear(self.a_values.pop()),
-            TT::ActivationDerivative => {
+            GTT::Linear => Term::Linear(self.z_values.pop()),
+            GTT::Nonlinear => Term::Nonlinear(self.a_values.pop()),
+            GTT::ActivationDerivative => {
                 let f = self.funcs.get(self.index.0).unwrap();
                 if self.index.0 != 0 { self.index.0 -= 1; }
                 Term::ActivationDerivative(f)
             },
-            TT::BiasShape => {
+            GTT::BiasShape => {
                 let s = self.shapes.get(self.index.1).unwrap();
                 if self.index.1 != 0 { self.index.1 -= 1; }
                 Term::BiasShape(s.0, s.1)
@@ -57,8 +57,8 @@ impl TermStack {
     }
 }
 
-// Term Stack item types 
-pub enum TT { // Term type
+// Gradient Term Types - used for gradient calculation
+pub enum GTT { // Gradient Term Type
     Linear,
     Nonlinear,
     ActivationDerivative,

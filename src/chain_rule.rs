@@ -4,8 +4,8 @@
 use std::collections::VecDeque;
 use ndarray::Array2;
 
-use crate::term_cache::TermCache;
-use crate::term_stack::TT;
+use crate::gradient_cache::GradientCache;
+use crate::gradient_stack::GTT;
 use crate::chain_layer::{
     ComputeLayer, HiddenLayerTerms,
     SharedHiddenTerms, OutputLayerTerms
@@ -17,15 +17,15 @@ pub trait ChainRule {
 
 #[derive(Debug)]
 pub struct ChainRuleComputation<'a> {
-    pub tc: &'a mut TermCache,
+    pub gc: &'a mut GradientCache,
     pub bias_deltas: VecDeque<Array2<f64>>,
     pub weight_deltas: VecDeque<Array2<f64>>,
 }
 
 impl <'a> ChainRuleComputation<'a> {
-    pub fn new(tc: &'a mut TermCache) -> Self {
+    pub fn new(gc: &'a mut GradientCache) -> Self {
         ChainRuleComputation {
-            tc,
+            gc,
             weight_deltas: VecDeque::new(),
             bias_deltas: VecDeque::new(),
         }
@@ -62,10 +62,10 @@ impl <'a> ChainRuleComputation<'a> {
         // create current layer's terms
         let mut layer_terms = ComputeLayer::Output(
             OutputLayerTerms {
-                dc_dz: Some(self.tc.cost_derivative(y)),
+                dc_dz: Some(self.gc.cost_derivative(y)),
                 dz_db: 1.0,
-                dz_dw: self.tc.stack.pop(TT::Nonlinear).array(),
-                bias_shape: self.tc.stack.pop(TT::BiasShape).shape(),
+                dz_dw: self.gc.stack.pop(GTT::Nonlinear).array(),
+                bias_shape: self.gc.stack.pop(GTT::BiasShape).shape(),
             }
         );
 
@@ -90,7 +90,7 @@ impl <'a> ChainRuleComputation<'a> {
         let shared = SharedHiddenTerms {
             dc_dz2,
             dz2_da1: w.clone(), // Z2 = W2A1 + B, w is just W2
-            da1_dz1: self.tc.nonlinear_derivative(), // derivative of e.g. relu applied to Z1,
+            da1_dz1: self.gc.nonlinear_derivative(), // derivative of e.g. relu applied to Z1,
             dc_dz1: None
         }; // last field is result
 
@@ -99,8 +99,8 @@ impl <'a> ChainRuleComputation<'a> {
             HiddenLayerTerms {
                 shared,
                 dz1_db1: 1.0,         // For example Z1 = W1X + B1
-                dz1_dw1: self.tc.stack.pop(TT::Nonlinear).array(),
-                bias_shape: self.tc.stack.pop(TT::BiasShape).shape(),
+                dz1_dw1: self.gc.stack.pop(GTT::Nonlinear).array(),
+                bias_shape: self.gc.stack.pop(GTT::BiasShape).shape(),
             }
         );
 
