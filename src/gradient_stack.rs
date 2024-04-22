@@ -28,15 +28,18 @@ impl GradientStack {
         }
     }
 
-    // Reset values
+    // Reset stack values
     pub fn reset(&mut self, x: Array2<f64>) {
         (self.z_values, self.a_values) = (Vec::new(), vec![x]);
         self.index = (self.funcs.len() - 1, self.shapes.len() - 1);
     }
 
-    pub fn push(&mut self, z: Array2<f64>, a: &Array2<f64>) {
-        self.z_values.push(z);
-        self.a_values.push(a.to_owned());
+    pub fn push(&mut self, kind: GT, data: Array2<f64>) {
+        match kind {
+            GT::Linear => self.z_values.push(data),
+            GT::Nonlinear => self.a_values.push(data),
+            _ => (),
+        }
     }
 
     pub fn pop(&mut self, kind: GT) -> Term {
@@ -53,6 +56,7 @@ impl GradientStack {
                 if self.index.1 != 0 { self.index.1 -= 1; }
                 Term::BiasShape(s.0, s.1)
             },
+            _ => unreachable!(),
         }
     }
 }
@@ -63,6 +67,7 @@ pub enum GT {
     Nonlinear, // A values
     ActivationDerivative,
     BiasShape,
+    IterationNew,
 }
 
 // Single unified term contains a few variants depicting the items in the collective stack

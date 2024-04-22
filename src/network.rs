@@ -13,7 +13,7 @@ use rand::{Rng, seq::SliceRandom};
 use statrs::distribution::Normal;
 
 use crate::{activation::ActFp, algebra::AlgebraExt}; // import local traits
-use crate::gradient_cache::GradientCache;
+use crate::gradient_cache::{GradientCache, GT};
 use crate::hypers::Hypers;
 use crate::chain_rule::ChainRuleComputation;
 use crate::dataset::TrainTestSubsetRef;
@@ -192,6 +192,7 @@ impl Network {
     fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>,
                        gc: &mut GradientCache, lr: f64, l2_rate: f64, total_size: usize, t: usize) {
 
+        gc.add(GT::IterationNew, x_iteration.to_owned());
         self.forward_pass(x_iteration, gc);
         let chain_rule_compute = self.backward_pass(y_iteration, gc);
         self.update_iteration(chain_rule_compute, lr, l2_rate, total_size, t);
@@ -199,7 +200,6 @@ impl Network {
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
     fn forward_pass(&self, x: ArrayView2<f64>, gc: &mut GradientCache) {
-        gc.stack.reset(x.to_owned());
         let mut wrapped = Some(gc);
         self.predict_(x, &mut wrapped);
     }
@@ -221,8 +221,12 @@ impl Network {
             z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
             a = (act_fun)(&z); // non-linear,  σ(z)
 
+            wrapped.as_mut().map(|c| {
+                c.add(GT::Linear, z);
+                c.add(GT::Nonlinear, (&a).to_owned());
+            });
+
             acc = a;
-            wrapped.as_mut().map(|c| c.stack.push(z, &acc));
         }
 
         acc // return last computed activation values
