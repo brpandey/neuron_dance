@@ -1,11 +1,12 @@
-use ndarray::{s, Array1, Array2, CowArray, Ix2};
 use std::collections::HashMap;
+use ndarray::{s, Array1, Array2, CowArray, Ix2};
 
 use crate::{
     activation::{Act, ActFp},
     cost::{CostDFp, CostCRFp},
     gradient_stack::{GradientStack},
     types::{Batch, Classification},
+    one_hot::one_hot,
 };
 
 pub use crate::gradient_stack::GT;
@@ -31,7 +32,7 @@ impl GradientCache {
     ) -> Self {
 
         // Precompute one hot encoded vectors given output layer size
-        let one_hot = Self::precompute(output_size);
+        let one_hot = one_hot(output_size, 0);
         let classification = Classification::new(output_size);
         let stack = GradientStack::new(backward, biases);
 
@@ -46,6 +47,8 @@ impl GradientCache {
         }
     }
 
+    // 1 Store values
+
     pub fn set_batch_type(&mut self, batch_type: Batch) {
         self.batch_type = batch_type;
     }
@@ -59,31 +62,7 @@ impl GradientCache {
         }
     }
 
-    // 1 One Hot Encoding
-
-    // precompute one hot vector encodings for derivative calculations
-    // given output layer size
-    fn precompute(size: usize) -> HashMap<usize, Array1<f64>> {
-        let mut map = HashMap::new();
-        let mut zeros: Array1<f64>;
-
-        // For example if the output size was two, the map would be:
-        // 0 => [1,0] // top neuron fires if output 0
-        // 1 => [0,1] // bottom neuron fires if output 1
-        for i in 0..size {
-            zeros = Array1::zeros(size);
-            zeros[i] = 1.;
-            map.insert(i, zeros);
-        }
-
-        map
-    }
-
-    fn one_hot(&self, index: usize) -> Option<&Array1<f64>> {
-        self.one_hot.get(&index)
-    }
-
-    // 2 Activation & Cost Derivatives
+    // 2 Activation & Cost derivative convenience methods
 
     // returns dc_dz (not dc_da)
     pub fn cost_derivative(&mut self, y: &Array2<f64>) -> Array2<f64> {
@@ -97,7 +76,6 @@ impl GradientCache {
 
         // Generate appropriate combinate rule given particular cost function and activation type
         // Feed in relevant parameters
-
         let rule = (self.cost_combinate_fp)(self.cost_derivative_fp, last_a, y_cow.view(),
                                        a_derivative, last_z, self.output_act_type);
 
@@ -132,10 +110,10 @@ impl GradientCache {
                 // e.g. where y is 10 output size x 1 batch size or 10 output size x 32 batch size
                 for i in 0..actual_batch_size {
                     let label = y[[i, 0]] as usize; // y is the label data, in form of a single column
-                                                    // one hot encode the label, so 0 would be [1,0] and 1 would be [0,1] for output layer size 2
-                    let encoded_label = self.one_hot(label).unwrap();
+                     // one hot encode the label, so 0 would be [1,0] and 1 would be [0,1] for output layer size 2
+                    let enc_label = self.one_hot.get(&label).unwrap();
                     // assign encoded label on the column level (vertical)
-                    output_labels.slice_mut(s![.., i]).assign(encoded_label);
+                    output_labels.slice_mut(s![.., i]).assign(enc_label);
                 }
 
                 CowArray::from(output_labels)

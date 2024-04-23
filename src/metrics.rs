@@ -1,9 +1,9 @@
 use std::{{fmt, fmt::Display}, collections::HashMap};
 use ndarray::{Array2, arr2};
 
-use crate::algebra::AlgebraExt;
-use crate::cost::CostFp;
-use crate::types::{Batch, Metr, Mett};
+use crate::{
+    algebra::AlgebraExt, cost::CostFp,
+    types::{Batch, Metr, Mett}, one_hot::one_hot};
 
 #[derive(Debug)]
 pub struct Metrics {
@@ -19,14 +19,7 @@ impl Metrics {
 
         // reduce metrics list into hash table for easy lookup
         let metrics_map: HashMap<Mett, bool> = metrics_list.into_iter().map(|v| (v, true)).collect();
-        let mut one_hot = HashMap::new();
-        let mut zeros: Array2<f64>;
-
-        for i in 0..output_size {
-            zeros = Array2::zeros((output_size, 1));
-            zeros[(i,0)] = 1.;
-            one_hot.insert(i, zeros);
-        }
+        let one_hot = one_hot((output_size, 1), (0, 0));
 
         Self { metrics_map, cost_fp, one_hot, l2_rate }
     }
