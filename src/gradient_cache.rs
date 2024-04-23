@@ -57,7 +57,7 @@ impl GradientCache {
         match kind {
             GT::Linear => self.stack.push(kind, data),
             GT::Nonlinear => self.stack.push(kind, data),
-            GT::IterationNew => self.stack.reset(data),
+            GT::Features => self.stack.reset(data),
             _ => (),
         }
     }

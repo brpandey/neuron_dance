@@ -192,7 +192,7 @@ impl Network {
     fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>,
                        gc: &mut GradientCache, lr: f64, l2_rate: f64, total_size: usize, t: usize) {
 
-        gc.add(GT::IterationNew, x_iteration.to_owned());
+        gc.add(GT::Features, x_iteration.to_owned());
         self.forward_pass(x_iteration, gc);
         let chain_rule_compute = self.backward_pass(y_iteration, gc);
         self.update_iteration(chain_rule_compute, lr, l2_rate, total_size, t);

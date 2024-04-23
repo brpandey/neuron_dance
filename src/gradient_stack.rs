@@ -67,7 +67,7 @@ pub enum GT {
     Nonlinear, // A values
     ActivationDerivative,
     BiasShape,
-    IterationNew,
+    Features, // X values
 }
 
 // Single unified term contains a few variants depicting the items in the collective stack
