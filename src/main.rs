@@ -82,7 +82,7 @@ fn main() {
             model.add(Dense(100, Act::Sigmoid_(Weit::GlorotN)));
             model.add(Dense(10, Act::Sigmoid_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini_(10, Optim::Default), Eval::Test);
+            model.fit(&subsets, 10, Batch::Mini_(10, Optim::Adam), Eval::Test);
         }
         NetworkType::FashionMnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size

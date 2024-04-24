@@ -19,7 +19,7 @@ use crate::layers::{Layer, LayerStack, LayerTerms};
 use crate::cost::{Cost, Loss};
 use crate::metrics::{Metrics, Tally};
 use crate::types::{Batch, Eval, Metr};
-use crate::optimizer::{Optim, Optimizer, ParamKey};
+use crate::optimizer::{Optim, ParamKey};
 
 #[derive(Debug)]
 pub struct Network {
@@ -30,7 +30,6 @@ pub struct Network {
     hypers: Hypers,
     cache: Option<GradientCache>,
     metrics: Option<Metrics>,
-    optim: Option<(Box<dyn Optimizer>, Optim)>,
 }
 
 impl Network {
@@ -39,8 +38,8 @@ impl Network {
     fn empty() -> Self {
         Network {
             weights: vec![], biases: vec![], forward: vec![], 
-            layers: Some(LayerStack::new()), hypers: Hypers::empty(), cache: None,
-            metrics: None, optim: None,
+            layers: Some(LayerStack::new()), hypers: Hypers::empty(),
+            cache: None, metrics: None,
         }
     }
 
@@ -63,7 +62,7 @@ impl Network {
         let n = Network {
             weights, biases, forward,
             layers: self.layers.take(),
-            cache: None, hypers, metrics, optim: None,
+            cache: None, hypers, metrics,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
@@ -92,7 +91,7 @@ impl Network {
         }
 
         if batch_type.is_mini() { // set optimizer if mini batch type
-            self.optim = Some((optt.into(), optt));
+            self.hypers.set_optimizer(optt.into(), optt);
             self.train_minibatch(subsets, epochs, batch_type.value(), &mut cache, eval)
         }
     }
@@ -142,7 +141,8 @@ impl Network {
         let (mut x_minibatch, mut y_minibatch);
         let train = subsets.0;
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
-        let b = Some(Batch::Mini_(batch_size, self.optim.as_ref().unwrap().1.clone()));
+        let optimizer_type = self.hypers.optimizer_type();
+        let b = Some(Batch::Mini_(batch_size, optimizer_type));
         let mut tally;
 
         for e in 0..epochs {
@@ -233,6 +233,7 @@ impl Network {
         // The negative gradient uses the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
         let (mut adj, mut velocity, mut key);
+        let optimizer = self.hypers.optimizer();
 
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
 
@@ -240,7 +241,7 @@ impl Network {
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
             key = ParamKey::BiasGradient(i as u8);
-            adj = self.optim.as_mut().unwrap().0.calculate(key, &db, t);
+            adj = optimizer.calculate(key, &db, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *b -= &velocity;
@@ -253,7 +254,7 @@ impl Network {
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
             key = ParamKey::WeightGradient(i as u8);
-            adj = self.optim.as_mut().unwrap().0.calculate(key, &dw, t);
+            adj = optimizer.calculate(key, &dw, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *w = &*w*weight_decay - velocity;
