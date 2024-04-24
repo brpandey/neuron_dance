@@ -1,5 +1,6 @@
 use either::*;
 use std::{ops::RangeBounds, convert::Into, fmt, fmt::Debug};
+use ndarray::{Array, Array2};
 
 use crate::activation::{Activation, ActFp};
 
@@ -108,26 +109,38 @@ impl LayerStack {
 }
 
 impl Layer for LayerStack {
-    //tuple of vecs: (sizes, act fps, act deriv fps)
-    type Output = (Vec<usize>, Vec<ActFp>, Vec<ActFp>, Act, Vec<Weit>);
+    // (last_size, weights, biases, forward, backward, output_act)
+    type Output = (usize, Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<ActFp>, Vec<ActFp>, Act);
 
     fn reduce(&self) -> Self::Output {
-        let acc = (vec![0], vec![], vec![], Act::Sigmoid, vec![]); // acc is type Output
+        use statrs::distribution::Normal;
+        use ndarray_rand::RandomExt;
+
+        let acc = (0, vec![], vec![], vec![], vec![], Act::Sigmoid); // acc is of type Output
+
         self.0.iter().enumerate().fold(acc, |mut acc, (i,l)| {
             match l.reduce() {
                 LayerTerms::Input(ref order, size) if order.valid(i) => {
-                    acc.0.push(size); // input size
-                    // swap_remove dummy value 0 with last element -> input size
-                    acc.0.swap_remove(0);
+                    acc.0 = size; // save input size as last size
                     acc
                 },
                 LayerTerms::Dense(ref order, size, act, act_type, weit) if order.valid(i) => {
-                    let (act_fp, deriv_fp) = act.pair(); // activation and activation derivative functions
-                    acc.0.push(size);
-                    acc.1.push(act_fp);
-                    acc.2.push(deriv_fp);
-                    acc.3 = act_type;
-                    acc.4.push(weit);
+                    let (act_fp, act_deriv_fp) = act.pair(); // activation and activation derivative functions
+
+                    let x = acc.0; // (previous size) current layer inputs
+                    let y = size; // current layer neurons (outputs)
+                    acc.0 = size; // save last size, which at end will be output_size
+
+                    // Note: z = wx + b, w is on left and x is transposed from csv row into vertical collumn
+                    let b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
+                    let w = weit.random(y, x); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
+
+                    acc.1.push(w); // push to weights
+                    acc.2.push(b); // push to biases
+                    acc.3.push(act_fp); // push to forward activations
+                    acc.4.push(act_deriv_fp); // push to backward, or derivative activations
+                    acc.5 = act_type; // save as last_act
+
                     acc
                 },
                 _ => panic!("Layer order is incorrect, perhaps input layer is not first layer added?"),

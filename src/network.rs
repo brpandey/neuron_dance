@@ -7,10 +7,8 @@
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
 use std::iter::Iterator;
-use ndarray::{Array, Array2, ArrayView2, Axis};
-use ndarray_rand::RandomExt;
+use ndarray::{Array2, ArrayView2, Axis};
 use rand::{Rng, seq::SliceRandom};
-use statrs::distribution::Normal;
 
 use crate::{activation::ActFp, algebra::AlgebraExt}; // import local traits
 use crate::gradient_cache::{GradientCache, GT};
@@ -53,34 +51,12 @@ impl Network {
     }
 
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
-        let (sizes, forward, backward, output_act, weight_inits) = self.layers.as_mut().unwrap().reduce();
-        let total_layers = self.layers.as_ref().unwrap().len();
-        let output_size = sizes[total_layers-1];
+        let (output_size, weights, biases, forward, backward, output_act) = self.layers.as_mut().unwrap().reduce();
 
         let loss: Box<dyn Cost> = loss_type.into();
+        let (fp_cost, fp_cost_deriv, fp_cost_comb_rule) = loss.triple();
 
-        let (cost_fp, cost_deriv_fp, cost_comb_deriv_fp) = loss.triple();
-
-        let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size, l2_rate));
-
-        let (mut weights, mut biases): (Vec<Array2<f64>>, Vec<Array2<f64>>) = (vec![], vec![]);
-        let (mut x, mut y);
-        let (mut b, mut w) : (Array2<f64>, Array2<f64>);
-
-        // Dense layers invoke y neurons on an x-element input tensor, producing a y element output tensor
-
-        for (i, weit) in (1..total_layers).zip(weight_inits.iter()) {
-            x = sizes[i-1]; // # current layer inputs
-            y = sizes[i]; // # current layer neurons (outputs)
-
-            // Note: z = wx + b, w is on left and x is transposed from csv row into vertical collumn
-            b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
-            w = weit.random(y, x); // for sizes [2,3,1] => 3*2, w1, w2, ... w5, w6..,
-
-            weights.push(w);
-            biases.push(b);
-        }
-
+        let metrics = Some(Metrics::new(metrics_type, fp_cost, output_size, l2_rate));
         let hypers = Hypers::new(learning_rate, l2_rate);
 
         // initialize network properly
@@ -94,7 +70,7 @@ impl Network {
 
         let gc = GradientCache::new(
             backward, &self.biases, output_size,
-            (cost_deriv_fp, cost_comb_deriv_fp),
+            (fp_cost_deriv, fp_cost_comb_rule),
             output_act
         );
 
