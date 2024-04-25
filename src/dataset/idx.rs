@@ -46,11 +46,15 @@ impl DataSet for MnistData {
         }
     }
 
-    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
+    fn fetch_data(&mut self) {
         self.fetch(&self.0.token());
+    }
+
+    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
+        self.fetch_data();
 
         // Extract data from boxed raws
-        let tts = TrainTestSubsetData(self.destructure());
+        let tts = TrainTestSubsetData{ headers: None, data: self.destructure() };
         println!("Data subset shapes are {}\n", &tts);
         tts
     }

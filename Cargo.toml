@@ -24,3 +24,4 @@ statrs = "0.16"
 either = "1.10.0"
 clap = { version = "4.5.4", features = ["derive"] }
 num = "0.4.2"
+comfy-table = "7.1.1"

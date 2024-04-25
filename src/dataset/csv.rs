@@ -4,12 +4,12 @@ use ndarray_csv::Array2Reader;
 use ndarray_rand::{RandomExt, SamplingStrategy, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 
-use crate::dataset::{ROOT_DIR, DataSet, TrainTestSubsetData};
+use crate::dataset::{ROOT_DIR, DataSet, TrainTestSubsetData, TrainTestTuple };
 
 pub type CSVBox = Box<Array2<f64>>;
 
-//                       ctype    scale   data
-pub struct CSVData<'a>(CSVType<'a>, f64, Option<CSVBox>);
+//                       ctype     scale    data             headers
+pub struct CSVData<'a>(CSVType<'a>, f64, Option<CSVBox>, Option<Vec<String>>);
 
 pub enum CSVType<'a> {
     RGB,
@@ -44,8 +44,8 @@ impl <'b> CSVData<'b> {
     pub fn new<'a>(ctype: CSVType<'a>) -> Self
     where 'a: 'b {
         match ctype {
-            CSVType::RGB => Self(ctype, 256.0, None),
-            CSVType::Custom(_) => Self(ctype, 1.0, None),
+            CSVType::RGB => Self(ctype, 256.0, None, None),
+            CSVType::Custom(_) => Self(ctype, 1.0, None, None),
         }
     }
 }
@@ -57,21 +57,65 @@ impl <'b> DataSet for CSVData<'b> {
             .from_path(token)
             .expect("csv error");
 
+        let headers: Vec<String> = reader.headers().unwrap().iter()
+            .map(|s| s.to_owned()).collect();
+
         let data_array: Array2<f64> = reader
             .deserialize_array2_dynamic()
             .expect("can deserialize array");
 
-        self.2 = Some(Box::new(data_array))
+        self.2 = Some(Box::new(data_array));
+        self.3 = Some(headers);
     }
 
+    fn fetch_data(&mut self) {
+        self.fetch(&self.0.filename());
+    }
+
+    fn head(&self) {
+        if self.2.is_none() { panic!("Must fetch dataset first before running head") }
+ 
+        use comfy_table::{Table, ContentArrangement};
+        use comfy_table::modifiers::UTF8_ROUND_CORNERS;
+        use comfy_table::presets::UTF8_FULL;
+
+        // print first 5 rows
+        let head_rows = 5;
+        let n_rows = std::cmp::min(self.2.as_ref().map_or(0, |d| d.nrows()), head_rows); // grab the shorter
+
+        let mut table = Table::new();
+
+        table
+            .load_preset(UTF8_FULL)
+            .apply_modifier(UTF8_ROUND_CORNERS)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_width(120);
+
+        if self.3.is_some() {
+            table.set_header(self.3.as_ref().unwrap());
+        }
+
+        let mut table_row: Vec<&f64>;
+        let mut view;
+        for i in 0..n_rows {
+            view = self.2.as_ref().unwrap().row(i);
+            table_row = view.iter().collect();
+            table.add_row(table_row);
+        }
+
+        if n_rows > 0 {
+            println!("{table}");
+        }
+    }
 
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData {
         if self.2.is_none() {
-            self.fetch(&self.0.filename());
+            self.fetch_data();
         }
 
         let scale = self.1;
         let data = self.2.as_mut().unwrap();
+        let headers = self.3.clone();
 
         let n_size = data.shape()[0]; // 1345
         let n_features = data.shape()[1]; // 4, => 3 input features + 1 outcome / target (columns)
@@ -108,8 +152,12 @@ impl <'b> DataSet for CSVData<'b> {
 
         // For example: n_features is 4
         // x_train shape is [897, 3], y_train shape is [897, 1], x_test shape is [448, 3], y_test shape is [448, 1]
-        let tts = TrainTestSubsetData((x_train, y_train, n1, x_test, y_test, n2));
+//        let tts = TrainTestSubsetData((x_train, y_train, n1, x_test, y_test, n2));
+        let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2);
+        let tts = TrainTestSubsetData { headers, data: ttt };
+
         println!("Data subset shapes {}\n", &tts);
+
         tts
     }
 }
