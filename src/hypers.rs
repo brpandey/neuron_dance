@@ -54,6 +54,11 @@ impl Hypers {
     }
 
     pub fn optimizer(&mut self) -> &mut Box<dyn Optimizer> {
+        if self.optimizer.is_none() {
+            let optt = Optim::Default;
+            self.optimizer = Some(optt.into());
+        }
+
         self.optimizer.as_mut().unwrap()
     }
 
