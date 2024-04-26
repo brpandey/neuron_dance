@@ -2,6 +2,7 @@ use ndarray::{Array2, Axis};
 use std::{env, fmt};
 
 use crate::algebra::AlgebraExt;
+use crate::visualize::Visualize;
 
 pub mod csv;
 pub mod idx;
@@ -33,41 +34,9 @@ pub struct SubsetRef<'a> {
 pub type TrainTestSubsetRef<'a> = (SubsetRef<'a>, SubsetRef<'a>);
 
 impl TrainTestSubsetData {
+
     pub fn head(&self) {
-        use comfy_table::{Table, ContentArrangement};
-        use comfy_table::modifiers::UTF8_ROUND_CORNERS;
-        use comfy_table::presets::UTF8_FULL;
-
-        // print first 5 rows
-        let head_rows = 5;
-        let n_rows = std::cmp::min(self.data.0.nrows(), head_rows); // grab the shorter
-
-        let mut table = Table::new();
-
-        table
-            .load_preset(UTF8_FULL)
-            .apply_modifier(UTF8_ROUND_CORNERS)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_width(120);
-
-        if self.headers.is_some() {
-            table.set_header(self.headers.as_ref().unwrap());
-        }
-
-        let mut table_row: Vec<&f64>;
-        let (mut x_row, mut y_row);
-
-        for i in 0..n_rows {
-            x_row = self.data.0.row(i);
-            table_row = x_row.iter().collect();
-            y_row = self.data.1.row(i);
-            table_row.extend(y_row.iter());
-            table.add_row(table_row);
-        }
-
-        if n_rows > 0 {
-            println!("{table}");
-        }
+        Visualize::preview(either::Right((&self.data.0, &self.data.1)), self.headers.as_ref());
     }
 
     // scale is 0 min 1 max

@@ -15,3 +15,4 @@ pub mod gradient_cache;
 pub mod gradient_stack;
 pub mod hypers;
 pub mod one_hot;
+pub mod visualize;

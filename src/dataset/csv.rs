@@ -5,6 +5,7 @@ use ndarray_rand::{RandomExt, SamplingStrategy, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 
 use crate::dataset::{ROOT_DIR, DataSet, TrainTestSubsetData, TrainTestTuple };
+use crate::visualize::Visualize;
 
 pub type CSVBox = Box<Array2<f64>>;
 
@@ -73,39 +74,7 @@ impl <'b> DataSet for CSVData<'b> {
     }
 
     fn head(&self) {
-        if self.2.is_none() { panic!("Must fetch dataset first before running head") }
- 
-        use comfy_table::{Table, ContentArrangement};
-        use comfy_table::modifiers::UTF8_ROUND_CORNERS;
-        use comfy_table::presets::UTF8_FULL;
-
-        // print first 5 rows
-        let head_rows = 5;
-        let n_rows = std::cmp::min(self.2.as_ref().map_or(0, |d| d.nrows()), head_rows); // grab the shorter
-
-        let mut table = Table::new();
-
-        table
-            .load_preset(UTF8_FULL)
-            .apply_modifier(UTF8_ROUND_CORNERS)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_width(120);
-
-        if self.3.is_some() {
-            table.set_header(self.3.as_ref().unwrap());
-        }
-
-        let mut table_row: Vec<&f64>;
-        let mut view;
-        for i in 0..n_rows {
-            view = self.2.as_ref().unwrap().row(i);
-            table_row = view.iter().collect();
-            table.add_row(table_row);
-        }
-
-        if n_rows > 0 {
-            println!("{table}");
-        }
+        Visualize::preview(either::Left(self.2.as_ref()), self.3.as_ref());
     }
 
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData {
