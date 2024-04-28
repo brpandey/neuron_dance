@@ -8,53 +8,89 @@ use crate::dataset::{ROOT_DIR, DataSet, TrainTestTuple, TrainTestSubsetData};
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
-type RawQuad = (Raw, Raw, Raw, Raw); // (x_train, y_train, x_test, y_test)
 
-pub struct MnistData(MnistType, Subsets, Option<Box<RawQuad>>);
+pub struct MnistData {
+    mtype: MnistType,
+    subset_types: Subsets,
+    data: Option<Box<TrainTestTuple>>,
+}
 
 impl MnistData {
     pub fn new(mtype: MnistType) -> Self {
-        let subsets = (
+        let subset_types = (
             Subset::Train(Raw::Images(None)), Subset::Train(Raw::Labels(None)), // train
             Subset::Test(Raw::Images(None)), Subset::Test(Raw::Labels(None)) // test
         );
 
-        MnistData(mtype, subsets, None)
-    }
-
-    pub fn destructure(&mut self) -> TrainTestTuple {
-        let q = self.2.as_mut().unwrap(); // Grab option as_mut, get raw quads
-        let (n_train, n_test) = (q.0.size(), q.2.size());
-
-        let ttt = // train test tuple
-            (q.0.take().unwrap(), q.1.take().unwrap(), n_train,
-             q.2.take().unwrap(), q.3.take().unwrap(), n_test);
-
-        self.2 = None; // after takes, set field to None denoting must fetch again
-
-        ttt
+        MnistData{ mtype, subset_types, data: None }
     }
 }
 
 impl DataSet for MnistData {
-    fn fetch(&mut self, t: &str) {
+    fn fetch(&mut self) {
+        let t = &self.mtype.token();
         // only fetch if data not resident already
-        if self.2.is_none() {
-            let (x, y) = (self.1.0.fetch(t), self.1.1.fetch(t));
-            let (x_test, y_test) = (self.1.2.fetch(t), self.1.3.fetch(t));
-            self.2 = Some(Box::new((x, y, x_test, y_test)));
+        if self.data.is_none() {
+            let (mut x_raw, mut y_raw) = (self.subset_types.0.fetch(t), self.subset_types.1.fetch(t));
+            let (mut x_raw_test, mut y_raw_test) = (self.subset_types.2.fetch(t), self.subset_types.3.fetch(t));
+
+            let ttt = // train test tuple
+                (x_raw.take().unwrap(), y_raw.take().unwrap(), x_raw.size(),
+                 x_raw_test.take().unwrap(), y_raw_test.take().unwrap(), x_raw_test.size());
+
+            self.data = Some(Box::new(ttt));
         }
     }
 
-    fn fetch_data(&mut self) {
-        self.fetch(&self.0.token());
+    fn head(&self) {
+        use crate::visualize::Visualize;
+        let num_heatmaps = 7;
+
+        if self.data.is_none() { return } // if data hasn't been fetched, return early
+
+        let x_train = &self.data.as_ref().unwrap().0;
+
+        for i in 0..num_heatmaps {
+            let x_row = x_train.row(i);
+            let image_view = x_row.into_shape((28, 28)).unwrap();
+
+            Visualize::heatmap_row(&image_view, i as u8);
+        }
     }
 
+    /*
+    fn shuffle(&mut self) {
+        use ndarray_rand::RandomExt;
+        use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
+        use ndarray::Axis;
+        use rand_isaac::Isaac64Rng;
+        use rand::SeedableRng;
+
+        if self.data.is_none() { return } // if data hasn't been fetched, return early
+
+        let x = &self.data.as_ref().unwrap().0;
+        let y = &self.data.as_ref().unwrap().1;
+
+        let seed = 42; // for reproducibility
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+        let n_size = x.shape()[0] as usize; // e.g. 60,000
+
+        // take random shuffling following a normal distribution
+        // TODO FIX (both need to be stitched together)
+        let x_shuffled = x.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
+        let y_shuffled = y.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
+
+        let (_x, _y, n_train, x_test, y_test, n_test) = *self.data.take().unwrap();
+        self.data = Some(Box::new((x_shuffled, y_shuffled, n_train, x_test, y_test, n_test)));
+    }
+    */
+
     fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
-        self.fetch_data();
+        self.fetch();
 
         // Extract data from boxed raws
-        let tts = TrainTestSubsetData{ headers: None, data: self.destructure() };
+        let tts = TrainTestSubsetData{ headers: None, data: *self.data.take().unwrap() };
         println!("Data subset shapes are {}\n", &tts);
         tts
     }
@@ -152,7 +188,6 @@ impl Raw {
             _ => None,
         }
     }
-
 
     fn size(&self) -> usize {
         match self {

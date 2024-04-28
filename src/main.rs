@@ -41,7 +41,8 @@ fn main() {
         NetworkType::FashionMnist => Box::new(MnistData::new(MnistType::Fashion)),
     };
 
-    dataset.fetch_data();
+    dataset.fetch();
+    dataset.shuffle();
     dataset.head();
 
     let mut tts = dataset.train_test_split(train_percentage);
@@ -60,7 +61,6 @@ fn main() {
         NetworkType::CSV2 => {
             tts = tts.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
             subsets = tts.get_ref();
-            //tts.head();
 
             model = Network::new();
             model.add(Input1(8));

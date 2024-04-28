@@ -2,7 +2,6 @@ use ndarray::{Array2, Axis};
 use std::{env, fmt};
 
 use crate::algebra::AlgebraExt;
-use crate::visualize::Visualize;
 
 pub mod csv;
 pub mod idx;
@@ -10,9 +9,9 @@ pub mod idx;
 pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 pub trait DataSet  {
-    fn fetch(&mut self, token: &str);
-    fn fetch_data(&mut self);
-    fn head(&self) {}
+    fn fetch(&mut self);
+    fn head(&self);
+    fn shuffle(&mut self) {}
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData;
 }
 
@@ -34,11 +33,6 @@ pub struct SubsetRef<'a> {
 pub type TrainTestSubsetRef<'a> = (SubsetRef<'a>, SubsetRef<'a>);
 
 impl TrainTestSubsetData {
-
-    pub fn head(&self) {
-        Visualize::preview(either::Right((&self.data.0, &self.data.1)), self.headers.as_ref());
-    }
-
     // scale is 0 min 1 max
     pub fn min_max_scale(&self, min: f64, max: f64) -> Self {
         let x_train = &self.data.0;

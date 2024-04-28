@@ -1,8 +1,9 @@
 use csv::ReaderBuilder as Builder;
 use ndarray::{Array2, Axis, s};
 use ndarray_csv::Array2Reader;
-use ndarray_rand::{RandomExt, SamplingStrategy, rand::SeedableRng};
+use ndarray_rand::{RandomExt, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
+use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 
 use crate::dataset::{ROOT_DIR, DataSet, TrainTestSubsetData, TrainTestTuple };
 use crate::visualize::Visualize;
@@ -52,7 +53,9 @@ impl <'b> CSVData<'b> {
 }
 
 impl <'b> DataSet for CSVData<'b> {
-    fn fetch(&mut self, token: &str) {
+    fn fetch(&mut self) {
+        let token = &self.0.filename();
+
         let mut reader = Builder::new()
             .has_headers(true)
             .from_path(token)
@@ -69,17 +72,25 @@ impl <'b> DataSet for CSVData<'b> {
         self.3 = Some(headers);
     }
 
-    fn fetch_data(&mut self) {
-        self.fetch(&self.0.filename());
+    fn head(&self) {
+        Visualize::table_preview(either::Left(self.2.as_ref()), self.3.as_ref());
     }
 
-    fn head(&self) {
-        Visualize::preview(either::Left(self.2.as_ref()), self.3.as_ref());
+    fn shuffle(&mut self) {
+        let data = self.2.as_mut().unwrap();
+        let seed = 42; // for reproducibility
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+        let n_size = data.shape()[0] as usize; // 1345
+
+        // take random shuffling following a normal distribution
+        let shuffled = data.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
+        self.2 = Some(Box::new(shuffled));
     }
 
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData {
         if self.2.is_none() {
-            self.fetch_data();
+            self.fetch();
         }
 
         let scale = self.1;
@@ -89,16 +100,10 @@ impl <'b> DataSet for CSVData<'b> {
         let n_size = data.shape()[0]; // 1345
         let n_features = data.shape()[1]; // 4, => 3 input features + 1 outcome / target (columns)
 
-        let seed = 42; // for reproducibility
-        let mut rng = Isaac64Rng::seed_from_u64(seed);
-
-        // take random shuffling following a normal distribution
-        let shuffled = data.sample_axis_using(Axis(0), n_size as usize, SamplingStrategy::WithoutReplacement, &mut rng).to_owned();
-
         let n1 = (n_size as f32 * split_ratio).ceil() as usize;
         let n2 = n_size - n1;
 
-        let mut first_raw_vec = shuffled.into_raw_vec();
+        let mut first_raw_vec = data.clone().into_raw_vec();
 
         // hence the first_raw_vec is now size n1 * n_features, leaving second_raw_vec with remainder
         let second_raw_vec = first_raw_vec.split_off(n1 * n_features); 
@@ -119,9 +124,6 @@ impl <'b> DataSet for CSVData<'b> {
             test_data.slice(s![.., e1..e2]).to_owned(),
         );
 
-        // For example: n_features is 4
-        // x_train shape is [897, 3], y_train shape is [897, 1], x_test shape is [448, 3], y_test shape is [448, 1]
-//        let tts = TrainTestSubsetData((x_train, y_train, n1, x_test, y_test, n2));
         let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2);
         let tts = TrainTestSubsetData { headers, data: ttt };
 

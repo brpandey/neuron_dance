@@ -7,6 +7,7 @@
 /// ArrayView2<f64> is ArrayBase<ViewRepr<&'a f64>, Ix2>>;
 
 use ndarray::{Array1, Array2, Axis, Zip};
+use ndarray_stats::QuantileExt;
 
 pub trait AlgebraExt<W = Self, B = Self> {
     type Output;
@@ -17,6 +18,8 @@ pub trait AlgebraExt<W = Self, B = Self> {
     fn exp(&self) -> Self::Output;
     fn ln(&self) -> Self::Output;
     fn normalize(&self) -> f64;
+    fn min(&self) -> f64;
+    fn max(&self) -> f64;
     fn min_axis(&self, axis: Axis) -> Self::Output1;
     fn max_axis(&self, axis: Axis) -> Self::Output1;
     fn maximum(&self, other: &Self) -> Self::Output;
@@ -64,9 +67,17 @@ impl AlgebraExt for Array2<f64> {
         (self*self).sum().sqrt()
     }
 
+    fn min(&self) -> f64 {
+        *QuantileExt::min(self).unwrap()
+    }
+
     #[inline]
     fn min_axis(&self, axis: Axis) -> Self::Output1 {
         self.map_axis(axis, |v| *v.iter().min_by(|a,b| a.total_cmp(b)).unwrap())
+    }
+
+    fn max(&self) -> f64 {
+        *QuantileExt::max(self).unwrap()
     }
 
     #[inline]
