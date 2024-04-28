@@ -28,9 +28,10 @@ impl MnistData {
 
 impl DataSet for MnistData {
     fn fetch(&mut self) {
-        let t = &self.mtype.token();
         // only fetch if data not resident already
         if self.data.is_none() {
+            let t = &self.mtype.token();
+
             let (mut x_raw, mut y_raw) = (self.subset_types.0.fetch(t), self.subset_types.1.fetch(t));
             let (mut x_raw_test, mut y_raw_test) = (self.subset_types.2.fetch(t), self.subset_types.3.fetch(t));
 

@@ -73,10 +73,13 @@ impl <'b> DataSet for CSVData<'b> {
     }
 
     fn head(&self) {
+        if self.2.is_none() { return } // if data hasn't been fetched, return early
         Visualize::table_preview(either::Left(self.2.as_ref()), self.3.as_ref());
     }
 
     fn shuffle(&mut self) {
+        if self.2.is_none() { return } // if data hasn't been fetched, return early
+
         let data = self.2.as_mut().unwrap();
         let seed = 42; // for reproducibility
         let mut rng = Isaac64Rng::seed_from_u64(seed);
