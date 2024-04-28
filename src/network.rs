@@ -90,9 +90,8 @@ impl Network {
             Batch::Mini_(_, o) => optt = o,
         }
 
-        self.hypers.set_optimizer(optt.into(), optt);
-
         if batch_type.is_mini() {
+            self.hypers.set_optimizer(optt.into(), optt);
             self.train_minibatch(subsets, epochs, batch_type.value(), &mut cache, eval)
         }
     }

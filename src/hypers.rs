@@ -22,11 +22,13 @@ impl Hypers {
     }
 
     pub fn new(learning_rate: f64, l2_rate: f64) -> Self {
+        let optimizer = Some(Optim::Default.into());
+
         Self {
             learning_rate,
             l2_rate,
             batch_type: Batch::SGD, // default
-            optimizer: None,
+            optimizer,
             optimizer_type: Optim::Default,
         }
     }
@@ -54,11 +56,6 @@ impl Hypers {
     }
 
     pub fn optimizer(&mut self) -> &mut Box<dyn Optimizer> {
-        if self.optimizer.is_none() {
-            let optt = Optim::Default;
-            self.optimizer = Some(optt.into());
-        }
-
         self.optimizer.as_mut().unwrap()
     }
 
