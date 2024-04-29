@@ -20,6 +20,7 @@ impl Visualize {
     // preview first rows of data source
     pub fn table_preview(data: &ArrayView2<f64>, 
                          headers: Option<&Vec<String>>, ascii_art: bool) {
+        use ndarray_stats::QuantileExt;
 
         // print first rows, whichever is shorter
         let max = if ascii_art { Self::ASCII_ART_SIZE } else { Self::TABLE_FIRST_ROWS };
@@ -40,20 +41,28 @@ impl Visualize {
         }
 
         let mut row_view;
+        let mut cur; // track if current row or previous row is all zeros
+        let mut prev = false;
 
         // construct table based on the two different data input types
         for i in 0..n_rows {
             row_view = data.row(i);
 
             if ascii_art {
-                // if row's sum is 0 don't add it -- to compact table
-                if row_view.sum() != 0. {
+                cur = row_view.sum() == 0. &&
+                    *QuantileExt::max(&row_view).unwrap() == 0.;
+
+                // if regular row with nonzero terms, add it
+                // if current row's sum is 0, but previous row wasn't all zeros, add it -- to slightly compact table
+                if cur == false || (cur == true && prev == false ) {
                     table.add_row(
                         row_view.into_iter()
                             .map(|v| Self::float_to_ascii(&v))
                             .collect::<Vec<char>>()
                     );
                 }
+
+                prev = cur;
             } else {
                 table.add_row(row_view.iter().collect::<Vec<&f64>>());
             }
