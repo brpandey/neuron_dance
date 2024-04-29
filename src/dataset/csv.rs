@@ -8,10 +8,9 @@ use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 use crate::dataset::{ROOT_DIR, DataSet, TrainTestSubsetData, TrainTestTuple };
 use crate::visualize::Visualize;
 
-pub type CSVBox = Box<Array2<f64>>;
 
 //                       ctype     scale    data             headers
-pub struct CSVData<'a>(CSVType<'a>, f64, Option<CSVBox>, Option<Vec<String>>);
+pub struct CSVData<'a>(CSVType<'a>, f64, Option<Array2<f64>>, Option<Vec<String>>);
 
 pub enum CSVType<'a> {
     RGB,
@@ -68,13 +67,13 @@ impl <'b> DataSet for CSVData<'b> {
             .deserialize_array2_dynamic()
             .expect("can deserialize array");
 
-        self.2 = Some(Box::new(data_array));
+        self.2 = Some(data_array);
         self.3 = Some(headers);
     }
 
     fn head(&self) {
         if self.2.is_none() { return } // if data hasn't been fetched, return early
-        Visualize::table_preview(either::Left(self.2.as_ref()), self.3.as_ref());
+        Visualize::table_preview(&self.2.as_ref().unwrap().view(), self.3.as_ref(), false);
     }
 
     fn shuffle(&mut self) {
@@ -88,7 +87,7 @@ impl <'b> DataSet for CSVData<'b> {
 
         // take random shuffling following a normal distribution
         let shuffled = data.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
-        self.2 = Some(Box::new(shuffled));
+        self.2 = Some(shuffled);
     }
 
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData {

@@ -1,5 +1,4 @@
-use either::*;
-use ndarray::{Array2, ArrayView2};
+use ndarray::ArrayView2;
 use comfy_table::{Table, ContentArrangement};
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
@@ -13,23 +12,19 @@ use crate::algebra::AlgebraExt;
 pub struct Visualize;
 
 impl Visualize {
+    const ASCII_ART_SIZE: usize = 15;
     const TABLE_FIRST_ROWS: usize = 4;
     const IMAGE_SIZE: (u32, u32) = (300, 300);
     const HEATMAPS_PER_ROW: u8 = 7;
 
     // preview first rows of data source
-    pub fn table_preview(data: Either<Option<&Box<Array2<f64>>>, (&Array2<f64>, &Array2<f64>)>, 
-                headers: Option<&Vec<String>>) {
-
-        let data_rows = match data {
-            Left(l) => l.map_or(0, |a| a.nrows()),
-            Right(r) => r.0.nrows(),
-        };
+    pub fn table_preview(data: &ArrayView2<f64>, 
+                         headers: Option<&Vec<String>>, ascii_art: bool) {
 
         // print first rows, whichever is shorter
-        let n_rows = std::cmp::min(data_rows, Self::TABLE_FIRST_ROWS);
-
-        if n_rows == 0 { return } // exit early
+        let max = if ascii_art { Self::ASCII_ART_SIZE } else { Self::TABLE_FIRST_ROWS };
+        let n_rows = std::cmp::min(data.nrows(), max);
+        if n_rows == 0 { return } // exit early, nothing to preview
 
         let mut table = Table::new();
 
@@ -44,28 +39,37 @@ impl Visualize {
             table.set_header(*headers.as_ref().unwrap());
         }
 
-        let mut table_row: Vec<&f64>;
-        let (mut x_row, mut y_row, mut view);
+        let mut row_view;
 
         // construct table based on the two different data input types
         for i in 0..n_rows {
-            match data {
-                Left(l) => {
-                    view = l.as_ref().unwrap().row(i);
-                    table_row = view.iter().collect();
-                },
-                Right(r) => {
-                    x_row = r.0.row(i);
-                    table_row = x_row.iter().collect();
-                    y_row = r.1.row(i);
-                    table_row.extend(y_row.iter());
-                }
-            }
+            row_view = data.row(i);
 
-           table.add_row(table_row);
+            if ascii_art {
+                // if row's sum is 0 don't add it -- to compact table
+                if row_view.sum() != 0. {
+                    table.add_row(
+                        row_view.into_iter()
+                            .map(|v| Self::float_to_ascii(&v))
+                            .collect::<Vec<char>>()
+                    );
+                }
+            } else {
+                table.add_row(row_view.iter().collect::<Vec<&f64>>());
+            }
         }
 
         println!("{table}");
+    }
+
+    fn float_to_ascii(val: &f64) -> char {
+        match (*val * 100.0) as u8 {
+            0 => ' ',
+            100 => '#',
+            v if v > 0 && v <= 50 => '%',
+            v if v > 50 && v < 100 => '$',
+            _ => ' ',
+        }
     }
 
     pub fn heatmap_row(image: &ArrayView2<f64>, mut index: u8) {
