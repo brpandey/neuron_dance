@@ -57,7 +57,7 @@ fn main() {
             model.add(Dense(1, Act::Sigmoid));
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
-        }
+        },
         NetworkType::CSV2 => {
             tts = tts.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
             subsets = tts.get_ref();
@@ -69,7 +69,7 @@ fn main() {
             model.add(Dense(1, Act::Sigmoid_(Weit::GlorotN)));
             model.compile(Loss::BinaryCrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
             model.fit(&subsets, 120, Batch::Mini(10), Eval::Train);
-        }
+        },
         NetworkType::Iris => {
             model = Network::new();
             model.add(Input1(4));
@@ -78,7 +78,7 @@ fn main() {
             model.add(Dense(3, Act::Sigmoid));
             model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
             model.fit(&subsets, 100, Batch::Mini(5), Eval::Test);
-        }
+        },
         NetworkType::Mnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
             model = Network::new();
@@ -86,8 +86,16 @@ fn main() {
             model.add(Dense(100, Act::Sigmoid_(Weit::GlorotN)));
             model.add(Dense(10, Act::Sigmoid_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini_(10, Optim::Adam), Eval::Test);
-        }
+            model.fit(&subsets, 5, Batch::Mini_(10, Optim::Adam), Eval::Test);
+
+            // Now that model has been trained,
+            // make random selections for 4 individual images from either Test or Train set
+            model.predict_random(&subsets, Eval::Test);
+            model.predict_random(&subsets, Eval::Train);
+            model.predict_random(&subsets, Eval::Test);
+            model.predict_random(&subsets, Eval::Train);
+
+        },
         NetworkType::FashionMnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
             model = Network::new();
@@ -96,8 +104,9 @@ fn main() {
             model.add(Dense(10, Act::Softmax_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::CategoricalCrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini_(5, Optim::Adam), Eval::Test);
-        }
+        },
     }
+
     model.eval(&subsets, Eval::Test);
 }
 

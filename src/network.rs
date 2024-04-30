@@ -106,7 +106,37 @@ impl Network {
         self.predict_(x, &mut none)
     }
 
-     /**** Private associated methods ****/
+    pub fn predict_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> usize {
+        use crate::visualize::Visualize;
+        use crate::pool::Pool;
+
+        let mut none = None;
+
+        let subset_ref = match eval {
+            Eval::Train => subsets.0, // train subset
+            Eval::Test => subsets.1, // test subset
+        };
+
+        let (x, y) = subset_ref.random();
+        let output = self.predict_(x.t(), &mut none);
+
+        let y_pred = output.arg_max();
+        let y_label = y[(0,0)] as usize;
+
+        if y_label == y_pred {
+            println!("Successful y prediction, correct label is {y_label} ( See reduced, randomly chosen x input image )");
+        } else {
+            println!("No match! y prediction {y_pred} is different from correct y label {y_label} ( See reduced, randomly chosen x input image )");
+        }
+
+        let image = x.into_shape((28, 28)).unwrap();
+        let reduced_image = Pool::apply(image.view(), 2, 2);
+        Visualize::table_preview(&reduced_image.view(), None, true);
+
+        y_label
+    }
+
+    /**** Private associated methods ****/
 
     /// Sgd employs 1 sample chosen at random from the data set for gradient descent
     fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, gc: &mut GradientCache, eval: Eval) {
@@ -114,8 +144,8 @@ impl Network {
         let (mut x_single, mut y_single);
         let train = subsets.0;
 
+        rng = rand::thread_rng();
         for _ in 0..epochs { // SGD_EPOCHS { // train and update network based on single observation sample
-            rng = rand::thread_rng();
             random_index = rng.gen_range(0..train.size);
             x_single = train.x.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
             y_single = train.y.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
@@ -138,15 +168,18 @@ impl Network {
     /// Note: Probably more accurate to call it train stochastic mini batch
     fn train_minibatch(&mut self, subsets: &TrainTestSubsetRef, epochs: usize,
                        batch_size: usize, gc: &mut GradientCache, eval: Eval) {
+
         let (mut x_minibatch, mut y_minibatch);
-        let train = subsets.0;
-        let mut row_indices = (0..train.size).collect::<Vec<usize>>();
         let optimizer_type = self.hypers.optimizer_type();
-        let b = Some(Batch::Mini_(batch_size, optimizer_type));
+        let train = subsets.0;
         let mut tally;
 
+        let mut row_indices = (0..train.size).collect::<Vec<usize>>();
+        let b = Some(Batch::Mini_(batch_size, optimizer_type));
+        let mut r = rand::thread_rng();
+
         for e in 0..epochs {
-            row_indices.shuffle(&mut rand::thread_rng());
+            row_indices.shuffle(&mut r);
 
             for c in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
                 x_minibatch = train.x.select(Axis(0), &c);
@@ -276,12 +309,12 @@ impl Network {
 
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
-        let mut empty: Option<&mut GradientCache> = None;
+        let mut none = None;
         let mut label_index;
 
         // processes an x_test row of input values at a time
         for (x_sample, y) in x_data.axis_chunks_iter(Axis(0), 1).zip(y_data.iter()) {
-            output = self.predict_(x_sample.t(), &mut empty);
+            output = self.predict_(x_sample.t(), &mut none);
 
             label_index = *y as usize;
 

@@ -22,13 +22,6 @@ pub struct TrainTestSubsetData{
     data: TrainTestTuple,
 }
 
-#[derive(Copy, Clone)]
-pub struct SubsetRef<'a> {
-    pub x: &'a Array2<f64>,
-    pub y: &'a Array2<f64>,
-    pub size: usize,
-}
-
 //                                   train         test
 pub type TrainTestSubsetRef<'a> = (SubsetRef<'a>, SubsetRef<'a>);
 
@@ -75,5 +68,27 @@ impl fmt::Display for TrainTestSubsetData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "x_train shape {:?}, y_train shape  {:?}, x_test shape {:?}, y_test shape {:?}",
                  &self.data.0.shape(), &self.data.1.shape(), &self.data.3.shape(), &self.data.4.shape())
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct SubsetRef<'a> {
+    pub x: &'a Array2<f64>,
+    pub y: &'a Array2<f64>,
+    pub size: usize,
+}
+
+impl<'a> SubsetRef<'a> {
+    pub fn random(&self) -> (Array2<f64>, Array2<f64>) {
+        use rand::Rng;
+
+        let (mut rng, random_index);
+        rng = rand::thread_rng();
+        random_index = rng.gen_range(0..self.size);
+
+        let x_single = self.x.select(Axis(0), &[random_index]);
+        let y_single = self.y.select(Axis(0), &[random_index]);
+
+        (x_single, y_single)
     }
 }

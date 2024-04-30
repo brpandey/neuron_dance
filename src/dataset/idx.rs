@@ -54,38 +54,9 @@ impl DataSet for MnistData {
         for i in 0..num_heatmaps {
             let x_row = x_train.row(i);
             let image_view = x_row.into_shape((28, 28)).unwrap();
-
             Visualize::heatmap_row(&image_view, i as u8);
         }
     }
-
-    /*
-    fn shuffle(&mut self) {
-        use ndarray_rand::RandomExt;
-        use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
-        use ndarray::Axis;
-        use rand_isaac::Isaac64Rng;
-        use rand::SeedableRng;
-
-        if self.data.is_none() { return } // if data hasn't been fetched, return early
-
-        let x = &self.data.as_ref().unwrap().0;
-        let y = &self.data.as_ref().unwrap().1;
-
-        let seed = 42; // for reproducibility
-        let mut rng = Isaac64Rng::seed_from_u64(seed);
-
-        let n_size = x.shape()[0] as usize; // e.g. 60,000
-
-        // take random shuffling following a normal distribution
-        // TODO FIX (both need to be stitched together)
-        let x_shuffled = x.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
-        let y_shuffled = y.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
-
-        let (_x, _y, n_train, x_test, y_test, n_test) = *self.data.take().unwrap();
-        self.data = Some(Box::new((x_shuffled, y_shuffled, n_train, x_test, y_test, n_test)));
-    }
-    */
 
     fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
         self.fetch();
