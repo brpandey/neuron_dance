@@ -1,8 +1,11 @@
 # neuron_dance
 
 <p float="center">
-  <img src='images/dance.jpg' width='600' height='525'/> 
-  <img src='images/fashion.jpg' width='950' height='525'/>
+  <img src='images/dance.jpg' width='600' height='425'/>
+</p>
+
+<p float="center">
+  <img src='images/fashion.jpg' width='950' height='325'/>
 </p>
 
 
@@ -65,7 +68,7 @@ let mut model;
 > Example Usage
 
 <p float="center">
-  <img src='images/digits.jpg' width='950' height='525'/>
+  <img src='images/digits.jpg' width='950' height='325'/>
 </p>
 
 ```rust
