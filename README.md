@@ -2,7 +2,7 @@
 
 <p float="center">
   <img src='images/dance.jpg' width='600' height='525'/> 
-  <img src='images/fashion.jpg' width='600' height='525'/>
+  <img src='images/fashion.jpg' width='950' height='525'/>
 </p>
 
 
@@ -27,10 +27,10 @@ let mut model;
             model.add(Dense(3, Act::Relu));
             model.add(Dense(1, Act::Sigmoid));
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
-            model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
+            model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach 
         },
         NetworkType::CSV2 => {
-            tts = tts.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
+            tts = tts.min_max_scale(0.0, 1.0); // scale down the features to 0..1 
             subsets = tts.get_ref();
 
             model = Network::new();
@@ -64,17 +64,18 @@ let mut model;
 
 > Example Usage
 
+<p float="center">
+  <img src='images/digits.jpg' width='950' height='525'/>
+</p>
+
 ```rust
 
 $ cargo run --release -- -t mnist
     Finished release [optimized] target(s) in 0.19s
      Running `/home/brpandey/Workspace/ml/rust/neuron_dance/target/release/neuron_dance -t mnist`
 
-<p float="center">
-  <img src='images/digits.jpg' width='600' height='525'/>
-</p>
-
-Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1], x_test shape [10000, 784], y_test shape [10000, 1]
+Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1],
+x_test shape [10000, 784], y_test shape [10000, 1]
 
 Epoch 0/5
 	Accuracy 0.9571 9571/10000 (MiniBatch + Adam)
