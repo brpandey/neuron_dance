@@ -1,10 +1,9 @@
 # neuron_dance
 
 <p float="center">
-  <img src='dance.jpg' width='600' height='525'/> 
-  <img src='fashion.jpg' width='600' height='525'/>
+  <img src='images/dance.jpg' width='600' height='525'/> 
+  <img src='images/fashion.jpg' width='600' height='525'/>
 </p>
-
 
 
 ```rust
@@ -72,7 +71,7 @@ $ cargo run --release -- -t mnist
      Running `/home/brpandey/Workspace/ml/rust/neuron_dance/target/release/neuron_dance -t mnist`
 
 <p float="center">
-  <img src='digits.jpg' width='600' height='525'/>
+  <img src='images/digits.jpg' width='600' height='525'/>
 </p>
 
 Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1], x_test shape [10000, 784], y_test shape [10000, 1]
