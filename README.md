@@ -67,16 +67,18 @@ let mut model;
 
 > Example Usage
 
-<p float="center">
-  <img src='images/digits.jpg' width='950' height='325'/>
-</p>
-
 ```rust
 
 $ cargo run --release -- -t mnist
     Finished release [optimized] target(s) in 0.19s
      Running `/home/brpandey/Workspace/ml/rust/neuron_dance/target/release/neuron_dance -t mnist`
+```
 
+<p float="center">
+  <img src='images/digits.jpg' width='950' height='325'/>
+</p>
+
+```rust
 Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1],
 x_test shape [10000, 784], y_test shape [10000, 1]
 
