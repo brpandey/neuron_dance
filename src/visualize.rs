@@ -83,9 +83,11 @@ impl Visualize {
         }
     }
 
-    pub fn heatmap_row(image: &ArrayView2<f64>, mut index: u8) {
-        index = index % Self::HEATMAPS_PER_ROW;  // only accept < 10 heatmap images per row
+    pub fn heatmap_row(image: &ArrayView2<f64>, index: u8) {
+        let col_index = index % Self::HEATMAPS_PER_ROW;  // only accept < 10 heatmap images per row
+        let row_index = index / Self::HEATMAPS_PER_ROW;
         let (n_rows, n_cols) = (image.shape()[0], image.shape()[1]);
+
         let filename = format!("/tmp/tmp-heatmap{}.png", &index);
         let draw_area = BMB::new(&filename, Self::IMAGE_SIZE).into_drawing_area();
         let empty_cells = draw_area.split_evenly((n_cols, n_rows));
@@ -104,13 +106,16 @@ impl Visualize {
             empty_cell.fill(&RGBColor(color.r, color.g, color.b)).unwrap();
         };
 
+        // save heatmap image to file
         draw_area.present().unwrap();
 
-        let col_offset = index * 25u8;
+        let col_offset = col_index * 25u8;
+        let row_offset = row_index * 10u8;
 
+        // scale and offset image and reload from file
         let conf = Config {
             x: col_offset as u16, // terminal col offset
-            y: 5,  // terminal row offset
+            y: 5 + row_offset as i16,  // terminal row offset
             width: Some(20), // term cell dimension width
             height: Some(10), // term cell dimension height
             ..Default::default()

@@ -12,10 +12,12 @@ type Subsets = (Subset, Subset, Subset, Subset);
 pub struct MnistData {
     mtype: MnistType,
     subset_types: Subsets,
-    data: Option<Box<TrainTestTuple>>,
+    data: Option<TrainTestTuple>,
 }
 
 impl MnistData {
+    pub const SHAPE: (usize, usize) = (28, 28);
+
     pub fn new(mtype: MnistType) -> Self {
         let subset_types = (
             Subset::Train(Raw::Images(None)), Subset::Train(Raw::Labels(None)), // train
@@ -39,13 +41,13 @@ impl DataSet for MnistData {
                 (x_raw.take().unwrap(), y_raw.take().unwrap(), x_raw.size(),
                  x_raw_test.take().unwrap(), y_raw_test.take().unwrap(), x_raw_test.size());
 
-            self.data = Some(Box::new(ttt));
+            self.data = Some(ttt);
         }
     }
 
     fn head(&self) {
         use crate::visualize::Visualize;
-        let num_heatmaps = 7;
+        let num_heatmaps = 14;
 
         if self.data.is_none() { return } // if data hasn't been fetched, return early
 
@@ -53,7 +55,7 @@ impl DataSet for MnistData {
 
         for i in 0..num_heatmaps {
             let x_row = x_train.row(i);
-            let image_view = x_row.into_shape((28, 28)).unwrap();
+            let image_view = x_row.into_shape(Self::SHAPE).unwrap();
             Visualize::heatmap_row(&image_view, i as u8);
         }
     }
@@ -62,7 +64,7 @@ impl DataSet for MnistData {
         self.fetch();
 
         // Extract data from boxed raws
-        let tts = TrainTestSubsetData{ headers: None, data: *self.data.take().unwrap() };
+        let tts = TrainTestSubsetData{ headers: None, data: self.data.take().unwrap() };
         println!("Data subset shapes are {}\n", &tts);
         tts
     }

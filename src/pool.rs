@@ -8,24 +8,27 @@ impl Pool {
         let mut vec = vec![];
 
         let side = a.shape()[0];
-        // generate convolutional filter (kernel) matrixes - unweighted
-        let mut filter;
+
+        // extract features
+        // generate convolutional kernel (filter) matrixes - unweighted
+        let mut kernel;
         for r in (0..side).step_by(stride_size) {
             for c in (0..side).step_by(stride_size) {
-                filter = a.slice(s![r..(r+pool_size), c..(c+pool_size)]);
-                vec.push(filter);
+                kernel = a.slice(s![r..(r+pool_size), c..(c+pool_size)]);
+                vec.push(kernel);
             }
         }
 
-        // apply max pool, taking the max value from each filter mat
-        let max_vec: Vec<f64> = vec.iter().map(|f| {
+        // downsample feature maps
+        // create max pool, taking the max value from each kernel matrix
+        let max_pool: Vec<f64> = vec.iter().map(|f| {
             *f.max().unwrap()
         }).collect();
 
-        // e.g. max len is 196 side len is 14
-        let len = max_vec.len();
+        // max pool is (14,14) as max len is 196 side len is 14
+        let len = max_pool.len();
         let side = num::integer::sqrt(len);
 
-        Array::from_shape_vec((side, side), max_vec).unwrap()
+        Array::from_shape_vec((side, side), max_pool).unwrap()
     }
 }

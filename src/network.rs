@@ -124,9 +124,9 @@ impl Network {
         let y_label = y[(0,0)] as usize;
 
         if y_label == y_pred {
-            println!("Successful y prediction, correct label is {y_label} ( See reduced, randomly chosen x input image )");
+            println!("Successful y prediction, correct label is {y_label} \n -- See reduced, randomly chosen x input image below -- ");
         } else {
-            println!("No match! y prediction {y_pred} is different from correct y label {y_label} ( See reduced, randomly chosen x input image )");
+            println!("No match! y prediction {y_pred} is different from correct y label {y_label} \n -- See reduced, randomly chosen x input image below --");
         }
 
         let image = x.into_shape((28, 28)).unwrap();
