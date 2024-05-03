@@ -22,6 +22,7 @@ use std::borrow::Cow;
 use crate::optimizer::{Optimizer, ParamKey, HistType, CompositeKey};
 use crate::algebra::AlgebraExt;
 
+#[derive(Debug)]
 pub struct Adam {
     hist_types: Vec<HistType>,
     historical: HashMap<CompositeKey, Array2<f64>>, // stores first order mean and variances for param
@@ -53,19 +54,19 @@ impl Adam {
             }
             acc
         });
+
     }
 
     #[inline]
     // Offset the cost of originally initializing value to 0
     pub fn bias_correct(value: &Array2<f64>, decay_rate: f64, t: usize) -> Array2<f64> {
-        value/(1.0-decay_rate.powf(t as f64 + 1.0))
+        value/(1.0-&decay_rate.powf(t as f64 + 1.0))
     }
 }
 
 impl Optimizer for Adam {
     // Produce adjustment value given specific param's key and value e.g. dw0, and gradient value dw
     fn calculate<'a>(&mut self, key: ParamKey, value: &'a Array2<f64>, t: usize) -> Cow<'a, Array2<f64>> {
-        //let shape = (value.shape()[0], value.shape()[1]);
         Adam::initialize(key, value.raw_dim(), &self.hist_types, &mut self.historical);
 
         // 1 Grab historical value
@@ -76,11 +77,11 @@ impl Optimizer for Adam {
         // 3 Account for errors/biases since mean and variance were initalized to 0's
 
         let mean = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Mean)).unwrap();
-        *mean = mean.smooth(self.beta1, value);
+        *mean = mean.smooth(self.beta1, value, false);
         let m_hat = Self::bias_correct(mean, self.beta1, t);
 
         let variance = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Variance)).unwrap();
-        *variance = variance.smooth(self.beta2, &(value*value));
+        *variance = variance.smooth(self.beta2, value, true);
         let v_hat = Self::bias_correct(variance, self.beta2, t);
 
         // The adaptive momentum estimates are two fold:
@@ -93,6 +94,7 @@ impl Optimizer for Adam {
 
         // if the historical mean term is large => don't slow down the rate of change
         // keep the past "momentum" going
+
         let momentum = m_hat/(v_hat.sqrt() + self.epsilon);
 
         // momentum describes the fraction of the velocity that is ultimately applied to the learning rate

@@ -16,7 +16,7 @@ impl Objective for BinaryCrossEntropy {
         let term1 = -y * (&a.ln());
         let term2 = (1.0 as f64 - y) * (&(1.0 - a).ln());
         let mut diff = term1 - term2;
-        diff = diff.mapv(|v| v.max(0.0)); // replace NaN with 0.0
+        diff.mapv_inplace(|v| v.max(0.0)); // replace NaN with 0.0
         diff.mean().unwrap()
     }
 

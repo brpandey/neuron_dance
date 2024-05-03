@@ -24,7 +24,7 @@ pub trait AlgebraExt<W = Self, B = Self> {
     fn max_axis(&self, axis: Axis) -> Self::Output1;
     fn maximum(&self, other: &Self) -> Self::Output;
     fn sqrt(&self) -> Self::Output;
-    fn smooth(&self, decay_rate: f64, value: &Array2<f64>) -> Self::Output;
+    fn smooth(&self, decay_rate: f64, value: &Array2<f64>, square_value: bool) -> Self::Output;
 }
 
 impl AlgebraExt for Array2<f64> {
@@ -99,9 +99,21 @@ impl AlgebraExt for Array2<f64> {
     // the two values: average and most recent value (e.g. specific param's gradient)
     // greater weight is given to the historical average and less weight to the new value
 
-    #[inline]
-    fn smooth(&self, decay_rate: f64, value: &Array2<f64>) -> Self::Output { 
-        decay_rate*self + (1.0-decay_rate)*value
+    fn smooth(&self, decay_rate: f64, value: &Array2<f64>, square_value: bool) -> Self::Output {
+        let mut output = Array2::<f64>::zeros(self.raw_dim());
+
+        Zip::from(&mut output)
+            .and(self)
+            .and(value)
+            .for_each(|o, &s, &v| {
+                if square_value {
+                    *o = decay_rate*s + (1.0-decay_rate)*v*v
+                } else {
+                    *o = decay_rate*s + (1.0-decay_rate)*v
+                }
+            });
+
+        output
     }
 
     fn maximum(&self, other: &Self) -> Self::Output {

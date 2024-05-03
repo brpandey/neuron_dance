@@ -86,7 +86,7 @@ fn main() {
             model.add(Dense(100, Act::Sigmoid_(Weit::GlorotN)));
             model.add(Dense(10, Act::Sigmoid_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 5, Batch::Mini_(10, Optim::Adam), Eval::Test);
+            model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test);
 
             // Now that model has been trained,
             // make random selections for 4 individual images from either Test or Train set
@@ -103,7 +103,7 @@ fn main() {
             model.add(Dense(128, Act::Relu));
             model.add(Dense(10, Act::Softmax_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::CategoricalCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini_(5, Optim::Adam), Eval::Test);
+            model.fit(&subsets, 3, Batch::Mini_(5, Optim::Default), Eval::Test);
         },
     }
 

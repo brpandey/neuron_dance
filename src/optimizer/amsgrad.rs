@@ -42,8 +42,8 @@ impl Optimizer for AmsGrad {
         let mean = self.historical.get(&m_key).unwrap();
         let variance = self.historical.get(&v_key).unwrap();
 
-        let m = mean.smooth(self.beta1.powf(t as f64 + 1.0), value);
-        let v = variance.smooth(self.beta2, &(value*value));
+        let m = mean.smooth(self.beta1.powf(t as f64 + 1.0), value, false);
+        let v = variance.smooth(self.beta2, value, true);
 
         let v_hat = self.historical.get(&vh_key).unwrap();
         let vh = v_hat.maximum(&v); // take element-wise maximum of current and preceding v_hat

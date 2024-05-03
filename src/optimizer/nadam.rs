@@ -46,13 +46,12 @@ impl Optimizer for NAdam {
        Adam::initialize(key, value.raw_dim(), &self.hist_types, &mut self.historical);
 
        let mean = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Mean)).unwrap();
-       *mean = mean.smooth(self.mu, value);
+       *mean = mean.smooth(self.mu, value, false);
        let m_hat = Self::bias_correct1(mean, self.mu, value);
 
        let variance = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Variance)).unwrap();
-       *variance = variance.smooth(self.nu, &(value*value));
+       *variance = variance.smooth(self.nu, value, true);
        let v_hat = Self::bias_correct2(variance, self.nu);
-
        let momentum = m_hat/(v_hat.sqrt() + self.epsilon);
 
        Cow::Owned(momentum)

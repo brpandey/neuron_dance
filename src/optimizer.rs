@@ -70,7 +70,7 @@ impl std::fmt::Debug for Box<dyn Optimizer> {
     }
 }
 
-
+#[derive(Debug)]
 pub struct Default; // default optimizer is none
 
 impl Optimizer for Default {}
