@@ -5,7 +5,7 @@ use ndarray_rand::{RandomExt, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 
-use crate::dataset::{ROOT_DIR, DataSet, TrainTestSubsetData, TrainTestTuple };
+use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsetData, TrainTestTuple};
 use crate::visualize::Visualize;
 
 
@@ -49,9 +49,14 @@ impl <'b> CSVData<'b> {
             CSVType::Custom(_) => Self(ctype, 1.0, None, None),
         }
     }
+
+    pub fn peek(x: &Array2<f64>) {
+        Visualize::table_preview(&x.view(), None, false);
+    }
 }
 
 impl <'b> DataSet for CSVData<'b> {
+
     fn fetch(&mut self) {
         let token = &self.0.filename();
 
@@ -127,7 +132,7 @@ impl <'b> DataSet for CSVData<'b> {
         );
 
         let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2);
-        let tts = TrainTestSubsetData { headers, data: ttt };
+        let tts = TrainTestSubsetData { format: DataSetFormat::CSV, headers, data: ttt };
 
         println!("Data subset shapes {}\n", &tts);
 

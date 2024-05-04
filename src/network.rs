@@ -106,10 +106,7 @@ impl Network {
         self.predict_(x, &mut none)
     }
 
-    pub fn predict_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> usize {
-        use crate::visualize::Visualize;
-        use crate::pool::Pool;
-
+    pub fn predict_using_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> usize {
         let mut none = None;
 
         let subset_ref = match eval {
@@ -123,15 +120,13 @@ impl Network {
         let y_pred = output.arg_max();
         let y_label = y[(0,0)] as usize;
 
-        if y_label == y_pred {
-            println!("Successful y prediction, correct label is {y_label} \n -- See reduced, randomly chosen x input image below -- ");
-        } else {
-            println!("No match! y prediction {y_pred} is different from correct y label {y_label} \n -- See reduced, randomly chosen x input image below --");
-        }
+        let s_txt = format!("Successful y prediction, correct label is {y_pred}");
+        let f_txt = format!("No match! y prediction {y_pred} is different from correct y label {y_label}");
 
-        let image = x.into_shape((28, 28)).unwrap();
-        let reduced_image = Pool::apply(image.view(), 2, 2);
-        Visualize::table_preview(&reduced_image.view(), None, true);
+        if y_label == y_pred { println!("{s_txt}") } else { println!("{f_txt}") }
+        let text = "-- See corresponding, x input below --";
+
+        subset_ref.peek(&x, Some(text));
 
         y_label
     }

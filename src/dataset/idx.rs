@@ -4,7 +4,7 @@ use ndarray::Array2;
 use std::fs::File;
 use std::io::{Cursor, Read};
 
-use crate::dataset::{ROOT_DIR, DataSet, TrainTestTuple, TrainTestSubsetData};
+use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsetData};
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
@@ -25,6 +25,15 @@ impl MnistData {
         );
 
         MnistData{ mtype, subset_types, data: None }
+    }
+
+    pub fn peek(x: &Array2<f64>) {
+        use crate::visualize::Visualize;
+        use crate::pool::Pool;
+
+        let image = x.clone().into_shape(Self::SHAPE).unwrap();
+        let reduced_image = Pool::apply(image.view(), 2, 2);
+        Visualize::table_preview(&reduced_image.view(), None, true);
     }
 }
 
@@ -47,7 +56,7 @@ impl DataSet for MnistData {
 
     fn head(&self) {
         use crate::visualize::Visualize;
-        let num_heatmaps = 14;
+        let num_heatmaps = 7;
 
         if self.data.is_none() { return } // if data hasn't been fetched, return early
 
@@ -60,11 +69,13 @@ impl DataSet for MnistData {
         }
     }
 
+    fn shuffle(&mut self) {}
+
     fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
         self.fetch();
 
         // Extract data from boxed raws
-        let tts = TrainTestSubsetData{ headers: None, data: self.data.take().unwrap() };
+        let tts = TrainTestSubsetData{ format: DataSetFormat::IDX, headers: None, data: self.data.take().unwrap() };
         println!("Data subset shapes are {}\n", &tts);
         tts
     }

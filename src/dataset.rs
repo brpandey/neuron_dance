@@ -6,18 +6,25 @@ use crate::algebra::AlgebraExt;
 pub mod csv;
 pub mod idx;
 
+#[derive(Copy, Clone)]
+pub enum DataSetFormat {
+    CSV,
+    IDX,
+}
+
 pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
-pub trait DataSet  {
+pub trait DataSet {
     fn fetch(&mut self);
     fn head(&self);
-    fn shuffle(&mut self) {}
+    fn shuffle(&mut self);
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData;
 }
 
 //                           x_train    y_train        # train  x_test     y_test     # test
 pub type TrainTestTuple = (Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize);
 pub struct TrainTestSubsetData{
+    format: DataSetFormat,
     headers: Option<Vec<String>>,
     data: TrainTestTuple,
 }
@@ -42,6 +49,7 @@ impl TrainTestSubsetData {
         let x_test_scaled = x_test_std*(max-min) + min;
 
          TrainTestSubsetData {
+             format: self.format.clone(),
              headers: self.headers.clone(),
              data: (x_train_scaled, self.data.1.clone(), self.data.2,
                     x_test_scaled, self.data.4.clone(), self.data.5)
@@ -53,13 +61,15 @@ impl TrainTestSubsetData {
             SubsetRef {
                 x: &self.data.0,
                 y: &self.data.1,
-                size: self.data.2
+                size: self.data.2,
+                format: self.format.clone(),
             },
             SubsetRef {
                 x: &self.data.3,
                 y: &self.data.4,
                 size: self.data.5,
-            }
+                format: self.format.clone(),
+            },
         )
     }
 }
@@ -76,6 +86,7 @@ pub struct SubsetRef<'a> {
     pub x: &'a Array2<f64>,
     pub y: &'a Array2<f64>,
     pub size: usize,
+    pub format: DataSetFormat,
 }
 
 impl<'a> SubsetRef<'a> {
@@ -90,5 +101,16 @@ impl<'a> SubsetRef<'a> {
         let y_single = self.y.select(Axis(0), &[random_index]);
 
         (x_single, y_single)
+    }
+
+    pub fn peek(&self, x: &Array2<f64>, text: Option<&str>) {
+        use crate::dataset::idx::MnistData;
+        use crate::dataset::csv::CSVData;
+
+        text.map(|t| println!("{t}"));
+        match self.format {
+            DataSetFormat::CSV => CSVData::peek(x),
+            DataSetFormat::IDX => MnistData::peek(x),
+        }
     }
 }

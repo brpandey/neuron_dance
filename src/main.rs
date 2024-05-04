@@ -68,7 +68,7 @@ fn main() {
             model.add(Dense(8, Act::Relu));
             model.add(Dense(1, Act::Sigmoid_(Weit::GlorotN)));
             model.compile(Loss::BinaryCrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
-            model.fit(&subsets, 120, Batch::Mini(10), Eval::Train);
+            model.fit(&subsets, 50, Batch::Mini(10), Eval::Train);
         },
         NetworkType::Iris => {
             model = Network::new();
@@ -77,7 +77,15 @@ fn main() {
             model.add(Dense(10, Act::Relu));
             model.add(Dense(3, Act::Sigmoid));
             model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
-            model.fit(&subsets, 100, Batch::Mini(5), Eval::Test);
+            model.fit(&subsets, 50, Batch::Mini(5), Eval::Test);
+
+            // Now that model has been trained,
+            // make random selections for 4 individual images from either Test or Train set
+            model.predict_using_random(&subsets, Eval::Test);
+            model.predict_using_random(&subsets, Eval::Train);
+            model.predict_using_random(&subsets, Eval::Test);
+            model.predict_using_random(&subsets, Eval::Train);
+
         },
         NetworkType::Mnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
@@ -90,10 +98,10 @@ fn main() {
 
             // Now that model has been trained,
             // make random selections for 4 individual images from either Test or Train set
-            model.predict_random(&subsets, Eval::Test);
-            model.predict_random(&subsets, Eval::Train);
-            model.predict_random(&subsets, Eval::Test);
-            model.predict_random(&subsets, Eval::Train);
+            model.predict_using_random(&subsets, Eval::Test);
+            model.predict_using_random(&subsets, Eval::Train);
+            model.predict_using_random(&subsets, Eval::Test);
+            model.predict_using_random(&subsets, Eval::Train);
 
         },
         NetworkType::FashionMnist => {

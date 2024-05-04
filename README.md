@@ -4,66 +4,30 @@
   <img src='images/dance.jpg' width='600' height='425'/>
 </p>
 
-<p float="center">
-  <img src='images/fashion.jpg' width='950' height='325'/>
-</p>
-
-
 ```rust
-// fn main() {
-
-let mut dataset: Box<dyn DataSet>: dataset = match ntype {
-    NetworkType::CSV1 => Box::new(CSVData::new(CSVType::RGB)),
-    NetworkType::CSV2 => Box::new(CSVData::new(CSVType::Custom("diabetes"))),
-    NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom("iris"))),
-    NetworkType::Mnist => Box::new(MnistData::new(MnistType::Regular)),
-};
 
 let mut tts = dataset.train_test_split(train_percentage);
 let mut subsets = tts.get_ref();
 let mut model;
 
- match ntype {
-        NetworkType::CSV1 => {
-            model = Network::new();
-            model.add(Input1(3));
-            model.add(Dense(3, Act::Relu));
-            model.add(Dense(1, Act::Sigmoid));
-            model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
-            model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach 
-        },
-        NetworkType::CSV2 => {
-            tts = tts.min_max_scale(0.0, 1.0); // scale down the features to 0..1 
-            subsets = tts.get_ref();
-
-            model = Network::new();
-            model.add(Input1(8));
-            model.add(Dense(12, Act::Relu));
-            model.add(Dense(8, Act::Relu));
-            model.add(Dense(1, Act::SigmoidW(Weit::GlorotN)));
-            model.compile(Loss::CrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
-            model.fit(&subsets, 120, Batch::Mini(10), Eval::Train);
-        },
-        NetworkType::Iris => {
-            model = Network::new();
-            model.add(Input1(4));
-            model.add(Dense(10, Act::Relu));
-            model.add(Dense(10, Act::Relu));
-            model.add(Dense(3, Act::Sigmoid));
-            model.compile(Loss::CrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
-            model.fit(&subsets, 100, Batch::Mini(5), Eval::Test);
-        },
-        NetworkType::Mnist => { // 784, 400, 400, 10
-            model = Network::new();
-            model.add(Input2(28, 28));
-            model.add(Dense(100, Act::SigmoidW(Weit::GlorotN)));
-            model.add(Dense(10, Act::SigmoidW(Weit::GlorotN)));
-            model.compile(Loss::CrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini_(10, Optim::Adam), Eval::Test);
-        }
-    }
+NetworkType::Iris => {
+    model = Network::new();
+    model.add(Input1(4));
+    model.add(Dense(10, Act::Relu));
+    model.add(Dense(10, Act::Relu));
+    model.add(Dense(3, Act::Sigmoid));
+    model.compile(Loss::CrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
+    model.fit(&subsets, 100, Batch::Mini(5), Eval::Test);
     model.eval(&subsets, Eval::Test);
 ```
+
+<p float="center">
+  <img src='images/fashion.jpg' width='950' height='325'/>
+</p>
+
+<p float="center">
+  <img src='images/digits.jpg' width='950' height='325'/>
+</p>
 
 > Example Usage
 
@@ -72,13 +36,7 @@ let mut model;
 $ cargo run --release -- -t mnist
     Finished release [optimized] target(s) in 0.19s
      Running `/home/brpandey/Workspace/ml/rust/neuron_dance/target/release/neuron_dance -t mnist`
-```
 
-<p float="center">
-  <img src='images/digits.jpg' width='950' height='325'/>
-</p>
-
-```rust
 Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1],
 x_test shape [10000, 784], y_test shape [10000, 1]
 
@@ -206,5 +164,82 @@ No match! y prediction 3 is different from correct y label 5
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
 Accuracy 0.9720 9720/10000
+
+```
+
+```rust
+
+$ cargo run --release -- -t iris
+    Finished release [optimized] target(s) in 0.20s
+     Running `/home/brpandey/Workspace/ml/rust/neuron_dance/target/release/neuron_dance -t iris`
+╭──────────────┬─────────────┬──────────────┬─────────────┬─────────╮
+│ sepal_length ┆ sepal_width ┆ petal_length ┆ petal_width ┆ species │
+╞══════════════╪═════════════╪══════════════╪═════════════╪═════════╡
+│ 6.5          ┆ 3.2         ┆ 5.1          ┆ 2           ┆ 2       │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ 7.2          ┆ 3.6         ┆ 6.1          ┆ 2.5         ┆ 2       │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ 7.4          ┆ 2.8         ┆ 6.1          ┆ 1.9         ┆ 2       │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ 6.1          ┆ 2.9         ┆ 4.7          ┆ 1.4         ┆ 1       │
+╰──────────────┴─────────────┴──────────────┴─────────────┴─────────╯
+Data subset shapes x_train shape [100, 4], y_train shape  [100, 1], x_test shape [50, 4], y_test shape [50, 1]
+
+Epoch 0/50
+	Accuracy 0.1600 8/50 (MiniBatch)
+	Avg Loss 0.8364 41.8182/50 (MiniBatch)
+
+Epoch 1/50
+	Accuracy 0.2800 14/50 (MiniBatch)
+	Avg Loss 0.8345 41.7261/50 (MiniBatch)
+
+...
+
+Epoch 9/50
+	Accuracy 0.6400 32/50 (MiniBatch)
+	Avg Loss 0.5291 26.4553/50 (MiniBatch)
+
+Epoch 10/50
+	Accuracy 0.6800 34/50 (MiniBatch)
+	Avg Loss 0.5026 25.1296/50 (MiniBatch)
+
+...
+
+Epoch 25/50
+	Accuracy 0.8400 42/50 (MiniBatch)
+	Avg Loss 0.3456 17.2794/50 (MiniBatch)
+
+...
+
+Epoch 48/50
+	Accuracy 0.9200 46/50 (MiniBatch)
+	Avg Loss 0.2935 14.6738/50 (MiniBatch)
+
+Epoch 49/50
+	Accuracy 0.9200 46/50 (MiniBatch)
+	Avg Loss 0.2918 14.5919/50 (MiniBatch)
+
+Successful y prediction, correct label is 2
+-- See corresponding, x input below --
+╭───┬─────┬───┬─────╮
+│ 6 ┆ 2.2 ┆ 5 ┆ 1.5 │
+╰───┴─────┴───┴─────╯
+Successful y prediction, correct label is 1
+-- See corresponding, x input below --
+╭───┬─────┬─────┬─────╮
+│ 6 ┆ 2.9 ┆ 4.5 ┆ 1.5 │
+╰───┴─────┴─────┴─────╯
+Successful y prediction, correct label is 0
+-- See corresponding, x input below --
+╭─────┬─────┬─────┬─────╮
+│ 5.2 ┆ 3.5 ┆ 1.5 ┆ 0.2 │
+╰─────┴─────┴─────┴─────╯
+Successful y prediction, correct label is 0
+-- See corresponding, x input below --
+╭─────┬─────┬─────┬─────╮
+│ 5.4 ┆ 3.4 ┆ 1.5 ┆ 0.4 │
+╰─────┴─────┴─────┴─────╯
+Accuracy 0.9200 46/50 
+Avg Loss 0.2918 14.5919/50 
 
 ```
