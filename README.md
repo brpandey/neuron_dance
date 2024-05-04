@@ -5,11 +5,13 @@
 </p>
 
 ```rust
+// main.rs
 
 let mut tts = dataset.train_test_split(train_percentage);
 let mut subsets = tts.get_ref();
 let mut model;
 
+// match cmd line option and build matching model
 NetworkType::Iris => {
     model = Network::new();
     model.add(Input1(4));
@@ -23,10 +25,6 @@ NetworkType::Iris => {
 
 <p float="center">
   <img src='images/fashion.jpg' width='950' height='325'/>
-</p>
-
-<p float="center">
-  <img src='images/digits.jpg' width='950' height='325'/>
 </p>
 
 > Example Usage

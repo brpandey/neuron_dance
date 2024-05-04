@@ -3,6 +3,12 @@ TODO
 - [ ] add more tests
 - [X] keep analyzing performance bottleneck in optimizer calcuate function 
       (already tried map_inplace, zip's for_each and par_for_each)
+
+<p float="center">
+  <img src='images/perfreport.jpg' width='1000' height='500'/>
+</p>
+
+
 - [ ] protocol buffer serialization for network fields, activation and cost functions
       further: different files for different types of data, weight goes in weight file, hyper param into hyper file -> same directory
 - [ ] cost functions, e.g. rms prop, sparse categorical entropy
