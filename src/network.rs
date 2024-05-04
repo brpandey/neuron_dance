@@ -125,7 +125,7 @@ impl Network {
 
         if y_label == y_pred { println!("{s_txt}") } else { println!("{f_txt}") }
 
-        subset_ref.peek(&x);
+        subset_ref.features_peek(&x);
 
         y_label
     }

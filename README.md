@@ -24,7 +24,7 @@ NetworkType::Iris => {
     model.eval(&subsets, Eval::Test);
 ```
 
-$ head 0..14 mnist-fashion-file | heatmap
+> What to wear for the neuron dance? |> head 0..14 mnist-fashion-file | heatmap
 
 <p float="center">
   <img src='images/fashion.jpg' width='950' height='325'/>
@@ -41,7 +41,7 @@ $ cargo run --release -- -t mnist
 Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1],
 x_test shape [10000, 784], y_test shape [10000, 1]
 
-// $ head 0..7 mnist-file | heatmap
+// head 0..7 mnist-file | heatmap
 
 Epoch 1/5
 	Accuracy 0.9571 9571/10000 (MiniBatch + Adam)
@@ -59,7 +59,7 @@ Epoch 5/5
 	Accuracy 0.9720 9720/10000 (MiniBatch + Adam)
 
 [Successful y prediction] correct label is 9
-=> reduced x input image, see grid below
+=> for reduced x input image, see grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -86,7 +86,7 @@ Epoch 5/5
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
 [Successful y prediction] correct label is 3
-=> reduced x input image, see grid below
+=> for reduced x input image, see grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -113,7 +113,7 @@ Epoch 5/5
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
 [Successful y prediction] correct label is 7
-=> reduced x input image, see grid below
+=> for reduced x input image, see grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -140,7 +140,7 @@ Epoch 5/5
 │   ┆   ┆   ┆   ┆   ┆   ┆ X ┆ X ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
 [No match!] y prediction 3 is different from correct y label 5
-=> reduced x input image, see grid below
+=> for reduced x input image, see grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -176,7 +176,7 @@ $ cargo run --release -- -t iris
     Finished release [optimized] target(s) in 0.20s
      Running `/home/brpandey/Workspace/ml/rust/neuron_dance/target/release/neuron_dance -t iris`
 
-$ head csv-file
+> head csv-file
 ╭──────────────┬─────────────┬──────────────┬─────────────┬─────────╮
 │ sepal_length ┆ sepal_width ┆ petal_length ┆ petal_width ┆ species │
 ╞══════════════╪═════════════╪══════════════╪═════════════╪═════════╡
@@ -211,22 +211,22 @@ Epoch 50/50
 	Avg Loss 0.2918 14.5919/50 (MiniBatch)
 
 [Successful y prediction] correct label is 2
-=> corresponding x input features, see tabular row
+=> for corresponding x input features, see tabular row
 ╭───┬─────┬───┬─────╮
 │ 6 ┆ 2.2 ┆ 5 ┆ 1.5 │
 ╰───┴─────┴───┴─────╯
 [Successful y prediction] correct label is 1
-=> corresponding x input features, see tabular row
+=> for corresponding x input features, see tabular row
 ╭───┬─────┬─────┬─────╮
 │ 6 ┆ 2.9 ┆ 4.5 ┆ 1.5 │
 ╰───┴─────┴─────┴─────╯
 [Successful y prediction] correct label is 0
-=> corresponding x input features, see tabular row
+=> for corresponding x input features, see tabular row
 ╭─────┬─────┬─────┬─────╮
 │ 5.2 ┆ 3.5 ┆ 1.5 ┆ 0.2 │
 ╰─────┴─────┴─────┴─────╯
 [Successful y prediction] correct label is 0
-=> corresponding x input features, see tabular row
+=> for corresponding x input features, see tabular row
 ╭─────┬─────┬─────┬─────╮
 │ 5.4 ┆ 3.4 ┆ 1.5 ┆ 0.4 │
 ╰─────┴─────┴─────┴─────╯

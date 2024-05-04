@@ -79,7 +79,7 @@ impl <'b> DataSet for CSVData<'b> {
 
     fn head(&self) {
         if self.2.is_none() { return } // if data hasn't been fetched, return early
-        Visualize::table_preview(&self.2.as_ref().unwrap().view(), self.3.as_ref(), false, Some("$ head csv-file"));
+        Visualize::table_preview(&self.2.as_ref().unwrap().view(), self.3.as_ref(), false, Some("> head csv-file"));
     }
 
     fn shuffle(&mut self) {

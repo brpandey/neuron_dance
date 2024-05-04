@@ -63,7 +63,7 @@ impl DataSet for MnistData {
 
         if self.data.is_none() { return } // if data hasn't been fetched, return early
 
-        println!("$ head 0..{num_heatmaps} mnist-file | heatmap");
+        println!("> head 0..{num_heatmaps} mnist-file | heatmap");
 
         let x_train = &self.data.as_ref().unwrap().0;
 

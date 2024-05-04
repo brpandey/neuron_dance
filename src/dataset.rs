@@ -103,13 +103,13 @@ impl<'a> SubsetRef<'a> {
         (x_single, y_single)
     }
 
-    pub fn peek(&self, x: &Array2<f64>) {
+    pub fn features_peek(&self, x: &Array2<f64>) {
         use crate::dataset::{idx::MnistData, csv::CSVData};
         use crate::visualize::Peek;
 
         match self.format {
-            DataSetFormat::CSV => CSVData::peek(x, Some("=> corresponding x input features, see tabular row")),
-            DataSetFormat::IDX => MnistData::peek(x, Some("=> reduced x input image, see grid below")),
+            DataSetFormat::CSV => CSVData::peek(x, Some("=> for corresponding x input features, see tabular row")),
+            DataSetFormat::IDX => MnistData::peek(x, Some("=> for reduced x input image, see grid below")),
         }
     }
 }
