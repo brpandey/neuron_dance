@@ -108,8 +108,8 @@ impl<'a> SubsetRef<'a> {
         use crate::visualize::Peek;
 
         match self.format {
-            DataSetFormat::CSV => CSVData::peek(x, Some("=> corresponding x input features, in tabular row")),
-            DataSetFormat::IDX => MnistData::peek(x, Some("=> reduced x input image, in grid below")),
+            DataSetFormat::CSV => CSVData::peek(x, Some("=> corresponding x input features, see tabular row")),
+            DataSetFormat::IDX => MnistData::peek(x, Some("=> reduced x input image, see grid below")),
         }
     }
 }
