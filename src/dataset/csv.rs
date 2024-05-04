@@ -6,8 +6,7 @@ use rand_isaac::isaac64::Isaac64Rng;
 use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsetData, TrainTestTuple};
-use crate::visualize::Visualize;
-
+use crate::visualize::{Visualize, Peek};
 
 //                       ctype     scale    data             headers
 pub struct CSVData<'a>(CSVType<'a>, f64, Option<Array2<f64>>, Option<Vec<String>>);
@@ -49,9 +48,11 @@ impl <'b> CSVData<'b> {
             CSVType::Custom(_) => Self(ctype, 1.0, None, None),
         }
     }
+}
 
-    pub fn peek(x: &Array2<f64>) {
-        Visualize::table_preview(&x.view(), None, false);
+impl Peek for CSVData<'_> {
+    fn peek(x: &Array2<f64>, text: Option<&str>) {
+        Visualize::table_preview(&x.view(), None, false, text);
     }
 }
 
@@ -78,7 +79,7 @@ impl <'b> DataSet for CSVData<'b> {
 
     fn head(&self) {
         if self.2.is_none() { return } // if data hasn't been fetched, return early
-        Visualize::table_preview(&self.2.as_ref().unwrap().view(), self.3.as_ref(), false);
+        Visualize::table_preview(&self.2.as_ref().unwrap().view(), self.3.as_ref(), false, Some("$ head csv-file"));
     }
 
     fn shuffle(&mut self) {

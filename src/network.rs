@@ -120,13 +120,12 @@ impl Network {
         let y_pred = output.arg_max();
         let y_label = y[(0,0)] as usize;
 
-        let s_txt = format!("Successful y prediction, correct label is {y_pred}");
-        let f_txt = format!("No match! y prediction {y_pred} is different from correct y label {y_label}");
+        let s_txt = format!("[Successful y prediction] correct label is {y_pred}");
+        let f_txt = format!("[No match!] y prediction {y_pred} is different from correct y label {y_label}");
 
         if y_label == y_pred { println!("{s_txt}") } else { println!("{f_txt}") }
-        let text = "-- See corresponding, x input below --";
 
-        subset_ref.peek(&x, Some(text));
+        subset_ref.peek(&x);
 
         y_label
     }
@@ -188,7 +187,7 @@ impl Network {
                 );
             }
 
-            tally = self.metrics.as_mut().unwrap().create_tally(b, (e, epochs));
+            tally = self.metrics.as_mut().unwrap().create_tally(b, (e+1, epochs));
             self.evaluate(subsets, &eval, &mut tally);
         }
     }

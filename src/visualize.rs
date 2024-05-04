@@ -6,8 +6,13 @@ use plotters::prelude::*;
 use plotters::backend::BitMapBackend as BMB;
 use colorous::{PLASMA, GREYS, TURBO};
 use viuer::{print_from_file, Config};
+use ndarray::Array2;
 
 use crate::algebra::AlgebraExt;
+
+pub trait Peek {
+    fn peek(x: &Array2<f64>, txt: Option<&str>);
+}
 
 pub struct Visualize;
 
@@ -19,8 +24,10 @@ impl Visualize {
 
     // preview first rows of data source
     pub fn table_preview(data: &ArrayView2<f64>, 
-                         headers: Option<&Vec<String>>, ascii_art: bool) {
+                         headers: Option<&Vec<String>>, ascii_art: bool, text: Option<&str>) {
         use ndarray_stats::QuantileExt;
+
+        text.map(|t| println!("{t}"));
 
         // print first rows, whichever is shorter
         let max = if ascii_art { Self::ASCII_ART_SIZE } else { Self::TABLE_FIRST_ROWS };

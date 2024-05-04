@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsetData};
+use crate::visualize::Peek;
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
@@ -26,14 +27,16 @@ impl MnistData {
 
         MnistData{ mtype, subset_types, data: None }
     }
+}
 
-    pub fn peek(x: &Array2<f64>) {
+impl Peek for MnistData {
+    fn peek(x: &Array2<f64>, text: Option<&str>) {
         use crate::visualize::Visualize;
         use crate::pool::Pool;
 
         let image = x.clone().into_shape(Self::SHAPE).unwrap();
         let reduced_image = Pool::apply(image.view(), 2, 2);
-        Visualize::table_preview(&reduced_image.view(), None, true);
+        Visualize::table_preview(&reduced_image.view(), None, true, text);
     }
 }
 
@@ -59,6 +62,8 @@ impl DataSet for MnistData {
         let num_heatmaps = 7;
 
         if self.data.is_none() { return } // if data hasn't been fetched, return early
+
+        println!("$ head 0..{num_heatmaps} mnist-file | heatmap");
 
         let x_train = &self.data.as_ref().unwrap().0;
 

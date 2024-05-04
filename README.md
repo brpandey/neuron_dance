@@ -7,11 +7,12 @@
 ```rust
 // main.rs
 
+// split dataset into train and test
 let mut tts = dataset.train_test_split(train_percentage);
 let mut subsets = tts.get_ref();
 let mut model;
 
-// match cmd line option and build matching model
+// for example, match cmd line option iris and build matching model iris
 NetworkType::Iris => {
     model = Network::new();
     model.add(Input1(4));
@@ -23,11 +24,13 @@ NetworkType::Iris => {
     model.eval(&subsets, Eval::Test);
 ```
 
+$ head 0..14 mnist-fashion-file | heatmap
+
 <p float="center">
   <img src='images/fashion.jpg' width='950' height='325'/>
 </p>
 
-> Example Usage
+## Example Usage
 
 ```rust
 
@@ -38,23 +41,25 @@ $ cargo run --release -- -t mnist
 Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1],
 x_test shape [10000, 784], y_test shape [10000, 1]
 
-Epoch 0/5
-	Accuracy 0.9571 9571/10000 (MiniBatch + Adam)
+// $ head 0..7 mnist-file | heatmap
 
 Epoch 1/5
-	Accuracy 0.9659 9659/10000 (MiniBatch + Adam)
+	Accuracy 0.9571 9571/10000 (MiniBatch + Adam)
 
 Epoch 2/5
-	Accuracy 0.9689 9689/10000 (MiniBatch + Adam)
+	Accuracy 0.9659 9659/10000 (MiniBatch + Adam)
 
 Epoch 3/5
-	Accuracy 0.9700 9700/10000 (MiniBatch + Adam)
+	Accuracy 0.9689 9689/10000 (MiniBatch + Adam)
 
 Epoch 4/5
+	Accuracy 0.9700 9700/10000 (MiniBatch + Adam)
+
+Epoch 5/5
 	Accuracy 0.9720 9720/10000 (MiniBatch + Adam)
 
-Successful y prediction, correct label is 9
--- See reduced, randomly chosen x input image below --
+[Successful y prediction] correct label is 9
+=> reduced x input image, in grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -80,8 +85,8 @@ Successful y prediction, correct label is 9
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
-Successful y prediction, correct label is 3
--- See reduced, randomly chosen x input image below --
+[Successful y prediction] correct label is 3
+=> reduced x input image, in grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -107,8 +112,8 @@ Successful y prediction, correct label is 3
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
-Successful y prediction, correct label is 7
--- See reduced, randomly chosen x input image below --
+[Successful y prediction] correct label is 7
+=> reduced x input image, in grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -134,8 +139,8 @@ Successful y prediction, correct label is 7
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
 │   ┆   ┆   ┆   ┆   ┆   ┆ X ┆ X ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
-No match! y prediction 3 is different from correct y label 5
--- See reduced, randomly chosen x input image below --
+[No match!] y prediction 3 is different from correct y label 5
+=> reduced x input image, in grid below
 ╭───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
@@ -170,6 +175,8 @@ Accuracy 0.9720 9720/10000
 $ cargo run --release -- -t iris
     Finished release [optimized] target(s) in 0.20s
      Running `/home/brpandey/Workspace/ml/rust/neuron_dance/target/release/neuron_dance -t iris`
+
+$ head csv-file
 ╭──────────────┬─────────────┬──────────────┬─────────────┬─────────╮
 │ sepal_length ┆ sepal_width ┆ petal_length ┆ petal_width ┆ species │
 ╞══════════════╪═════════════╪══════════════╪═════════════╪═════════╡
@@ -181,21 +188,14 @@ $ cargo run --release -- -t iris
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
 │ 6.1          ┆ 2.9         ┆ 4.7          ┆ 1.4         ┆ 1       │
 ╰──────────────┴─────────────┴──────────────┴─────────────┴─────────╯
-Data subset shapes x_train shape [100, 4], y_train shape  [100, 1], x_test shape [50, 4], y_test shape [50, 1]
+Data subset shapes x_train shape [100, 4], y_train shape  [100, 1],
+x_test shape [50, 4], y_test shape [50, 1]
 
-Epoch 0/50
+Epoch 1/50
 	Accuracy 0.1600 8/50 (MiniBatch)
 	Avg Loss 0.8364 41.8182/50 (MiniBatch)
 
-Epoch 1/50
-	Accuracy 0.2800 14/50 (MiniBatch)
-	Avg Loss 0.8345 41.7261/50 (MiniBatch)
-
 ...
-
-Epoch 9/50
-	Accuracy 0.6400 32/50 (MiniBatch)
-	Avg Loss 0.5291 26.4553/50 (MiniBatch)
 
 Epoch 10/50
 	Accuracy 0.6800 34/50 (MiniBatch)
@@ -209,31 +209,27 @@ Epoch 25/50
 
 ...
 
-Epoch 48/50
-	Accuracy 0.9200 46/50 (MiniBatch)
-	Avg Loss 0.2935 14.6738/50 (MiniBatch)
-
-Epoch 49/50
+Epoch 50/50
 	Accuracy 0.9200 46/50 (MiniBatch)
 	Avg Loss 0.2918 14.5919/50 (MiniBatch)
 
-Successful y prediction, correct label is 2
--- See corresponding, x input below --
+[Successful y prediction] correct label is 2
+=> corresponding x input features, in tabular row
 ╭───┬─────┬───┬─────╮
 │ 6 ┆ 2.2 ┆ 5 ┆ 1.5 │
 ╰───┴─────┴───┴─────╯
-Successful y prediction, correct label is 1
--- See corresponding, x input below --
+[Successful y prediction] correct label is 1
+=> corresponding x input features, in tabular row
 ╭───┬─────┬─────┬─────╮
 │ 6 ┆ 2.9 ┆ 4.5 ┆ 1.5 │
 ╰───┴─────┴─────┴─────╯
-Successful y prediction, correct label is 0
--- See corresponding, x input below --
+[Successful y prediction] correct label is 0
+=> corresponding x input features, in tabular row
 ╭─────┬─────┬─────┬─────╮
 │ 5.2 ┆ 3.5 ┆ 1.5 ┆ 0.2 │
 ╰─────┴─────┴─────┴─────╯
-Successful y prediction, correct label is 0
--- See corresponding, x input below --
+[Successful y prediction] correct label is 0
+=> corresponding x input features, in tabular row
 ╭─────┬─────┬─────┬─────╮
 │ 5.4 ┆ 3.4 ┆ 1.5 ┆ 0.4 │
 ╰─────┴─────┴─────┴─────╯
