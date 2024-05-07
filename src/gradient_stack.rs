@@ -6,8 +6,8 @@ use crate::activation::ActFp;
 
 #[derive(Debug)]
 pub struct GradientStack {
-    z_values: Vec<Array2<f64>>, // linear values
-    a_values: Vec<Array2<f64>>, // non-linear activation values
+    linear: Vec<Array2<f64>>, // linear values - z_values
+    nonlinear: Vec<Array2<f64>>, // non-linear activation values - a_values
     funcs: Vec<ActFp>, // activation derivative functions
     shapes: Vec<(usize, usize)>, // bias shapes
     index: (usize, usize), // function, bias shape
@@ -20,8 +20,8 @@ impl GradientStack {
             biases.iter().map(|b| (b.shape()[0], b.shape()[1])).collect();
 
         GradientStack {
-            z_values: vec![],
-            a_values: vec![],
+            linear: vec![],
+            nonlinear: vec![],
             funcs: backward, // activation derivative functions (backprop)
             shapes,
             index: (0, 0),
@@ -30,22 +30,22 @@ impl GradientStack {
 
     // Reset stack values
     pub fn reset(&mut self, x: Array2<f64>) {
-        (self.z_values, self.a_values) = (Vec::new(), vec![x]);
+        (self.linear, self.nonlinear) = (Vec::new(), vec![x]);
         self.index = (self.funcs.len() - 1, self.shapes.len() - 1);
     }
 
     pub fn push(&mut self, kind: GT, data: Array2<f64>) {
         match kind {
-            GT::Linear => self.z_values.push(data),
-            GT::Nonlinear => self.a_values.push(data),
+            GT::Linear => self.linear.push(data),
+            GT::Nonlinear => self.nonlinear.push(data),
             _ => (),
         }
     }
 
     pub fn pop(&mut self, kind: GT) -> Term {
         match kind {
-            GT::Linear => Term::Linear(self.z_values.pop()),
-            GT::Nonlinear => Term::Nonlinear(self.a_values.pop()),
+            GT::Linear => Term::Linear(self.linear.pop()),
+            GT::Nonlinear => Term::Nonlinear(self.nonlinear.pop()),
             GT::ActivationDerivative => {
                 let f = self.funcs.get(self.index.0).unwrap();
                 if self.index.0 != 0 { self.index.0 -= 1; }

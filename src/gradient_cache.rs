@@ -17,8 +17,8 @@ pub struct GradientCache {
     one_hot: HashMap<usize, Array1<f64>>, // store list of one hot encoded vectors dim 1
     classification: Classification,
     batch_type: Batch,
-    fp_cost_derivative: CostDFp,
-    fp_cost_combinate: CostCRFp,
+    cost_derivative_fp: CostDFp,
+    cost_combinate_fp: CostCRFp,
     output_act_type: Act,
 }
 
@@ -41,8 +41,8 @@ impl GradientCache {
             one_hot,
             classification,
             batch_type: Batch::SGD,
-            fp_cost_derivative: cost_d_fps.0,
-            fp_cost_combinate: cost_d_fps.1,
+            cost_derivative_fp: cost_d_fps.0,
+            cost_combinate_fp: cost_d_fps.1,
             output_act_type,
         }
     }
@@ -76,7 +76,7 @@ impl GradientCache {
 
         // Generate appropriate combinate rule given particular cost function and activation type
         // Feed in relevant parameters
-        let rule = (self.fp_cost_combinate)(self.fp_cost_derivative, last_a, y_cow.view(),
+        let rule = (self.cost_combinate_fp)(self.cost_derivative_fp, last_a, y_cow.view(),
                                        a_derivative, last_z, self.output_act_type);
 
         rule.apply(y_cow.view())
