@@ -39,7 +39,6 @@ impl Network {
             layers: Some(LayerStack::new()),
             ..Default::default()
         }
-
     }
 
     /**** Public associated methods ****/

@@ -107,12 +107,13 @@ impl Act {
 impl From<Act> for Box<dyn Activation> {
     fn from(activation_type: Act) -> Self {
         // Add new activation type here - Start (3)
-        match activation_type {
-            Act::Relu | Act::Relu_(_) => Box::new(Relu),
-            Act::Sigmoid | Act::Sigmoid_(_) => Box::new(Sigmoid),
-            Act::Tanh | Act::Tanh_(_) => Box::new(Tanh),
-            Act::Softmax | Act::Softmax_(_) => Box::new(Softmax),
+        match activation_type.normalize() {
+            Act::Relu => Box::new(Relu),
+            Act::Sigmoid => Box::new(Sigmoid),
+            Act::Tanh => Box::new(Tanh),
+            Act::Softmax => Box::new(Softmax),
             Act::LeakyRelu => Box::new(LeakyRelu),
+            _ => unreachable!(),
         }
     }
 }

@@ -6,7 +6,7 @@ use crate::cost::Loss;
 
 #[derive(Debug, Default)]
 pub struct Hypers {
-	  pub learning_rate: f64,
+    pub learning_rate: f64,
     pub l2_rate: f64,
     pub optimizer: Option<Box<dyn Optimizer>>,
     pub class_size: usize,
@@ -17,8 +17,6 @@ pub struct Hypers {
 }
 
 impl Hypers {
-    pub fn empty() -> Self { Default::default() }
-
     pub fn new(learning_rate: f64, l2_rate: f64, class_size: usize, activations: Vec<Act>, loss_type: Loss) -> Self {
         let optimizer = Some(Optim::Default.into());
 
