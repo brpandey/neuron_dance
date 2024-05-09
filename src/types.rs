@@ -22,6 +22,10 @@ impl Batch {
     }
 }
 
+impl Default for Batch {
+    fn default() -> Self { Batch::SGD }
+}
+
 impl fmt::Display for Batch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

@@ -92,6 +92,18 @@ pub enum Act {
     LeakyRelu,
 }
 
+impl Act {
+    pub fn normalize(&self) -> Act {
+        match *self {
+            Act::Relu | Act::Relu_(_) => Act::Relu,
+            Act::Sigmoid | Act::Sigmoid_(_) => Act::Sigmoid,
+            Act::Tanh | Act::Tanh_(_) => Act::Tanh,
+            Act::Softmax | Act::Softmax_(_) => Act::Softmax,
+            Act::LeakyRelu => Act::LeakyRelu,
+        }
+    }
+}
+
 impl From<Act> for Box<dyn Activation> {
     fn from(activation_type: Act) -> Self {
         // Add new activation type here - Start (3)

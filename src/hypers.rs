@@ -1,35 +1,35 @@
+use std::default::Default;
 use crate::types::Batch;
 use crate::optimizer::{Optim, Optimizer};
+use crate::activation::Act;
+use crate::cost::Loss;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Hypers {
 	  pub learning_rate: f64,
     pub l2_rate: f64,
-    pub batch_type: Batch,
     pub optimizer: Option<Box<dyn Optimizer>>,
+    pub class_size: usize,
+    pub activations: Vec<Act>,
+    pub loss_type: Loss,
+    pub batch_type: Batch,
     pub optimizer_type: Optim,
 }
 
 impl Hypers {
-    pub fn empty() -> Self{
-        Self {
-            learning_rate: 0.0,
-            l2_rate: 0.0,
-            batch_type: Batch::SGD,
-            optimizer: None,
-            optimizer_type: Optim::Default,
-        }
-    }
+    pub fn empty() -> Self { Default::default() }
 
-    pub fn new(learning_rate: f64, l2_rate: f64) -> Self {
+    pub fn new(learning_rate: f64, l2_rate: f64, class_size: usize, activations: Vec<Act>, loss_type: Loss) -> Self {
         let optimizer = Some(Optim::Default.into());
 
         Self {
             learning_rate,
             l2_rate,
-            batch_type: Batch::SGD, // default
             optimizer,
-            optimizer_type: Optim::Default,
+            class_size,
+            activations,
+            loss_type,
+            ..Default::default()
         }
     }
 

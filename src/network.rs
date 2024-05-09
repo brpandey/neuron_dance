@@ -7,6 +7,7 @@
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
 use std::iter::Iterator;
+use std::default::Default;
 use ndarray::{Array2, ArrayView2, Axis};
 use rand::{Rng, seq::SliceRandom};
 
@@ -21,26 +22,24 @@ use crate::metrics::{Metrics, Tally};
 use crate::types::{Batch, Eval, Metr};
 use crate::optimizer::{Optim, ParamKey};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Network {
+    layers: Option<LayerStack>,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
     forward: Vec<ActFp>, // forward propagation, activation functions
-    layers: Option<LayerStack>,
     hypers: Hypers,
     cache: Option<GradientCache>,
     metrics: Option<Metrics>,
 }
 
 impl Network {
-    pub fn new() -> Self { Self::empty() }
-
-    fn empty() -> Self {
-        Network {
-            weights: vec![], biases: vec![], forward: vec![], 
-            layers: Some(LayerStack::new()), hypers: Hypers::empty(),
-            cache: None, metrics: None,
+    pub fn new() -> Self {
+        Self {
+            layers: Some(LayerStack::new()),
+            ..Default::default()
         }
+
     }
 
     /**** Public associated methods ****/
@@ -50,13 +49,14 @@ impl Network {
     }
 
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
-        let (output_size, weights, biases, forward, backward, output_act) = self.layers.as_mut().unwrap().reduce();
+        let (output_size, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
+        let output_act = *acts.get(acts.len()-1).unwrap();
 
         let loss: Box<dyn Cost> = loss_type.into();
-        let (fp_cost, fp_cost_deriv, fp_cost_comb_rule) = loss.triple();
+        let (cost_fp, cost_deriv_fp, cost_comb_rule_fp) = loss.triple();
 
-        let metrics = Some(Metrics::new(metrics_type, fp_cost, output_size, l2_rate));
-        let hypers = Hypers::new(learning_rate, l2_rate);
+        let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size, l2_rate));
+        let hypers = Hypers::new(learning_rate, l2_rate, output_size, acts, loss_type);
 
         // initialize network properly
         let n = Network {
@@ -69,7 +69,7 @@ impl Network {
 
         let gc = GradientCache::new(
             backward, &self.biases, output_size,
-            (fp_cost_deriv, fp_cost_comb_rule),
+            (cost_deriv_fp, cost_comb_rule_fp),
             output_act
         );
 

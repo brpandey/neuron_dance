@@ -72,7 +72,7 @@ impl Layer for Dense {
 
     fn reduce(&self) -> Self::Output {
         let size = self.0;
-        let act_type = self.1;
+        let mut act_type = self.1;
         let act: Box<dyn Activation> = self.1.into();
 
         let w_distr = match act_type {
@@ -84,6 +84,7 @@ impl Layer for Dense {
             Act::LeakyRelu => todo!(),
         };
 
+        act_type = act_type.normalize();
         LayerTerms::Dense(LayerOrder::FromSecondToLast, size, act, act_type, w_distr)
     }
 }
@@ -110,13 +111,13 @@ impl LayerStack {
 
 impl Layer for LayerStack {
     // (last_size, weights, biases, forward, backward, output_act)
-    type Output = (usize, Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<ActFp>, Vec<ActFp>, Act);
+    type Output = (usize, Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<ActFp>, Vec<ActFp>, Vec<Act>);
 
     fn reduce(&self) -> Self::Output {
         use statrs::distribution::Normal;
         use ndarray_rand::RandomExt;
 
-        let acc = (0, vec![], vec![], vec![], vec![], Act::Sigmoid); // acc is of type Output
+        let acc = (0, vec![], vec![], vec![], vec![], vec![]); // acc is of type Output
 
         self.0.iter().enumerate().fold(acc, |mut acc, (i,l)| {
             match l.reduce() {
@@ -139,8 +140,7 @@ impl Layer for LayerStack {
                     acc.2.push(b); // push to biases
                     acc.3.push(act_fp); // push to forward activations
                     acc.4.push(act_deriv_fp); // push to backward, or derivative activations
-                    acc.5 = act_type; // save as last_act
-
+                    acc.5.push(act_type);
                     acc
                 },
                 _ => panic!("Layer order is incorrect, perhaps input layer is not first layer added?"),

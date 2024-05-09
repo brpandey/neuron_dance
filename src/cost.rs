@@ -5,6 +5,7 @@ pub mod quadratic;
 use core::f64;
 use ndarray::{Array2, ArrayView2};
 use std::{convert::From, fmt::Debug};
+use std::default::Default;
 
 use crate::gradient::CombinateRule;
 use crate::activation::{Act, ActFp};
@@ -40,12 +41,17 @@ pub trait Objective {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Loss {
     Quadratic,
     BinaryCrossEntropy,
     CategoricalCrossEntropy,
 }
+
+impl Default for Loss {
+    fn default() -> Self { Loss::Quadratic }
+}
+
 
 impl From<Loss> for Box<dyn Cost> {
     fn from(loss_type: Loss) -> Self {

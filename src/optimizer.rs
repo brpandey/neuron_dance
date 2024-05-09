@@ -13,6 +13,7 @@ pub mod amsgrad;
 pub mod nadam;
 
 use std::borrow::Cow;
+use std::default::Default;
 use ndarray::Array2;
 
 use crate::optimizer::{adam::Adam, amsgrad::AmsGrad, nadam::NAdam};
@@ -23,6 +24,10 @@ pub enum Optim {
     Adam,
     AMSGrad,
     NAdam,
+}
+
+impl Default for Optim {
+    fn default() -> Self { Optim::Default }
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
@@ -56,7 +61,7 @@ pub trait Optimizer {
 impl From<Optim> for Box<dyn Optimizer> {
     fn from(optimzer_type: Optim) -> Self {
         match optimzer_type {
-            Optim::Default => Box::new(Default),
+            Optim::Default => Box::new(OptimDefault),
             Optim::Adam => Box::new(Adam::new()),
             Optim::AMSGrad => Box::new(AmsGrad::new()),
             Optim::NAdam => Box::new(NAdam::new()),
@@ -71,6 +76,6 @@ impl std::fmt::Debug for Box<dyn Optimizer> {
 }
 
 #[derive(Debug)]
-pub struct Default; // default optimizer is none
+pub struct OptimDefault; // default optimizer is none
 
-impl Optimizer for Default {}
+impl Optimizer for OptimDefault {}
