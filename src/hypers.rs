@@ -60,4 +60,10 @@ impl Hypers {
     pub fn optimizer_type(&self) -> Optim {
         self.optimizer_type
     }
+
+    pub fn loss_type(&self) -> Loss { self.loss_type }
+
+    pub fn activations(&self) -> &'_ [Act] { self.activations.as_ref() }
+
+    pub fn output_classes(&self) -> usize { self.class_size }
 }

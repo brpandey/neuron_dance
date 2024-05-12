@@ -23,6 +23,7 @@
 /// than at the edges (e.g. shoe sizes). Whereas Uniform distributions are equally
 /// spread out the data in more of a rectangular shape (e.g. rolling a dice)
 
+use std::default::Default;
 use either::*;
 use statrs::distribution::{Normal, Uniform};
 use ndarray::Array2;
@@ -31,12 +32,18 @@ use ndarray_rand::RandomExt;
 // Weight Initialization Types
 #[derive(Copy, Clone, Debug)]
 pub enum Weit {
+    Default,
     He,
     GlorotN,
     GlorotU,
     NormalizedGlorot,
     LeCunn
 }
+
+impl Default for Weit {
+    fn default() -> Self { Weit::Default }
+}
+
 
 impl Weit {
     pub fn random(&self, fan_out: usize, fan_in: usize) -> Array2<f64> {
@@ -66,6 +73,7 @@ impl Weit {
                 let lecunn_term = 1.0/(fan_in as f64).sqrt();
                 Left(Normal::new(0., lecunn_term).unwrap())
             },
+            Weit::Default => Left(Normal::new(0., 1.).unwrap()) // StandardNormal
         };
 
         match either {

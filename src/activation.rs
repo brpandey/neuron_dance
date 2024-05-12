@@ -24,8 +24,12 @@ pub mod leaky_relu;
 
 use std::{convert::From, str::FromStr, fmt::Debug};
 use ndarray::Array2;
-use crate::activation::{relu::Relu, sigmoid::Sigmoid, tanh::Tanh,
-                         softmax::Softmax, leaky_relu::LeakyRelu}; // Update (2)
+use strum_macros::{Display, EnumString};
+
+use crate::activation::{
+    relu::Relu, sigmoid::Sigmoid, tanh::Tanh,
+    softmax::Softmax, leaky_relu::LeakyRelu
+}; // Update (2)
 
 use crate::weight::Weit;
 
@@ -45,7 +49,6 @@ impl<T: Decider + Debug + Clone + 'static> Activation for T {
 }
 
 pub trait Decider {
-
     // perform non-linear activation
     fn activate(z: &Array2<f64>) -> Array2<f64> {
         z.mapv(|v| Self::decide(v))
@@ -79,7 +82,7 @@ impl FromStr for Box<dyn Activation> {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Display, EnumString)]
 pub enum Act {
     Relu, // uses default weight initialization type
     Relu_(Weit), // with supplied weight initialization type

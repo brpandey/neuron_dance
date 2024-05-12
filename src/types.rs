@@ -1,4 +1,5 @@
-use std::{fmt, str::FromStr};
+use std::fmt /*, str::FromStr, string::ToString } */;
+use strum_macros::{Display, EnumString};
 use crate::optimizer::Optim;
 
 // Types not exclusive to any module
@@ -6,14 +7,21 @@ use crate::optimizer::Optim;
 #[derive(Debug, Copy, Clone)]
 pub enum Eval { Train, Test }
 
-#[derive(Debug, Copy, Clone)]
-pub enum Batch { SGD, Mini(usize), Mini_(usize, Optim) }
+#[derive(Debug, Copy, Clone, strum_macros::EnumString)]
+pub enum Batch {
+    #[strum(serialize = "SGD")]
+    SGD,
+    #[strum(serialize = "Mini")]
+    Mini(usize),
+    #[strum(serialize = "Mini2")]
+    Mini_(usize, Optim) }
 
 impl Batch {
     pub fn is_mini(&self) -> bool {
         if let Batch::Mini(_) | Batch::Mini_(_,_) = self { return true }
         return false
     }
+
     pub fn value(&self) -> usize {
         match self {
             Batch::SGD => 1,
@@ -53,10 +61,16 @@ impl Classification {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Display, EnumString)]
 pub enum Mett { // Metrics Type
+    #[strum(ascii_case_insensitive)]
     Accuracy,
+    #[strum(ascii_case_insensitive)]
     Cost,
+}
+
+impl Default for Mett {
+    fn default() -> Self { Mett::Accuracy }
 }
 
 pub struct Metr<'a>(pub &'a str); // str format metric type specified in layer
@@ -72,20 +86,5 @@ impl<'a> Metr<'a> {
             }
             acc
         })
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct MetrParseError;
-
-impl FromStr for Mett {
-    type Err = MetrParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "accuracy" => Ok(Mett::Accuracy),
-            "cost" => Ok(Mett::Cost),
-            _ => Err(MetrParseError),
-        }
     }
 }

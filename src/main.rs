@@ -76,7 +76,7 @@ fn main() {
             model.add(Dense(10, Act::Relu));
             model.add(Dense(10, Act::Relu));
             model.add(Dense(3, Act::Sigmoid));
-            model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("accuracy, cost"));
+            model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("Accuracy, cost"));
             model.fit(&subsets, 50, Batch::Mini(5), Eval::Test);
 
             // Now that model has been trained,

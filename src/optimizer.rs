@@ -18,7 +18,7 @@ use ndarray::Array2;
 
 use crate::optimizer::{adam::Adam, amsgrad::AmsGrad, nadam::NAdam};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, strum_macros::Display, strum_macros::EnumString)]
 pub enum Optim {
     Default,
     Adam,
@@ -46,11 +46,13 @@ pub enum HistType { // Historical Type
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
 pub struct CompositeKey(ParamKey, HistType);
 
-impl std::fmt::Display for Optim { // use debug fmt imp for display
+/*
+impl Display for Optim { // use debug fmt imp for display
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
+*/
 
 pub trait Optimizer {
     fn calculate<'a>(&mut self, _key: ParamKey, value: &'a Array2<f64>, _t: usize) -> Cow<'a, Array2<f64>> {
