@@ -1,5 +1,5 @@
-use std::fmt /*, str::FromStr, string::ToString } */;
-use strum_macros::{Display, EnumString};
+//use std::fmt /*, str::FromStr, string::ToString } */;
+use nanoserde::{DeBin, SerBin};
 use crate::optimizer::Optim;
 
 // Types not exclusive to any module
@@ -7,14 +7,12 @@ use crate::optimizer::Optim;
 #[derive(Debug, Copy, Clone)]
 pub enum Eval { Train, Test }
 
-#[derive(Debug, Copy, Clone, strum_macros::EnumString)]
+#[derive(Debug, Copy, Clone, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
 pub enum Batch {
-    #[strum(serialize = "SGD")]
     SGD,
-    #[strum(serialize = "Mini")]
     Mini(usize),
-    #[strum(serialize = "Mini2")]
-    Mini_(usize, Optim) }
+    Mini_(usize, Optim)
+}
 
 impl Batch {
     pub fn is_mini(&self) -> bool {
@@ -28,22 +26,19 @@ impl Batch {
             Batch::Mini(ref size) | Batch::Mini_(ref size, _) => *size,
         }
     }
+
+    pub fn text_display(&self) -> String {
+        match self {
+            Batch::SGD => format!("(SGD)"),
+            Batch::Mini(_) | Batch::Mini_(_, Optim::Default) => format!("(MiniBatch)"),
+            Batch::Mini_(_, optt) => format!("(MiniBatch + {})", &optt),
+        }
+    }
 }
 
 impl Default for Batch {
     fn default() -> Self { Batch::SGD }
 }
-
-impl fmt::Display for Batch {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Batch::SGD => write!(f, "(SGD)"),
-            Batch::Mini(_) | Batch::Mini_(_, Optim::Default) => write!(f, "(MiniBatch)"),
-            Batch::Mini_(_, optt) => write!(f, "(MiniBatch + {})", &optt),
-        }
-    }
-}
-
 
 #[derive(Debug)]
 pub enum Classification {
@@ -61,7 +56,7 @@ impl Classification {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Display, EnumString)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, strum_macros::Display, strum_macros::EnumString)]
 pub enum Mett { // Metrics Type
     #[strum(ascii_case_insensitive)]
     Accuracy,

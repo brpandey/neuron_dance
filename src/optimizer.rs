@@ -15,10 +15,11 @@ pub mod nadam;
 use std::borrow::Cow;
 use std::default::Default;
 use ndarray::Array2;
+use nanoserde::{DeBin, SerBin};
 
 use crate::optimizer::{adam::Adam, amsgrad::AmsGrad, nadam::NAdam};
 
-#[derive(Debug, Copy, Clone, strum_macros::Display, strum_macros::EnumString)]
+#[derive(Debug, Copy, Clone, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
 pub enum Optim {
     Default,
     Adam,

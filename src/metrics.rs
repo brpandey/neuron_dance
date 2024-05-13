@@ -114,7 +114,7 @@ impl Tally {
     pub fn display(&self) {
         use std::collections::VecDeque;
         // generate text related to batch type leveraging Display trait
-        let b = self.batch_type.as_ref().map_or(String::from(""), |v| v.to_string());
+        let b = self.batch_type.as_ref().map_or(String::from(""), |v| v.text_display());
 
         // generate initial metrics texts, {custom metric text} {batch text}
         let mut m_txts: VecDeque<String> = self.display_list.iter()

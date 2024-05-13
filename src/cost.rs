@@ -41,7 +41,7 @@ pub trait Objective {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, strum_macros::Display, strum_macros::EnumString)]
 pub enum Loss {
     Quadratic,
     BinaryCrossEntropy,
