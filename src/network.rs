@@ -390,9 +390,9 @@ impl Add<Hypers> for Network {
             a_fp
         }).collect::<Vec<ActFp>>();
 
-        let dyn_cost: Box<dyn Cost> = other.loss_type.into();
+        let dyn_cost: Box<dyn Cost> = other.loss_type().into();
         let (cost_fp, _, _) = dyn_cost.triple();
-        let output_size = other.class_size;
+        let output_size = other.class_size();
         let l2_rate = other.l2_regularization_rate();
 
         let metrics = Some(
