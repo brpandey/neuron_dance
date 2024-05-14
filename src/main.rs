@@ -8,7 +8,6 @@ use neuron_dance::{
     layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit},
     network::Network,
 };
-use std::str::FromStr;
 
 fn main() {
     let mut matches = Command::new("neuron_dance")
@@ -30,6 +29,7 @@ fn main() {
         .unwrap()
         .parse()
         .unwrap();
+
     let train_percentage = 2.0 / 3.0; // train / total ratio, test = total - train
     let mut dataset: Box<dyn DataSet>;
 
@@ -116,30 +116,24 @@ fn main() {
     }
 
     model.eval(&subsets, Eval::Test);
+    model.store();
+
+    let mut newmodel = Network::load();
+    newmodel.eval(&subsets, Eval::Test);
+    newmodel.eval(&subsets, Eval::Train);
 }
 
+#[derive(strum_macros::Display, strum_macros::EnumString)]
 pub enum NetworkType {
+    #[strum(ascii_case_insensitive)]
     CSV1,
+    #[strum(ascii_case_insensitive)]
     CSV2,
+    #[strum(ascii_case_insensitive)]
     Iris,
+    #[strum(ascii_case_insensitive)]
     Mnist,
+    #[strum(serialize = "fash")]
     FashionMnist,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct NTParseError;
-
-impl FromStr for NetworkType {
-    type Err = NTParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "csv1" => Ok(NetworkType::CSV1),
-            "csv2" => Ok(NetworkType::CSV2),
-            "iris" => Ok(NetworkType::Iris),
-            "mnist" => Ok(NetworkType::Mnist),
-            "fash" => Ok(NetworkType::FashionMnist),
-            _ => Err(NTParseError),
-        }
-    }
-}

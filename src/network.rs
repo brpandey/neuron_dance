@@ -6,21 +6,21 @@
 
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
-use std::iter::Iterator;
-use std::default::Default;
+use std::{iter::Iterator, default::Default, ops::Add};
 use ndarray::{Array2, ArrayView2, Axis};
 use rand::{Rng, seq::SliceRandom};
+use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
 
-use crate::{activation::ActFp, algebra::AlgebraExt}; // import local traits
-use crate::gradient_cache::{GradientCache, GT};
-use crate::hypers::Hypers;
-use crate::chain_rule::ChainRuleComputation;
-use crate::dataset::TrainTestSubsetRef;
-use crate::layers::{Layer, LayerStack, LayerTerms};
-use crate::cost::{Cost, Loss};
-use crate::metrics::{Metrics, Tally};
-use crate::types::{Batch, Eval, Metr};
-use crate::optimizer::{Optim, ParamKey};
+use crate::{
+    activation::ActFp, algebra::AlgebraExt, // import local traits
+    gradient_cache::{GradientCache, GT},
+    hypers::Hypers, chain_rule::ChainRuleComputation,
+    dataset::TrainTestSubsetRef,
+    layers::{Layer, LayerStack, LayerTerms},
+    cost::{Cost, Loss}, metrics::{Metrics, Tally},
+    types::{Batch, Eval, Metr}, optimizer::{Optim, ParamKey},
+    save::{Save, Archive, VecArray2Archive},
+};
 
 #[derive(Debug, Default)]
 pub struct Network {
@@ -324,5 +324,86 @@ impl Network {
 
         tally.summarize(n_data);
         tally.display();
+    }
+
+    pub fn store(&mut self) {
+        self.save("network-dump.txt").unwrap();
+        self.hypers.save("hypers-dump.txt").unwrap();
+    }
+
+    pub fn load() -> Self {
+        let net = <Network as Save>::restore("network-dump.txt");
+        dbg!(&net);
+
+        let hypers = <Hypers as Save>::restore("hypers-dump.txt");
+        dbg!(&hypers);
+
+        net + hypers
+    }
+}
+
+
+#[derive(Clone, Debug, Default, DeBin, SerBin)]
+pub struct NetworkArchive { // subset of Network
+    pub weights: Option<VecArray2Archive<f64>>,
+    pub biases: Option<VecArray2Archive<f64>>,
+}
+
+impl Archive for NetworkArchive {}
+
+impl Save for Network {
+    type Target = NetworkArchive;
+
+    fn to_archive(&self) -> Self::Target {
+        NetworkArchive {
+            weights: Some(self.weights.to_archive()),
+            biases: Some(self.biases.to_archive()),
+        }
+    }
+
+    fn from_archive(archive: Self::Target) -> Self {
+        let mut a = archive;
+        let (w_a, b_a) = (a.weights.take().unwrap(), a.biases.take().unwrap());
+
+        Network {
+            layers: None,
+            weights: Save::from_archive(w_a),
+            biases: Save::from_archive(b_a),
+            ..Default::default()
+        }
+    }
+}
+
+// Use add trait to flesh out network from hypers
+impl Add<Hypers> for Network {
+    type Output = Network;
+
+    fn add(self, other: Hypers) -> Network {
+        use crate::{activation::Activation, types};
+
+        let mut network = self;
+
+        // convert Hypers activation to Vec<ActFp>
+        let acts = other.activations().iter().map(|a| {
+            let dyn_a: Box<dyn Activation> = (*a).into();
+            let (a_fp, _) = dyn_a.pair();
+            a_fp
+        }).collect::<Vec<ActFp>>();
+
+        let dyn_cost: Box<dyn Cost> = other.loss_type.into();
+        let (cost_fp, _, _) = dyn_cost.triple();
+        let output_size = other.class_size;
+        let l2_rate = other.l2_regularization_rate();
+
+        let metrics = Some(
+            Metrics::new(types::Metr("accuracy"), cost_fp, output_size, l2_rate)
+        );
+
+        network.hypers = other;
+        network.forward = acts;
+        network.metrics = metrics;
+
+        dbg!(&network);
+        network
     }
 }
