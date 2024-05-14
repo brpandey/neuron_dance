@@ -326,16 +326,22 @@ impl Network {
         tally.display();
     }
 
-    pub fn store(&mut self) {
-        self.save("network-dump.txt").unwrap();
-        self.hypers.save("hypers-dump.txt").unwrap();
+    pub fn store(&mut self, token: &str) {
+        let filename1 = format!("{}-network-dump.txt", token);
+        let filename2 = format!("{}-hypers-dump.txt", token);
+
+        self.save(filename1).unwrap();
+        self.hypers.save(filename2).unwrap();
     }
 
-    pub fn load() -> Self {
-        let net = <Network as Save>::restore("network-dump.txt");
-        dbg!(&net);
+    pub fn load(token: &str) -> Self {
+        let filename1 = format!("{}-network-dump.txt", token);
+        let filename2 = format!("{}-hypers-dump.txt", token);
 
-        let hypers = <Hypers as Save>::restore("hypers-dump.txt");
+        let net = <Network as Save>::restore(filename1);
+        let hypers = <Hypers as Save>::restore(filename2);
+
+        dbg!(&net);
         dbg!(&hypers);
 
         net + hypers

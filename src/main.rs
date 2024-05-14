@@ -15,7 +15,7 @@ fn main() {
         .arg(
             Arg::new("type")
                 .action(ArgAction::Set)
-                .value_parser(["csv1", "csv2", "iris", "mnist", "fash"])
+                .value_parser(["csv1", "diab", "iris", "mnist", "fash"])
                 .default_value("csv1")
                 .help("Specify network type")
                 .short('t')
@@ -24,18 +24,20 @@ fn main() {
         )
         .get_matches();
 
-    let ntype = matches
+    let ntype: NetworkType = matches
         .remove_one::<String>("type")
         .unwrap()
         .parse()
         .unwrap();
+
+    let token: String = ntype.to_string();
 
     let train_percentage = 2.0 / 3.0; // train / total ratio, test = total - train
     let mut dataset: Box<dyn DataSet>;
 
     dataset = match ntype {
         NetworkType::CSV1 => Box::new(CSVData::new(CSVType::RGB)),
-        NetworkType::CSV2 => Box::new(CSVData::new(CSVType::Custom("diabetes"))),
+        NetworkType::Diabetes => Box::new(CSVData::new(CSVType::Custom("diabetes"))),
         NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom("iris"))),
         NetworkType::Mnist => Box::new(MnistData::new(MnistType::Regular)),
         NetworkType::FashionMnist => Box::new(MnistData::new(MnistType::Fashion)),
@@ -58,7 +60,7 @@ fn main() {
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
         },
-        NetworkType::CSV2 => {
+        NetworkType::Diabetes => {
             tts = tts.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
             subsets = tts.get_ref();
 
@@ -116,24 +118,23 @@ fn main() {
     }
 
     model.eval(&subsets, Eval::Test);
-    model.store();
+    model.store(&token);
 
-    let mut newmodel = Network::load();
+    let mut newmodel = Network::load(&token);
     newmodel.eval(&subsets, Eval::Test);
     newmodel.eval(&subsets, Eval::Train);
 }
 
 #[derive(strum_macros::Display, strum_macros::EnumString)]
 pub enum NetworkType {
-    #[strum(ascii_case_insensitive)]
+    #[strum(serialize = "csv1")]
     CSV1,
-    #[strum(ascii_case_insensitive)]
-    CSV2,
-    #[strum(ascii_case_insensitive)]
+    #[strum(serialize = "diabetes")]
+    Diabetes,
+    #[strum(serialize = "iris")]
     Iris,
-    #[strum(ascii_case_insensitive)]
+    #[strum(serialize = "mnist")]
     Mnist,
     #[strum(serialize = "fash")]
     FashionMnist,
 }
-
