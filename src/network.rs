@@ -343,8 +343,9 @@ impl Network {
 
         net + hypers
     }
-}
 
+    pub fn view(&self) { println!("{:?}", &self); }
+}
 
 #[derive(Clone, Debug, Default, DeBin, SerBin)]
 pub struct NetworkArchive { // subset of Network
@@ -385,15 +386,12 @@ impl Add<Hypers> for Network {
         use crate::activation::ActivationFps;
         let mut network = self;
 
-        // convert Hypers activation Vec<Act> to Vec<ActFp>
-        let fps: ActivationFps = hypers.activations().into();
-        let metrics: Metrics = (&hypers).into();
+        let fps: ActivationFps = hypers.activations().into(); // convert Vec<Act> to Vec<ActFp>
 
+        network.metrics = Some((&hypers).into()); // convert hypers into metrics
         network.hypers = hypers;
         network.forward = fps.into_inner();
-        network.metrics = Some(metrics);
 
-        dbg!(&network);
         network
     }
 }

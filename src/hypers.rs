@@ -2,7 +2,7 @@ use std::default::Default;
 use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
 use crate::types::Batch;
 use crate::optimizer::{Optim, Optimizer};
-use crate::activation::Act;
+use crate::activation::{Act, ActivationStrings};
 use crate::cost::Loss;
 use crate::save::{Save, Archive};
 
@@ -68,57 +68,39 @@ impl Hypers {
     pub fn class_size(&self) -> usize { self.class_size }
 }
 
-use crate::activation::ActivationStrings;
-
 #[derive(Clone, Debug, Default, DeBin, SerBin)]
-pub struct HypersArchive { // subset of Hypers
-    pub learning_rate: f64,
-    pub l2_rate: f64,
-    pub class_size: usize,
-    pub activations: ActivationStrings, //vec of activation strings
-    pub loss_type: String, // loss as string type
-    pub batch_type: String, // batch as string type
-    pub optimizer_type: String, // optimizer as String type
-}
+pub struct HypersArchive(f64, f64, usize, ActivationStrings, String, String, String);
+// above fields: 0 learning_rate, 1 l2_rate, 3 class_size, 4 activations, 5 loss_type, 6 batch_type 7 optimizer_type
 
 impl Archive for HypersArchive {}
 
 impl Save for Hypers {
     type Target = HypersArchive;
 
-    fn to_archive(&self) -> Self::Target {
-        dbg!(&self.batch_type);
-        dbg!(&self.batch_type.to_string());
+    fn to_archive(&self) -> Self::Target { self.into() }
+    fn from_archive(archive: Self::Target) -> Self { Hypers::from(archive) }
+}
 
-        HypersArchive {
-            learning_rate: self.learning_rate,
-            l2_rate: self.l2_rate,
-            class_size: self.class_size,
-            activations: (&self.activations).into(),
-            loss_type: self.loss_type.to_string(),
-            batch_type: self.batch_type.to_string(),
-            optimizer_type: self.optimizer_type.to_string(),
-        }
-    }
-
-    fn from_archive(archive: Self::Target) -> Self {
-        let opt: Box<dyn Optimizer> =
-            archive.optimizer_type.parse::<Optim>().unwrap().into();
-
-        let acts: Vec<Act> = archive.activations.into();
-
-        dbg!(&archive.batch_type);
-        dbg!(&archive.batch_type.parse::<Batch>());
-
+impl From<HypersArchive> for Hypers {
+    fn from(ar: HypersArchive) -> Hypers {
         Hypers {
-            learning_rate: archive.learning_rate,
-            l2_rate: archive.l2_rate,
-            optimizer: Some(opt),
-            class_size: archive.class_size,
-            activations: acts,
-            loss_type: archive.loss_type.parse().unwrap(),
-            batch_type: archive.batch_type.parse().unwrap(),
-            optimizer_type: archive.optimizer_type.parse().unwrap(),
+            learning_rate: ar.0, l2_rate: ar.1,
+            optimizer: Some(ar.6.parse::<Optim>().unwrap().into()),
+            class_size: ar.2, activations: ar.3.into(),
+            loss_type: ar.4.parse().unwrap(), batch_type: ar.5.parse().unwrap(),
+            optimizer_type: ar.6.parse().unwrap(),
         }
     }
 }
+
+impl From<&Hypers> for HypersArchive {
+    fn from(h: &Hypers) -> HypersArchive {
+//        dbg!(&h.batch_type);        dbg!(&h.batch_type.to_string());
+        HypersArchive(
+            h.learning_rate, h.l2_rate, h.class_size,
+            (&h.activations).into(), h.loss_type.to_string(),
+            h.batch_type.to_string(), h.optimizer_type.to_string()
+        )
+    }
+}
+

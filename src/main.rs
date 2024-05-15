@@ -87,7 +87,7 @@ fn main() {
             model.predict_using_random(&subsets, Eval::Train);
             model.predict_using_random(&subsets, Eval::Test);
             model.predict_using_random(&subsets, Eval::Train);
-
+            model.view();
         },
         NetworkType::Mnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
@@ -104,7 +104,7 @@ fn main() {
             model.predict_using_random(&subsets, Eval::Train);
             model.predict_using_random(&subsets, Eval::Test);
             model.predict_using_random(&subsets, Eval::Train);
-
+//            model.view();
         },
         NetworkType::FashionMnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
@@ -129,6 +129,7 @@ fn main() {
 #[strum(serialize_all = "lowercase")]
 pub enum NetworkType {
     CSV1,
+    #[strum(serialize = "diab")]
     Diabetes,
     Iris,
     Mnist,
