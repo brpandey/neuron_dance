@@ -126,14 +126,11 @@ fn main() {
 }
 
 #[derive(strum_macros::Display, strum_macros::EnumString)]
+#[strum(serialize_all = "lowercase")]
 pub enum NetworkType {
-    #[strum(serialize = "csv1")]
     CSV1,
-    #[strum(serialize = "diabetes")]
     Diabetes,
-    #[strum(serialize = "iris")]
     Iris,
-    #[strum(serialize = "mnist")]
     Mnist,
     #[strum(serialize = "fash")]
     FashionMnist,
