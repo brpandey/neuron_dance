@@ -2,7 +2,7 @@ use std::{{fmt, fmt::Display}, collections::HashMap};
 use ndarray::{Array2, arr2};
 
 use crate::{
-    algebra::AlgebraExt, cost::CostFp,
+    algebra::AlgebraExt, cost::{Cost, CostFp}, hypers::Hypers,
     types::{Batch, Metr, Mett}, one_hot::one_hot};
 
 #[derive(Debug)]
@@ -32,6 +32,18 @@ impl Metrics {
         )
     }
 }
+
+impl From<&Hypers> for Metrics {
+    fn from(h: &Hypers) -> Self {
+        let dyn_cost: Box<dyn Cost> = h.loss_type().into();
+        let (cost_fp, _, _) = dyn_cost.triple();
+        let output_size = h.class_size();
+        let l2_rate = h.l2_regularization_rate();
+
+        Metrics::new(Default::default(), cost_fp, output_size, l2_rate)
+    }
+}
+
 
 pub struct Tally {
     metrics_map: HashMap<Mett, bool>,

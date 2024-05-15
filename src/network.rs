@@ -341,9 +341,6 @@ impl Network {
         let net = <Network as Save>::restore(filename1);
         let hypers = <Hypers as Save>::restore(filename2);
 
-        dbg!(&net);
-        dbg!(&hypers);
-
         net + hypers
     }
 }
@@ -380,34 +377,21 @@ impl Save for Network {
     }
 }
 
-// Use add trait to flesh out network from hypers
+// Flesh out remaining network fields from hypers
 impl Add<Hypers> for Network {
     type Output = Network;
 
-    fn add(self, other: Hypers) -> Network {
-        use crate::{activation::Activation, types};
-
+    fn add(self, hypers: Hypers) -> Network {
+        use crate::activation::ActivationFps;
         let mut network = self;
 
-        // convert Hypers activation to Vec<ActFp>
-        let acts = other.activations().iter().map(|a| {
-            let dyn_a: Box<dyn Activation> = (*a).into();
-            let (a_fp, _) = dyn_a.pair();
-            a_fp
-        }).collect::<Vec<ActFp>>();
+        // convert Hypers activation Vec<Act> to Vec<ActFp>
+        let fps: ActivationFps = hypers.activations().into();
+        let metrics: Metrics = (&hypers).into();
 
-        let dyn_cost: Box<dyn Cost> = other.loss_type().into();
-        let (cost_fp, _, _) = dyn_cost.triple();
-        let output_size = other.class_size();
-        let l2_rate = other.l2_regularization_rate();
-
-        let metrics = Some(
-            Metrics::new(types::Metr("accuracy"), cost_fp, output_size, l2_rate)
-        );
-
-        network.hypers = other;
-        network.forward = acts;
-        network.metrics = metrics;
+        network.hypers = hypers;
+        network.forward = fps.into_inner();
+        network.metrics = Some(metrics);
 
         dbg!(&network);
         network

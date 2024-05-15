@@ -120,3 +120,50 @@ impl From<Act> for Box<dyn Activation> {
         }
     }
 }
+
+use nanoserde::{SerBin, DeBin};
+
+#[derive(Clone, Debug, Default, DeBin, SerBin)]
+pub struct ActivationStrings(Vec<String>);
+
+pub struct ActivationFps(Vec<ActFp>);
+
+impl ActivationFps {
+    pub fn into_inner(self) -> Vec<ActFp> { self.0 }
+}
+
+impl From<&Vec<Act>> for ActivationFps {
+    fn from(acts: &Vec<Act>) -> Self {
+        let v = acts.iter().map(|a| {
+            let dyn_a: Box<dyn Activation> = (*a).into();
+            let (a_fp, _) = dyn_a.pair();
+            a_fp
+        }).collect::<Vec<ActFp>>();
+
+        ActivationFps(v)
+    }
+}
+
+impl From<&Vec<Act>> for ActivationStrings {
+    fn from(vec: &Vec<Act>) -> Self {
+        let v: Vec<String> = vec.iter().map(|a| a.to_string()).collect();
+        ActivationStrings(v)
+    }
+}
+
+impl From<ActivationStrings> for Vec<Act> {
+    fn from(acts: ActivationStrings) -> Self {
+        acts.0.iter()
+            .map(|act| act.parse().unwrap())
+            .collect::<Vec<Act>>()
+    }
+}
+
+
+/*
+let acts = other.activations().iter().map(|a| {
+    let dyn_a: Box<dyn Activation> = (*a).into();
+    let (a_fp, _) = dyn_a.pair();
+    a_fp
+}).collect::<Vec<ActFp>>();
+*/

@@ -64,17 +64,18 @@ impl Hypers {
     }
 
     pub fn loss_type(&self) -> Loss { self.loss_type }
-    pub fn activations(&self) -> &'_ [Act] { self.activations.as_ref() }
+    pub fn activations(&self) -> &'_ Vec<Act> { self.activations.as_ref() }
     pub fn class_size(&self) -> usize { self.class_size }
-
 }
+
+use crate::activation::ActivationStrings;
 
 #[derive(Clone, Debug, Default, DeBin, SerBin)]
 pub struct HypersArchive { // subset of Hypers
     pub learning_rate: f64,
     pub l2_rate: f64,
     pub class_size: usize,
-    pub activations: Vec<String>, // Vec<String>, vec of activation strings
+    pub activations: ActivationStrings, //vec of activation strings
     pub loss_type: String, // loss as string type
     pub batch_type: String, // batch as string type
     pub optimizer_type: String, // optimizer as String type
@@ -93,7 +94,7 @@ impl Save for Hypers {
             learning_rate: self.learning_rate,
             l2_rate: self.l2_rate,
             class_size: self.class_size,
-            activations: self.activations.iter().map(|a| a.to_string()).collect(),
+            activations: (&self.activations).into(),
             loss_type: self.loss_type.to_string(),
             batch_type: self.batch_type.to_string(),
             optimizer_type: self.optimizer_type.to_string(),
@@ -104,10 +105,7 @@ impl Save for Hypers {
         let opt: Box<dyn Optimizer> =
             archive.optimizer_type.parse::<Optim>().unwrap().into();
 
-        let acts = archive.activations
-            .iter()
-            .map(|act| act.parse().unwrap())
-            .collect::<Vec<Act>>();
+        let acts: Vec<Act> = archive.activations.into();
 
         dbg!(&archive.batch_type);
         dbg!(&archive.batch_type.parse::<Batch>());

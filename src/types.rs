@@ -1,4 +1,3 @@
-//use std::fmt /*, str::FromStr, string::ToString } */;
 use nanoserde::{DeBin, SerBin};
 use crate::optimizer::Optim;
 
@@ -69,6 +68,10 @@ impl Default for Mett {
 }
 
 pub struct Metr<'a>(pub &'a str); // str format metric type specified in layer
+
+impl<'a> Default for Metr<'a> {
+    fn default() -> Self { Metr("accuracy") }
+}
 
 impl<'a> Metr<'a> {
     pub fn to_vec(&mut self) -> Vec<Mett> { // convert Metr to a collection of Mett's
