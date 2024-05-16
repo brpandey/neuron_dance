@@ -3,7 +3,7 @@ use neuron_dance::{
     dataset::{
         csv::{CSVData, CSVType},
         idx::{MnistData, MnistType},
-        DataSet,
+        DataSet, TrainTestSubsetRef,
     },
     layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit},
     network::Network,
@@ -15,7 +15,7 @@ fn main() {
         .arg(
             Arg::new("type")
                 .action(ArgAction::Set)
-                .value_parser(["csv1", "diab", "iris", "mnist", "fash"])
+                .value_parser(["csv1", "diab", "iris", "mnist", "fash", "pre"])
                 .default_value("csv1")
                 .help("Specify network type")
                 .short('t')
@@ -40,7 +40,7 @@ fn main() {
         NetworkType::Diabetes => Box::new(CSVData::new(CSVType::Custom("diabetes"))),
         NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom("iris"))),
         NetworkType::Mnist => Box::new(MnistData::new(MnistType::Regular)),
-        NetworkType::FashionMnist => Box::new(MnistData::new(MnistType::Fashion)),
+        NetworkType::FashionMnist | NetworkType::Preload => Box::new(MnistData::new(MnistType::Fashion)),
     };
 
     dataset.fetch();
@@ -71,6 +71,7 @@ fn main() {
             model.add(Dense(1, Act::Sigmoid_(Weit::GlorotN)));
             model.compile(Loss::BinaryCrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
             model.fit(&subsets, 50, Batch::Mini(10), Eval::Train);
+            model.view();
         },
         NetworkType::Iris => {
             model = Network::new();
@@ -81,13 +82,8 @@ fn main() {
             model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("Accuracy, cost"));
             model.fit(&subsets, 50, Batch::Mini(5), Eval::Test);
 
-            // Now that model has been trained,
-            // make random selections for 4 individual images from either Test or Train set
-            model.predict_using_random(&subsets, Eval::Test);
-            model.predict_using_random(&subsets, Eval::Train);
-            model.predict_using_random(&subsets, Eval::Test);
-            model.predict_using_random(&subsets, Eval::Train);
-            model.view();
+            // Now that model has been trained, make random selections
+            random_predicts(&model, &subsets);
         },
         NetworkType::Mnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
@@ -98,13 +94,8 @@ fn main() {
             model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test);
 
-            // Now that model has been trained,
-            // make random selections for 4 individual images from either Test or Train set
-            model.predict_using_random(&subsets, Eval::Test);
-            model.predict_using_random(&subsets, Eval::Train);
-            model.predict_using_random(&subsets, Eval::Test);
-            model.predict_using_random(&subsets, Eval::Train);
-//            model.view();
+            random_predicts(&model, &subsets); // Now that model has been trained, make random selections
+            //            model.view();
         },
         NetworkType::FashionMnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
@@ -113,19 +104,35 @@ fn main() {
             model.add(Dense(128, Act::Relu));
             model.add(Dense(10, Act::Softmax_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::CategoricalCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 3, Batch::Mini_(5, Optim::Default), Eval::Test);
+            model.fit(&subsets, 10, Batch::Mini_(5, Optim::Default), Eval::Test);
         },
+        NetworkType::Preload => {
+            let tok = NetworkType::FashionMnist.to_string();
+            model = Network::load(&tok);
+
+            random_predicts(&model, &subsets); // Now that model has been trained, make random selections
+        }
     }
 
     model.eval(&subsets, Eval::Test);
-    model.store(&token);
 
-    let mut newmodel = Network::load(&token);
-    newmodel.eval(&subsets, Eval::Test);
-    newmodel.eval(&subsets, Eval::Train);
+    if ntype != NetworkType::Preload {
+        model.store(&token);
+
+        let mut newmodel = Network::load(&token);
+        newmodel.eval(&subsets, Eval::Test);
+    }
 }
 
-#[derive(strum_macros::Display, strum_macros::EnumString)]
+pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsetRef<'a>) {
+    // make random selections for 4 individual images from either Test or Train set
+    model.predict_using_random(&subsets, Eval::Test);
+    model.predict_using_random(&subsets, Eval::Train);
+    model.predict_using_random(&subsets, Eval::Test);
+    model.predict_using_random(&subsets, Eval::Train);
+}
+
+#[derive(PartialEq, strum_macros::Display, strum_macros::EnumString)]
 #[strum(serialize_all = "lowercase")]
 pub enum NetworkType {
     CSV1,
@@ -135,4 +142,6 @@ pub enum NetworkType {
     Mnist,
     #[strum(serialize = "fash")]
     FashionMnist,
+    #[strum(serialize = "pre")]
+    Preload,
 }

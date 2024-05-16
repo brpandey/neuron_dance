@@ -95,7 +95,6 @@ impl From<HypersArchive> for Hypers {
 
 impl From<&Hypers> for HypersArchive {
     fn from(h: &Hypers) -> HypersArchive {
-//        dbg!(&h.batch_type);        dbg!(&h.batch_type.to_string());
         HypersArchive(
             h.learning_rate, h.l2_rate, h.class_size,
             (&h.activations).into(), h.loss_type.to_string(),
