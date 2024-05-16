@@ -109,8 +109,8 @@ impl Network {
         let mut none = None;
 
         let subset_ref = match eval {
-            Eval::Train => subsets.0, // train subset
-            Eval::Test => subsets.1, // test subset
+            Eval::Train => &subsets.0, // train subset
+            Eval::Test => &subsets.1, // test subset
         };
 
         let (x, y) = subset_ref.random();
@@ -119,8 +119,21 @@ impl Network {
         let y_pred = output.arg_max();
         let y_label = y[(0,0)] as usize;
 
-        let s_txt = format!("[Successful y prediction] correct label is {y_pred}");
-        let f_txt = format!("[No match!] y prediction {y_pred} is different from correct y label {y_label}");
+        let class_names: Option<&Vec<String>> = subset_ref.class_names();
+
+        // map y values to a class names value if one is provided
+        let y_pred_txt = class_names.map_or(
+            y_pred.to_string(),
+            |vec| vec.get(y_pred).map_or("?".to_string(), |v| v.clone())
+        );
+
+        let y_label_txt = class_names.map_or(
+            y_label.to_string(),
+            |vec| vec.get(y_label).map_or("?".to_string(), |v| v.clone())
+        );
+
+        let s_txt = format!("[Successful y prediction] correct label is {y_pred_txt}");
+        let f_txt = format!("[No match!] y prediction {y_pred_txt} is different from correct y label {y_label_txt}");
 
         if y_label == y_pred { println!("{s_txt}") } else { println!("{f_txt}") }
 
@@ -135,7 +148,7 @@ impl Network {
     fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, gc: &mut GradientCache, eval: Eval) {
         let (mut rng, mut random_index);
         let (mut x_single, mut y_single);
-        let train = subsets.0;
+        let train = &subsets.0;
 
         rng = rand::thread_rng();
         for _ in 0..epochs { // SGD_EPOCHS { // train and update network based on single observation sample
@@ -164,7 +177,7 @@ impl Network {
 
         let (mut x_minibatch, mut y_minibatch);
         let optimizer_type = self.hypers.optimizer_type();
-        let train = subsets.0;
+        let train = &subsets.0;
         let mut tally;
 
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
@@ -293,8 +306,8 @@ impl Network {
                 tally: &mut Tally) {
 
         let s = match *eval {
-            Eval::Train => subsets.0, // train subset
-            Eval::Test => subsets.1, // test subset
+            Eval::Train => &subsets.0, // train subset
+            Eval::Test => &subsets.1, // test subset
         };
 
         // retrieve eval data, labels, and size
@@ -344,7 +357,7 @@ impl Network {
         net + hypers
     }
 
-    pub fn view(&self) { println!("{:?}", &self); }
+    pub fn view(&self) { println!("{:#?}", &self); }
 }
 
 #[derive(Clone, Debug, Default, DeBin, SerBin)]

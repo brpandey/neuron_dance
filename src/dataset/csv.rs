@@ -133,7 +133,7 @@ impl <'b> DataSet for CSVData<'b> {
         );
 
         let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2);
-        let tts = TrainTestSubsetData { format: DataSetFormat::CSV, headers, data: ttt };
+        let tts = TrainTestSubsetData { format: DataSetFormat::CSV, headers, data: ttt, class_names: None };
 
         println!("Data subset shapes {}\n", &tts);
 

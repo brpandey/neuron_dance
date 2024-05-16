@@ -23,10 +23,12 @@ pub trait DataSet {
 
 //                           x_train    y_train        # train  x_test     y_test     # test
 pub type TrainTestTuple = (Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize);
-pub struct TrainTestSubsetData{
+
+pub struct TrainTestSubsetData {
     format: DataSetFormat,
     headers: Option<Vec<String>>,
     data: TrainTestTuple,
+    class_names: Option<Vec<String>>,
 }
 
 //                                   train         test
@@ -52,7 +54,8 @@ impl TrainTestSubsetData {
              format: self.format.clone(),
              headers: self.headers.clone(),
              data: (x_train_scaled, self.data.1.clone(), self.data.2,
-                    x_test_scaled, self.data.4.clone(), self.data.5)
+                    x_test_scaled, self.data.4.clone(), self.data.5),
+             class_names: self.class_names.clone(),
         }
     }
 
@@ -63,12 +66,14 @@ impl TrainTestSubsetData {
                 y: &self.data.1,
                 size: self.data.2,
                 format: self.format.clone(),
+                class_names: self.class_names.clone(),
             },
             SubsetRef {
                 x: &self.data.3,
                 y: &self.data.4,
                 size: self.data.5,
                 format: self.format.clone(),
+                class_names: self.class_names.clone(),
             },
         )
     }
@@ -81,12 +86,13 @@ impl fmt::Display for TrainTestSubsetData {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct SubsetRef<'a> {
     pub x: &'a Array2<f64>,
     pub y: &'a Array2<f64>,
     pub size: usize,
     pub format: DataSetFormat,
+    pub class_names: Option<Vec<String>>,
 }
 
 impl<'a> SubsetRef<'a> {
@@ -111,5 +117,9 @@ impl<'a> SubsetRef<'a> {
             DataSetFormat::CSV => CSVData::peek(x, Some("=> for corresponding x input features, see tabular row")),
             DataSetFormat::IDX => MnistData::peek(x, Some("=> for reduced x input image, see grid below")),
         }
+    }
+
+    pub fn class_names(&self) -> Option<&Vec<String>> {
+        self.class_names.as_ref()
     }
 }

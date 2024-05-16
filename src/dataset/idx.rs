@@ -14,6 +14,7 @@ pub struct MnistData {
     mtype: MnistType,
     subset_types: Subsets,
     data: Option<TrainTestTuple>,
+    class_names: Option<Vec<String>>,
 }
 
 impl MnistData {
@@ -25,7 +26,7 @@ impl MnistData {
             Subset::Test(Raw::Images(None)), Subset::Test(Raw::Labels(None)) // test
         );
 
-        MnistData{ mtype, subset_types, data: None }
+        MnistData{ mtype, subset_types, data: None, class_names: mtype.class_names() }
     }
 }
 
@@ -80,7 +81,12 @@ impl DataSet for MnistData {
         self.fetch();
 
         // Extract data from boxed raws
-        let tts = TrainTestSubsetData{ format: DataSetFormat::IDX, headers: None, data: self.data.take().unwrap() };
+        let tts = TrainTestSubsetData{
+            format: DataSetFormat::IDX,
+            headers: None, data: self.data.take().unwrap(),
+            class_names: self.class_names.clone(),
+        };
+
         println!("Data subset shapes are {}\n", &tts);
         tts
     }
@@ -90,6 +96,7 @@ impl DataSet for MnistData {
 
 // 1 MnistType
 
+#[derive(Copy, Clone)]
 pub enum MnistType {
     Regular,
     Fashion,
@@ -100,6 +107,17 @@ impl MnistType {
         match self {
             MnistType::Regular => String::from("mnist"),
             MnistType::Fashion => String::from("mnist-fashion"),
+        }
+    }
+
+    pub fn class_names(&self) -> Option<Vec<String>> {
+        match self {
+            MnistType::Regular => None,
+            MnistType::Fashion => {
+                let n = vec!["T-shirt", "Trouser", "Pullover", "Dress", "Coat", "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"];
+                let names = n.into_iter().map(|v| v.to_string()).collect();
+                Some(names)
+            }
         }
     }
 }
