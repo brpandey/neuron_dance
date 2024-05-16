@@ -18,13 +18,14 @@ use crate::{
     dataset::TrainTestSubsetRef,
     layers::{Layer, LayerStack, LayerTerms},
     cost::{Cost, Loss}, metrics::{Metrics, Tally},
-    types::{Batch, Eval, Metr}, optimizer::{Optim, ParamKey},
+    types::{Batch, Eval, Metr, ModelState}, optimizer::{Optim, ParamKey},
     save::{Save, Archive, VecArray2Archive},
 };
 
 #[derive(Debug, Default)]
 pub struct Network {
     layers: Option<LayerStack>,
+    current_state: ModelState,
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
     forward: Vec<ActFp>, // forward propagation, activation functions
@@ -32,6 +33,7 @@ pub struct Network {
     cache: Option<GradientCache>,
     metrics: Option<Metrics>,
 }
+
 
 impl Network {
     pub fn new() -> Self {
@@ -44,10 +46,13 @@ impl Network {
     /**** Public associated methods ****/
 
     pub fn add<L: Layer<Output = LayerTerms> + 'static>(&mut self, layer: L) {
+        if !self.is_valid_state(ModelState::ADD) { return } // do no-op
         self.layers.as_mut().unwrap().add(layer);
     }
 
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
+        if !self.is_valid_state(ModelState::COMPILE) { return } // do no-op
+
         let (output_size, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
         let output_act = *acts.get(acts.len()-1).unwrap();
 
@@ -62,6 +67,7 @@ impl Network {
             weights, biases, forward,
             layers: self.layers.take(),
             cache: None, hypers, metrics,
+            current_state: ModelState::COMPILE,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
@@ -77,6 +83,8 @@ impl Network {
 
     /// Train model with relevant dataset given the specified hyperparameters
     pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch_type: Batch, eval: Eval) {
+        if !self.is_valid_state(ModelState::FIT) { return } // do no-op
+
         let mut cache = self.cache.take().unwrap();
         let mut optt = Optim::Default;
 
@@ -93,19 +101,24 @@ impl Network {
             self.hypers.set_optimizer(optt.into(), optt);
             self.train_minibatch(subsets, epochs, batch_type.value(), &mut cache, eval)
         }
+
+        self.current_state = ModelState::FIT;
     }
 
     pub fn eval(&mut self, subsets: &TrainTestSubsetRef, eval: Eval) {
+        if !self.is_valid_state(ModelState::EVAL) { return } // do no-op
         let mut tally = self.metrics.as_mut().unwrap().create_tally(None, (0, 0));
         self.evaluate(subsets, &eval, &mut tally);
     }
 
     pub fn predict(&self, x: ArrayView2<f64>) -> Array2<f64> {
+        if !self.is_valid_state(ModelState::EVAL) { return Array2::zeros((1, 1)); } // do no-op
         let mut none = None;
         self.predict_(x, &mut none)
     }
 
     pub fn predict_using_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> usize {
+        if !self.is_valid_state(ModelState::EVAL) { return 0 } // do no-op
         let mut none = None;
 
         let subset_ref = match eval {
@@ -340,6 +353,8 @@ impl Network {
     }
 
     pub fn store(&mut self, token: &str) {
+        if self.current_state != ModelState::FIT { return } // only store fitted models
+
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
 
@@ -358,6 +373,10 @@ impl Network {
     }
 
     pub fn view(&self) { println!("{:#?}", &self); }
+
+    fn is_valid_state(&self, other: ModelState) -> bool {
+        self.current_state.is_valid_state(other)
+    }
 }
 
 #[derive(Clone, Debug, Default, DeBin, SerBin)]
@@ -384,6 +403,7 @@ impl Save for Network {
 
         Network {
             layers: None,
+            current_state: ModelState::FIT, // set as a fitted model
             weights: Save::from_archive(w_a),
             biases: Save::from_archive(b_a),
             ..Default::default()

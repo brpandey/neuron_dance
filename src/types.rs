@@ -86,3 +86,26 @@ impl<'a> Metr<'a> {
         })
     }
 }
+
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
+pub enum ModelState { // models a linear sequence of state progression
+    #[default]
+    ADD = 1, // valid operations => add layers or compile
+    COMPILE = 2, // valid operations => fit
+    FIT = 3, // valid operations => eval or predict
+    EVAL = 4, // used as a comparative state, never set to this value
+}
+
+impl ModelState {
+    pub fn is_valid_state(&self, other: ModelState) -> bool {
+        let cur = *self;
+
+        match other {
+            ModelState::ADD if cur == ModelState::ADD => true,
+            ModelState::COMPILE if cur == ModelState::ADD => true,
+            ModelState::FIT if cur == ModelState::COMPILE => true,
+            ModelState::EVAL if cur == ModelState::FIT => true,
+            _ => false,
+        }
+    }
+}
