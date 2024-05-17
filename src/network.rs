@@ -155,6 +155,29 @@ impl Network {
         y_label
     }
 
+    pub fn store(&mut self, token: &str) {
+        if self.current_state != ModelState::FIT { return } // only store fitted models
+
+        let filename1 = format!("{}-network-dump.txt", token);
+        let filename2 = format!("{}-hypers-dump.txt", token);
+
+        self.save(filename1).unwrap();
+        self.hypers.save(filename2).unwrap();
+    }
+
+    pub fn load(token: &str) -> Self {
+        let filename1 = format!("{}-network-dump.txt", token);
+        let filename2 = format!("{}-hypers-dump.txt", token);
+
+        let net = <Network as Save>::restore(filename1);
+        let hypers = <Hypers as Save>::restore(filename2);
+
+        net + hypers
+    }
+
+    pub fn view(&self) { println!("{:#?}", &self); }
+
+
     /**** Private associated methods ****/
 
     /// Sgd employs 1 sample chosen at random from the data set for gradient descent
@@ -351,28 +374,6 @@ impl Network {
         tally.summarize(n_data);
         tally.display();
     }
-
-    pub fn store(&mut self, token: &str) {
-        if self.current_state != ModelState::FIT { return } // only store fitted models
-
-        let filename1 = format!("{}-network-dump.txt", token);
-        let filename2 = format!("{}-hypers-dump.txt", token);
-
-        self.save(filename1).unwrap();
-        self.hypers.save(filename2).unwrap();
-    }
-
-    pub fn load(token: &str) -> Self {
-        let filename1 = format!("{}-network-dump.txt", token);
-        let filename2 = format!("{}-hypers-dump.txt", token);
-
-        let net = <Network as Save>::restore(filename1);
-        let hypers = <Hypers as Save>::restore(filename2);
-
-        net + hypers
-    }
-
-    pub fn view(&self) { println!("{:#?}", &self); }
 
     fn is_valid_state(&self, other: ModelState) -> bool {
         self.current_state.is_valid_state(other)
