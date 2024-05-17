@@ -30,7 +30,9 @@ NetworkType::Iris => {
   <img src='images/fashion.jpg' width='950' height='325'/>
 </p>
 
-## Example Usage
+## Model Examples
+
+### Example 1: mnist handwritten digits
 
 ```rust
 
@@ -170,6 +172,8 @@ Accuracy 0.9720 9720/10000
 
 ```
 
+### Example 2: iris flower species
+
 ```rust
 
 $ cargo run --release -- -t iris
@@ -234,6 +238,8 @@ Accuracy 0.9200 46/50
 Avg Loss 0.2918 14.5919/50 
 
 ```
+
+### Example 3: pima indians diabetes
 
 ```rust
 $ cargo run --release -- -t diab
@@ -359,6 +365,8 @@ Accuracy 0.7734 198/256
 
 ```
 
+### Example 4: preloaded dataset from fashion mnist model dump
+
 ```rust
 $ cargo run --release -- -t pre
     Finished release [optimized] target(s) in 0.19s
@@ -456,5 +464,32 @@ Data subset shapes are x_train shape [60000, 784], y_train shape  [60000, 1], x_
 │   ┆   ┆ # ┆ X ┆ X ┆ X ┆ # ┆ X ┆ X ┆ X ┆ X ┆ % ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───╯
 Accuracy 0.8409 8409/10000 
+
+```
+
+
+## Additional installation (Linux)
+
+```bash
+
+// for blas - optimized matrix compute
+sudo apt install cmake
+sudo apt install gfortran
+
+// for flamegraph / perf
+sudo apt install linux-tools-common linux-tools-generic
+export CARGO_PROFILE_RELEASE_DEBUG=true
+
+sudo apt-get install libatlas-base-dev
+cargo flamegraph
+
+sudo sysctl kernel.perf_event_paranoid=3
+
+perf record --call-graph=dwarf -- target/release/neuron_dance -t mnist
+
+perf report -n
+
+// for plotters (heatmaps)
+sudo apt-get install libfontconfig libfontconfig1-dev
 
 ```
