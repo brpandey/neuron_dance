@@ -25,6 +25,7 @@ pub mod leaky_relu;
 use std::{convert::From, str::FromStr, fmt::Debug};
 use ndarray::Array2;
 use strum_macros::{Display, EnumString};
+use nanoserde::{SerBin, DeBin};
 
 use crate::activation::{
     relu::Relu, sigmoid::Sigmoid, tanh::Tanh,
@@ -121,7 +122,6 @@ impl From<Act> for Box<dyn Activation> {
     }
 }
 
-use nanoserde::{SerBin, DeBin};
 
 #[derive(Clone, Debug, Default, DeBin, SerBin)]
 pub struct ActivationStrings(Vec<String>);
@@ -159,11 +159,3 @@ impl From<ActivationStrings> for Vec<Act> {
     }
 }
 
-
-/*
-let acts = other.activations().iter().map(|a| {
-    let dyn_a: Box<dyn Activation> = (*a).into();
-    let (a_fp, _) = dyn_a.pair();
-    a_fp
-}).collect::<Vec<ActFp>>();
-*/

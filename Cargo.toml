@@ -32,3 +32,4 @@ ndarray-stats = "0.5.1"
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
 nanoserde = "0.1.37"
+# nanoserde = { version = "0.1.37", default-features = false, features = ["binary"] }

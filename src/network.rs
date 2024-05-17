@@ -112,7 +112,7 @@ impl Network {
     }
 
     pub fn predict(&self, x: ArrayView2<f64>) -> Array2<f64> {
-        if !self.is_valid_state(ModelState::EVAL) { return Array2::zeros((1, 1)); } // do no-op
+        if !self.is_valid_state(ModelState::EVAL) { return Array2::default((1,1)) } // do no-op
         let mut none = None;
         self.predict_(x, &mut none)
     }
