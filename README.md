@@ -32,7 +32,7 @@ NetworkType::Iris => {
 
 ## Model Examples
 
-### Example 1: mnist handwritten digits
+### 1) Mnist handwritten digits
 
 ```rust
 
@@ -172,7 +172,7 @@ Accuracy 0.9720 9720/10000
 
 ```
 
-### Example 2: iris flower species
+### 2) Iris flower species
 
 ```rust
 
@@ -214,22 +214,22 @@ Epoch 50/50
 	Accuracy 0.9200 46/50 (MiniBatch)
 	Avg Loss 0.2918 14.5919/50 (MiniBatch)
 
-[Successful y prediction] correct label is 2
+[Successful y prediction] correct label is Versicolor
 => for corresponding x input features, see tabular row
 ╭───┬─────┬───┬─────╮
 │ 6 ┆ 2.2 ┆ 5 ┆ 1.5 │
 ╰───┴─────┴───┴─────╯
-[Successful y prediction] correct label is 1
+[Successful y prediction] correct label is Virginica
 => for corresponding x input features, see tabular row
 ╭───┬─────┬─────┬─────╮
 │ 6 ┆ 2.9 ┆ 4.5 ┆ 1.5 │
 ╰───┴─────┴─────┴─────╯
-[Successful y prediction] correct label is 0
+[Successful y prediction] correct label is Setosa
 => for corresponding x input features, see tabular row
 ╭─────┬─────┬─────┬─────╮
 │ 5.2 ┆ 3.5 ┆ 1.5 ┆ 0.2 │
 ╰─────┴─────┴─────┴─────╯
-[Successful y prediction] correct label is 0
+[Successful y prediction] correct label is Setosa
 => for corresponding x input features, see tabular row
 ╭─────┬─────┬─────┬─────╮
 │ 5.4 ┆ 3.4 ┆ 1.5 ┆ 0.4 │
@@ -239,7 +239,7 @@ Avg Loss 0.2918 14.5919/50
 
 ```
 
-### Example 3: pima indians diabetes
+### 3) Pima Indians diabetes
 
 ```rust
 $ cargo run --release -- -t diab
@@ -365,7 +365,7 @@ Accuracy 0.7734 198/256
 
 ```
 
-### Example 4: preloaded dataset from fashion mnist model dump
+### 4) Preloaded dataset from fashion mnist model dump
 
 ```rust
 $ cargo run --release -- -t pre
