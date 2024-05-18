@@ -37,8 +37,8 @@ fn main() {
 
     dataset = match ntype {
         NetworkType::CSV1 => Box::new(CSVData::new(CSVType::RGB)),
-        NetworkType::Diabetes => Box::new(CSVData::new(CSVType::Custom("diabetes"))),
-        NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom("iris"))),
+        NetworkType::Diabetes => Box::new(CSVData::new(CSVType::Custom("diabetes", None))),
+        NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom("iris", Some(vec!["Setosa", "Virginica", "Versicolor"])))),
         NetworkType::Mnist => Box::new(MnistData::new(MnistType::Regular)),
         NetworkType::FashionMnist | NetworkType::Preload => Box::new(MnistData::new(MnistType::Fashion)),
     };

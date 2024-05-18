@@ -8,19 +8,19 @@ use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsetData, TrainTestTuple};
 use crate::visualize::{Visualize, Peek};
 
-//                       ctype     scale    data             headers
-pub struct CSVData<'a>(CSVType<'a>, f64, Option<Array2<f64>>, Option<Vec<String>>);
+//                       ctype     scale    data             headers               class_names
+pub struct CSVData<'a>(CSVType<'a>, f64, Option<Array2<f64>>, Option<Vec<String>>, Option<Vec<String>>);
 
 pub enum CSVType<'a> {
     RGB,
-    Custom(&'a str), // filename w/o csv suffix
+    Custom(&'a str, Option<Vec<&'a str>>), // filename w/o csv suffix and class names if relevant
 }
 
 impl <'a> CSVType<'a> {
     pub fn filename(&self) -> String {
         let token = match self {
             CSVType::RGB => "rgb",
-            CSVType::Custom(ref t) => CSVType::sanitize(t),
+            CSVType::Custom(ref t, _) => CSVType::sanitize(t),
         };
 
         format!("{}/data/csv/{}.csv", ROOT_DIR, token)
@@ -44,8 +44,11 @@ impl <'b> CSVData<'b> {
     pub fn new<'a>(ctype: CSVType<'a>) -> Self
     where 'a: 'b {
         match ctype {
-            CSVType::RGB => Self(ctype, 256.0, None, None),
-            CSVType::Custom(_) => Self(ctype, 1.0, None, None),
+            CSVType::RGB => Self(ctype, 256.0, None, None, None),
+            CSVType::Custom(_, ref names) => {
+                let n = names.as_ref().map(|v| v.iter().map(|s| s.to_string()).collect());
+                Self(ctype, 1.0, None, None, n)
+            },
         }
     }
 }
@@ -104,6 +107,7 @@ impl <'b> DataSet for CSVData<'b> {
         let scale = self.1;
         let data = self.2.as_mut().unwrap();
         let headers = self.3.clone();
+        let class_names = self.4.clone();
 
         let n_size = data.shape()[0]; // 1345
         let n_features = data.shape()[1]; // 4, => 3 input features + 1 outcome / target (columns)
@@ -133,7 +137,7 @@ impl <'b> DataSet for CSVData<'b> {
         );
 
         let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2);
-        let tts = TrainTestSubsetData { format: DataSetFormat::CSV, headers, data: ttt, class_names: None };
+        let tts = TrainTestSubsetData { format: DataSetFormat::CSV, headers, data: ttt, class_names };
 
         println!("Data subset shapes {}\n", &tts);
 
