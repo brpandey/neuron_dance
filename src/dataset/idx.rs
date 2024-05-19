@@ -47,8 +47,8 @@ impl DataSet for MnistData {
         if self.data.is_none() {
             let t = &self.mtype.token();
 
-            let (mut x_raw, mut y_raw) = (self.subset_types.0.fetch(t), self.subset_types.1.fetch(t));
-            let (mut x_raw_test, mut y_raw_test) = (self.subset_types.2.fetch(t), self.subset_types.3.fetch(t));
+            let (mut x_raw, mut y_raw) = (self.subset_types.0.fetch(t)?, self.subset_types.1.fetch(t)?);
+            let (mut x_raw_test, mut y_raw_test) = (self.subset_types.2.fetch(t)?, self.subset_types.3.fetch(t)?);
 
             let ttt = // train test tuple
                 (x_raw.take().unwrap(), y_raw.take().unwrap(), x_raw.size(),
@@ -143,18 +143,18 @@ impl Subset {
         format!("{}/data/{}/{}-{}", ROOT_DIR, type_dir, token, suffix_path)
     }
 
-    fn fetch(&self, type_dir_name: &str) -> Raw {
+    fn fetch(&self, type_dir_name: &str) -> Result<Raw, DatasetError> {
         let path = self.path(type_dir_name);
 
-        let f = File::open(path).unwrap();
+        let f = File::open(path).map_err(DatasetError::IO)?;
         let mut decoder = GzDecoder::new(f);
 
         // decode entire gzip file into buf
         let mut decoded_buf: Vec<u8> = vec![];
-        decoder.read_to_end(&mut decoded_buf).unwrap();
+        decoder.read_to_end(&mut decoded_buf).map_err(DatasetError::IO)?;
 
         // Create content from decoded file
-        Raw::new(decoded_buf)
+        Ok(Raw::new(decoded_buf))
     }
 }
 

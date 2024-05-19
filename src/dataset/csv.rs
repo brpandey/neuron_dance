@@ -67,7 +67,7 @@ impl <'b> DataSet for CSVData<'b> {
 
         let mut reader = Builder::new()
             .has_headers(true)
-            .from_path(token).map_err(DatasetError::CSVRead)?;
+            .from_path(token).map_err(DatasetError::CSV)?;
 
         let headers: Vec<String> = reader.headers().unwrap().iter()
             .map(|s| s.to_owned()).collect();
@@ -106,7 +106,7 @@ impl <'b> DataSet for CSVData<'b> {
         }
 
         let scale = self.1;
-        let data = self.2.as_mut().unwrap();
+        let data = self.2.as_mut().unwrap(); // todo! must return error if self.2 is none!
         let headers = self.3.clone();
         let class_names = self.4.clone();
 
