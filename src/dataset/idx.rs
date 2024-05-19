@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsetData};
-use crate::visualize::Peek;
+use crate::{visualize::Peek, error::DatasetError};
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
@@ -42,7 +42,7 @@ impl Peek for MnistData {
 }
 
 impl DataSet for MnistData {
-    fn fetch(&mut self) {
+    fn fetch(&mut self) -> Result<(), DatasetError> {
         // only fetch if data not resident already
         if self.data.is_none() {
             let t = &self.mtype.token();
@@ -56,6 +56,8 @@ impl DataSet for MnistData {
 
             self.data = Some(ttt);
         }
+
+        Ok(())
     }
 
     fn head(&self) {
@@ -78,7 +80,7 @@ impl DataSet for MnistData {
     fn shuffle(&mut self) {}
 
     fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
-        self.fetch();
+        let _ = self.fetch();
 
         // Extract data from boxed raws
         let tts = TrainTestSubsetData{

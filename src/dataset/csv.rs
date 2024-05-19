@@ -7,6 +7,7 @@ use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsetData, TrainTestTuple};
 use crate::visualize::{Visualize, Peek};
+use crate::error::DatasetError;
 
 //                       ctype     scale    data             headers               class_names
 pub struct CSVData<'a>(CSVType<'a>, f64, Option<Array2<f64>>, Option<Vec<String>>, Option<Vec<String>>);
@@ -61,23 +62,23 @@ impl Peek for CSVData<'_> {
 
 impl <'b> DataSet for CSVData<'b> {
 
-    fn fetch(&mut self) {
+    fn fetch(&mut self) -> Result<(), DatasetError> {
         let token = &self.0.filename();
 
         let mut reader = Builder::new()
             .has_headers(true)
-            .from_path(token)
-            .expect("csv error");
+            .from_path(token).map_err(DatasetError::CSVRead)?;
 
         let headers: Vec<String> = reader.headers().unwrap().iter()
             .map(|s| s.to_owned()).collect();
 
         let data_array: Array2<f64> = reader
-            .deserialize_array2_dynamic()
-            .expect("can deserialize array");
+            .deserialize_array2_dynamic().map_err(DatasetError::CSVBuilder)?;
 
         self.2 = Some(data_array);
         self.3 = Some(headers);
+
+        Ok(())
     }
 
     fn head(&self) {
@@ -101,7 +102,7 @@ impl <'b> DataSet for CSVData<'b> {
 
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData {
         if self.2.is_none() {
-            self.fetch();
+            let _ = self.fetch();
         }
 
         let scale = self.1;

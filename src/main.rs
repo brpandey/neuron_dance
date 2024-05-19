@@ -43,7 +43,7 @@ fn main() {
         NetworkType::FashionMnist | NetworkType::Preload => Box::new(MnistData::new(MnistType::Fashion)),
     };
 
-    dataset.fetch();
+    if dataset.fetch().map_err(|e| { println!("{}", &e); e }).is_err() { return };
     dataset.shuffle();
     dataset.head();
 
