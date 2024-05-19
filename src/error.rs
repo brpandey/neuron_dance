@@ -8,4 +8,6 @@ pub enum DatasetError {
     CSV(#[from] csv::Error),
     #[error("Unable to deserialize csv into ndarray -- {0}")]
     CSVBuilder(#[from] ndarray_csv::ReadError),
+    #[error("Conversion shape error -- {0}")]
+    Shape(#[from] ndarray::ShapeError),
 }
