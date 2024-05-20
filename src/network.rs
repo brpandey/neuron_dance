@@ -20,6 +20,7 @@ use crate::{
     cost::{Cost, Loss}, metrics::{Metrics, Tally},
     types::{Batch, Eval, Metr, ModelState}, optimizer::{Optim, ParamKey},
     save::{Save, Archive, VecArray2Archive},
+    error::DatasetError,
 };
 
 #[derive(Debug, Default)]
@@ -155,24 +156,26 @@ impl Network {
         y_label
     }
 
-    pub fn store(&mut self, token: &str) {
-        if self.current_state != ModelState::FIT { return } // only store fitted models
+    pub fn store(&mut self, token: &str) -> Result<(), DatasetError>{
+        if self.current_state != ModelState::FIT { return Err(DatasetError::InvalidModel) } // only store fitted models
 
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
 
-        self.save(filename1).unwrap();
-        self.hypers.save(filename2).unwrap();
+        self.save(filename1)?;
+        self.hypers.save(filename2)?;
+
+        Ok(())
     }
 
-    pub fn load(token: &str) -> Self {
+    pub fn load(token: &str) -> Result<Self, DatasetError> {
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
 
-        let net = <Network as Save>::restore(filename1);
-        let hypers = <Hypers as Save>::restore(filename2);
+        let net = <Network as Save>::restore(filename1)?;
+        let hypers = <Hypers as Save>::restore(filename2)?;
 
-        net + hypers
+        Ok(net + hypers)
     }
 
     pub fn view(&self) { println!("{:#?}", &self); }

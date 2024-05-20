@@ -43,7 +43,7 @@ fn main() {
         NetworkType::FashionMnist | NetworkType::Preload => Box::new(MnistData::new(MnistType::Fashion)),
     };
 
-    if let Err(e) = dataset.fetch() { println!("{}", &e); std::process::exit(1) };
+    if let Err(e) = dataset.fetch() { e.print_and_exit() };
     dataset.shuffle();
     dataset.head();
 
@@ -108,8 +108,8 @@ fn main() {
         },
         NetworkType::Preload => {
             let tok = NetworkType::FashionMnist.to_string();
-            model = Network::load(&tok);
 
+            model = Network::load(&tok).map_err(|e| e.print_and_exit()).unwrap();
             random_predicts(&model, &subsets); // Now that model has been trained, make random selections
         }
     }
@@ -117,9 +117,9 @@ fn main() {
     model.eval(&subsets, Eval::Test);
 
     if ntype != NetworkType::Preload {
-        model.store(&token);
+        if let Err(e) = model.store(&token) { e.print_and_exit() };
 
-        let mut newmodel = Network::load(&token);
+        let mut newmodel = Network::load(&token).map_err(|e| e.print_and_exit()).unwrap();
         newmodel.eval(&subsets, Eval::Test);
     }
 }
