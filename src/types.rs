@@ -1,6 +1,7 @@
 use nanoserde::{DeBin, SerBin};
-use crate::optimizer::Optim;
+use thiserror::Error;
 
+use crate::optimizer::Optim;
 // Types not exclusive to any module
 
 #[derive(Debug, Copy, Clone)]
@@ -107,5 +108,28 @@ impl ModelState {
             ModelState::EVAL if cur == ModelState::FIT => true,
             _ => false,
         }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum SimpleError {
+    #[error("Unable to perform IO -- {0}")]
+    IO(#[from] std::io::Error),
+    #[error("Unable to process csv file -- {0}")]
+    CSV(#[from] csv::Error),
+    #[error("Unable to deserialize csv into ndarray -- {0}")]
+    CSVBuilder(#[from] ndarray_csv::ReadError),
+    #[error("Conversion ndarray shape error -- {0}")]
+    Shape(#[from] ndarray::ShapeError),
+    #[error("Deserialize error -- {0}")]
+    Deserialize(#[from] nanoserde::DeBinErr),
+    #[error("Incorrect model operation")]
+    InvalidModel,
+}
+
+impl SimpleError {
+    pub fn print_and_exit(self) {
+        println!("{}", &self);
+        std::process::exit(1)
     }
 }

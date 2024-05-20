@@ -18,9 +18,8 @@ use crate::{
     dataset::TrainTestSubsetRef,
     layers::{Layer, LayerStack, LayerTerms},
     cost::{Cost, Loss}, metrics::{Metrics, Tally},
-    types::{Batch, Eval, Metr, ModelState}, optimizer::{Optim, ParamKey},
+    types::{Batch, Eval, Metr, ModelState, SimpleError}, optimizer::{Optim, ParamKey},
     save::{Save, Archive, VecArray2Archive},
-    error::DatasetError,
 };
 
 #[derive(Debug, Default)]
@@ -107,19 +106,19 @@ impl Network {
     }
 
     pub fn eval(&mut self, subsets: &TrainTestSubsetRef, eval: Eval) {
-        if !self.is_valid_state(ModelState::EVAL) { return } // do no-op
+        if !self.is_valid_state(ModelState::EVAL) { return } // no-op
         let mut tally = self.metrics.as_mut().unwrap().create_tally(None, (0, 0));
         self.evaluate(subsets, &eval, &mut tally);
     }
 
-    pub fn predict(&self, x: ArrayView2<f64>) -> Array2<f64> {
-        if !self.is_valid_state(ModelState::EVAL) { return Array2::default((1,1)) } // do no-op
+    pub fn predict(&self, x: ArrayView2<f64>) -> Result<Array2<f64>, SimpleError> {
+        if !self.is_valid_state(ModelState::EVAL) { return Err(SimpleError::InvalidModel) }
         let mut none = None;
-        self.predict_(x, &mut none)
+        Ok(self.predict_(x, &mut none))
     }
 
-    pub fn predict_using_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> usize {
-        if !self.is_valid_state(ModelState::EVAL) { return 0 } // do no-op
+    pub fn predict_using_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> Result<usize, SimpleError> {
+        if !self.is_valid_state(ModelState::EVAL) { return Err(SimpleError::InvalidModel) }
         let mut none = None;
 
         let subset_ref = match eval {
@@ -153,11 +152,11 @@ impl Network {
 
         subset_ref.features_peek(&x);
 
-        y_label
+        Ok(y_label)
     }
 
-    pub fn store(&mut self, token: &str) -> Result<(), DatasetError>{
-        if self.current_state != ModelState::FIT { return Err(DatasetError::InvalidModel) } // only store fitted models
+    pub fn store(&mut self, token: &str) -> Result<(), SimpleError>{
+        if self.current_state != ModelState::FIT { return Err(SimpleError::InvalidModel) } // only store fitted models
 
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
@@ -168,7 +167,7 @@ impl Network {
         Ok(())
     }
 
-    pub fn load(token: &str) -> Result<Self, DatasetError> {
+    pub fn load(token: &str) -> Result<Self, SimpleError> {
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
 

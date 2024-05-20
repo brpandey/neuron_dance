@@ -2,7 +2,7 @@ use std::{env, fmt};
 use ndarray::{Array2, Axis};
 
 use crate::algebra::AlgebraExt;
-use crate::error::DatasetError;
+use crate::types::SimpleError;
 
 pub mod csv;
 pub mod idx;
@@ -16,7 +16,7 @@ pub enum DataSetFormat {
 pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 pub trait DataSet {
-    fn fetch(&mut self) -> Result<(), DatasetError>;
+    fn fetch(&mut self) -> Result<(), SimpleError>;
     fn head(&self);
     fn shuffle(&mut self);
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData;

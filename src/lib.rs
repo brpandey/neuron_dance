@@ -18,4 +18,3 @@ pub mod one_hot;
 pub mod visualize;
 pub mod pool;
 pub mod save;
-pub mod error;

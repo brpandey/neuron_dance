@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsetData};
-use crate::{visualize::Peek, error::DatasetError};
+use crate::{visualize::Peek, types::SimpleError};
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
@@ -42,7 +42,7 @@ impl Peek for MnistData {
 }
 
 impl DataSet for MnistData {
-    fn fetch(&mut self) -> Result<(), DatasetError> {
+    fn fetch(&mut self) -> Result<(), SimpleError> {
         // only fetch if data not resident already
         if self.data.is_none() {
             let t = &self.mtype.token();
@@ -143,15 +143,15 @@ impl Subset {
         format!("{}/data/{}/{}-{}", ROOT_DIR, type_dir, token, suffix_path)
     }
 
-    fn fetch(&self, type_dir_name: &str) -> Result<Raw, DatasetError> {
+    fn fetch(&self, type_dir_name: &str) -> Result<Raw, SimpleError> {
         let path = self.path(type_dir_name);
 
-        let f = File::open(path).map_err(DatasetError::IO)?;
+        let f = File::open(path)?;
         let mut decoder = GzDecoder::new(f);
 
         // decode entire gzip file into buf
         let mut decoded_buf: Vec<u8> = vec![];
-        decoder.read_to_end(&mut decoded_buf).map_err(DatasetError::IO)?;
+        decoder.read_to_end(&mut decoded_buf)?;
 
         // Create content from decoded file
         Ok(Raw::new(decoded_buf)?)
@@ -168,11 +168,11 @@ pub enum Raw {
 impl Raw {
     const IDX_MAGIC_BYTES_LEN: usize = 4;
 
-    fn new(decoded_buf: Vec<u8>) -> Result<Self, DatasetError> {
+    fn new(decoded_buf: Vec<u8>) -> Result<Self, SimpleError> {
         // wrap the in-memory buffer with Cursor, which implements the Read trait
         let mut cur = Cursor::new(decoded_buf);
         let mut idx_magic_buf = [0u8; Self::IDX_MAGIC_BYTES_LEN];
-        cur.read_exact(&mut idx_magic_buf).map_err(DatasetError::IO)?;
+        cur.read_exact(&mut idx_magic_buf)?;
 
         let num_dim = idx_magic_buf[3] as usize; // byte 4 -- num dimensions in idx format
         let magic = u32::from_be_bytes(idx_magic_buf); // reconstitute back into (unsigned) 4 byte integer
@@ -215,15 +215,15 @@ pub struct RawLabels(Option<Array2<f64>>, usize);
 impl RawLabels {
     const MAGIC: u32 = 2049;
 
-    fn new(cur: &mut Cursor<Vec<u8>>, _ndim: usize) -> Result<Self, DatasetError> {
-        let n_labels = cur.read_u32::<BigEndian>().map_err(DatasetError::IO)?;
+    fn new(cur: &mut Cursor<Vec<u8>>, _ndim: usize) -> Result<Self, SimpleError> {
+        let n_labels = cur.read_u32::<BigEndian>()?;
 
         // read data into buffer after metadata is read
         let mut buf: Vec<u8> = vec![];
-        cur.read_to_end(&mut buf).map_err(DatasetError::IO)?;
+        cur.read_to_end(&mut buf)?;
 
         let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64).collect();
-        let data = Array2::from_shape_vec((n_labels as usize, 1), floats).map_err(DatasetError::Shape)?; // e.g. 10,000 x 1
+        let data = Array2::from_shape_vec((n_labels as usize, 1), floats)?; // e.g. 10,000 x 1
         Ok(Self(Some(data), n_labels as usize))
     }
 }
@@ -233,11 +233,11 @@ pub struct RawImages(Option<Array2<f64>>, usize); //, usize, usize);
 impl RawImages {
     const MAGIC: u32 = 2051;
 
-    fn new(cur: &mut Cursor<Vec<u8>>, ndim: usize) -> Result<Self, DatasetError> {
+    fn new(cur: &mut Cursor<Vec<u8>>, ndim: usize) -> Result<Self, SimpleError> {
         // extract sizes info given magic number metadata info about num dimensions
-        let acc: Result<Vec<usize>, DatasetError> = Ok(Vec::with_capacity(ndim));
+        let acc: Result<Vec<usize>, SimpleError> = Ok(Vec::with_capacity(ndim));
         let sizes = (0..ndim).into_iter().fold(acc, |mut acc, _| {
-            let size = cur.read_u32::<BigEndian>().map_err(DatasetError::IO)?;
+            let size = cur.read_u32::<BigEndian>()?;
             acc.as_mut().unwrap().push(size as usize); acc
         })?;
 
@@ -245,11 +245,11 @@ impl RawImages {
 
         // read data into buf after metadata e.g. size, shapes is read
         let mut buf: Vec<u8> = vec![];
-        cur.read_to_end(&mut buf).map_err(DatasetError::IO)?;
+        cur.read_to_end(&mut buf)?;
 
         let flattened_shape = shape1 * shape2 as usize; // instead of a 28x28 matrix, we grab 784 * 1 in an array2
         let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64 / 255.0 as f64).collect(); // normalize to value between 0 and 1
-        let data = Array2::from_shape_vec((n_images, flattened_shape), floats).map_err(DatasetError::Shape)?; // e.g. 10,000 x 784
+        let data = Array2::from_shape_vec((n_images, flattened_shape), floats)?; // e.g. 10,000 x 784
         Ok(Self(Some(data), n_images))
     }
 }

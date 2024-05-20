@@ -1,9 +1,8 @@
-//use nanoserde::{DeJson, SerJson}; // tiny footprint and fast!
 use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
 use ndarray::{Array, Array2};
 use std::{fs::File, fmt::Debug, path::Path};
 use std::io::{Read, Write};
-use crate::error::DatasetError;
+use crate::types::SimpleError;
 
 pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -19,7 +18,7 @@ pub trait Save {
 
     // file save and restore methods which internally use
     // intermediate to and from archive mapping
-    fn save<P: AsRef<Path> + std::fmt::Display>(&mut self, token: P) -> Result<(), DatasetError>
+    fn save<P: AsRef<Path> + std::fmt::Display>(&mut self, token: P) -> Result<(), SimpleError>
     where
         <Self as Save>::Target: SerBin
     {
@@ -28,11 +27,11 @@ pub trait Save {
         let mut f = File::create(path)?;
 
         let bytes = SerBin::serialize_bin(&archive);
-        f.write_all(&bytes[..]).map_err(DatasetError::IO)?;
+        f.write_all(&bytes[..])?;
         Ok(())
     }
 
-    fn restore<P>(token: P) -> Result<Self, DatasetError>
+    fn restore<P>(token: P) -> Result<Self, SimpleError>
     where
         P: AsRef<Path> + std::fmt::Display,
         Self: Sized,
@@ -42,8 +41,8 @@ pub trait Save {
 
         let mut file = File::open(path)?;
         let mut buf = vec![];
-        file.read_to_end(&mut buf).map_err(DatasetError::IO)?;
-        let archive = DeBin::deserialize_bin(&buf).map_err(DatasetError::Deserialize)?;
+        file.read_to_end(&mut buf)?;
+        let archive = DeBin::deserialize_bin(&buf)?;
         Ok(Save::from_archive(archive))
     }
 }

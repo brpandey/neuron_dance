@@ -6,10 +6,10 @@ use neuron_dance::{
         DataSet, TrainTestSubsetRef,
     },
     layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit},
-    network::Network,
+    network::Network, types::SimpleError,
 };
 
-fn main() {
+fn main() -> Result<(), SimpleError> {
     let mut matches = Command::new("neuron_dance")
         .about("Neuron Dance")
         .arg(
@@ -83,7 +83,7 @@ fn main() {
             model.fit(&subsets, 50, Batch::Mini(5), Eval::Test);
 
             // Now that model has been trained, make random selections
-            random_predicts(&model, &subsets);
+            random_predicts(&model, &subsets)?;
         },
         NetworkType::Mnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
@@ -94,7 +94,7 @@ fn main() {
             model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test);
 
-            random_predicts(&model, &subsets); // Now that model has been trained, make random selections
+            random_predicts(&model, &subsets)?; // Now that model has been trained, make random selections
             //            model.view();
         },
         NetworkType::FashionMnist => {
@@ -110,7 +110,7 @@ fn main() {
             let tok = NetworkType::FashionMnist.to_string();
 
             model = Network::load(&tok).map_err(|e| e.print_and_exit()).unwrap();
-            random_predicts(&model, &subsets); // Now that model has been trained, make random selections
+            random_predicts(&model, &subsets)?; // Now that model has been trained, make random selections
         }
     }
 
@@ -122,14 +122,18 @@ fn main() {
         let mut newmodel = Network::load(&token).map_err(|e| e.print_and_exit()).unwrap();
         newmodel.eval(&subsets, Eval::Test);
     }
+
+    Ok(())
 }
 
-pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsetRef<'a>) {
+pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsetRef<'a>) -> Result<(), SimpleError>{
     // make random selections for 4 individual images from either Test or Train set
-    model.predict_using_random(&subsets, Eval::Test);
-    model.predict_using_random(&subsets, Eval::Train);
-    model.predict_using_random(&subsets, Eval::Test);
-    model.predict_using_random(&subsets, Eval::Train);
+    model.predict_using_random(&subsets, Eval::Test)?;
+    model.predict_using_random(&subsets, Eval::Train)?;
+    model.predict_using_random(&subsets, Eval::Test)?;
+    model.predict_using_random(&subsets, Eval::Train)?;
+
+    Ok(())
 }
 
 #[derive(PartialEq, strum_macros::Display, strum_macros::EnumString)]
