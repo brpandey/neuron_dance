@@ -6,10 +6,10 @@ use neuron_dance::{
         DataSet, TrainTestSubsetRef,
     },
     layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit},
-    network::Network, types::SimpleError,
+    network::Network,
 };
 
-fn main() -> Result<(), SimpleError> {
+fn main() {
     let mut matches = Command::new("neuron_dance")
         .about("Neuron Dance")
         .arg(
@@ -122,16 +122,16 @@ fn main() -> Result<(), SimpleError> {
         let mut newmodel = Network::load(&token).map_err(|e| e.print_and_exit()).unwrap();
         newmodel.eval(&subsets, Eval::Test);
     }
-
-    Ok(())
 }
 
 pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsetRef<'a>) {
-    // make random selections for 4 individual images from either Test or Train set
-    model.predict_using_random(&subsets, Eval::Test);
-    model.predict_using_random(&subsets, Eval::Train);
-    model.predict_using_random(&subsets, Eval::Test);
-    model.predict_using_random(&subsets, Eval::Train);
+    use strum::IntoEnumIterator;
+
+    // make random selections for 4 individual images, alternating from Eval::Test or Train set
+    for i in 0..4 {
+        let e = Eval::iter().nth(i % 2).unwrap();
+        model.predict_using_random(&subsets, e);
+    }
 }
 
 #[derive(PartialEq, strum_macros::Display, strum_macros::EnumString)]

@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::optimizer::Optim;
 // Types not exclusive to any module
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, strum::EnumIter)]
 pub enum Eval { Train, Test }
 
 #[derive(Debug, Copy, Clone, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
