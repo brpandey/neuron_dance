@@ -22,7 +22,7 @@ use crate::{
     save::{Save, Archive, VecArray2Archive},
 };
 
-const WRONG_ORDER: &str = "User error wrong order of operations";
+const WRONG_ORDER: &str = "User error ~ wrong order of operations";
 
 #[derive(Debug, Default)]
 pub struct Network {
@@ -50,6 +50,7 @@ impl Network {
     pub fn add<L: Layer<Output = LayerTerms> + 'static>(&mut self, layer: L) {
         self.check_valid_state(ModelState::ADD).expect(WRONG_ORDER);
         self.layers.as_mut().unwrap().add(layer);
+        self.current_state = ModelState::ADD;
     }
 
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {

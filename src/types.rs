@@ -89,8 +89,9 @@ impl<'a> Metr<'a> {
 }
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
-pub enum ModelState { // models a linear sequence of state progression
+pub enum ModelState { // models a linear sequence of state progression / also used to resemble operations
     #[default]
+    EMPTY = 0, // start state
     ADD = 1, // valid operations => add layers or compile
     COMPILE = 2, // valid operations => fit
     FIT = 3, // valid operations => eval or predict
@@ -98,17 +99,18 @@ pub enum ModelState { // models a linear sequence of state progression
 }
 
 impl ModelState {
-    pub fn check_valid_state(&self, other: &ModelState) -> Result<bool, SimpleError> {
+    pub fn check_valid_state(&self, op: &ModelState) -> Result<bool, SimpleError> {
         let cur = *self;
 
-        match *other {
-            ModelState::ADD if cur == ModelState::ADD => Ok(true),
+        // explicitly state allowable conditions
+        match *op {
+            ModelState::ADD if cur == ModelState::ADD || cur == ModelState::EMPTY => Ok(true),
             ModelState::COMPILE if cur == ModelState::ADD => Ok(true),
             ModelState::FIT if cur == ModelState::COMPILE => Ok(true),
             ModelState::EVAL if cur == ModelState::FIT => Ok(true),
             _ => {
-                let str = format!("Invalid model operation {:?} given current model state {:?}", other, self);
-                Err(SimpleError::InvalidModel(str))
+                let txt = format!("Invalid model operation {:?} given current model state {:?}", op, self);
+                Err(SimpleError::InvalidModel(txt))
             },
         }
     }
