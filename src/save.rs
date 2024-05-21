@@ -14,7 +14,7 @@ pub trait Save {
 
     // define intermediate mapping to an archived version of type
     fn to_archive(&self) -> Self::Target;
-    fn from_archive(archive: Self::Target) -> Self;
+    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> where Self: Sized;
 
     // file save and restore methods which internally use
     // intermediate to and from archive mapping
@@ -43,7 +43,7 @@ pub trait Save {
         let mut buf = vec![];
         file.read_to_end(&mut buf)?;
         let archive = DeBin::deserialize_bin(&buf)?;
-        Ok(Save::from_archive(archive))
+        Ok(Save::from_archive(archive)?)
     }
 }
 
@@ -69,16 +69,16 @@ impl Save for Vec<Array2<f64>> { // custom trait for std lib type
         VecArray2Archive{ shapes: Some(shapes), values: Some(values) }
     }
 
-    fn from_archive(archive: Self::Target) -> Self {
+    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> {
         let (mut a, mut vec) = (archive, vec![]);
         let values_iter = a.values.take().unwrap().into_iter();
         let shapes_iter = a.shapes.take().unwrap().into_iter();
 
         for (v, s) in values_iter.zip(shapes_iter) {
-            let array = Array::from_shape_vec(s, v).unwrap();
+            let array = Array::from_shape_vec(s, v)?;
             vec.push(array);
         }
 
-        vec
+        Ok(vec)
     }
 }

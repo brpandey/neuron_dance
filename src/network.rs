@@ -6,7 +6,7 @@
 
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
-use std::{iter::Iterator, default::Default, ops::Add};
+use std::{iter::Iterator, default::Default, ops::Add, io::{ErrorKind, Error}};
 use ndarray::{Array2, ArrayView2, Axis};
 use rand::{Rng, seq::SliceRandom};
 use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
@@ -404,17 +404,23 @@ impl Save for Network {
         }
     }
 
-    fn from_archive(archive: Self::Target) -> Self {
+    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> {
         let mut a = archive;
-        let (w_a, b_a) = (a.weights.take().unwrap(), a.biases.take().unwrap());
+        let err1 = Error::new(ErrorKind::Other, "network archive weights none");
+        let err2 = Error::new(ErrorKind::Other, "network archive biases none");
+        let (w_a, b_a) = (
+            // if from_archive is not called with well populated archive
+            a.weights.take().ok_or(SimpleError::Unexpected(Box::new(err1)))?,
+            a.biases.take().ok_or(SimpleError::Unexpected(Box::new(err2)))?
+        );
 
-        Network {
+        Ok(Network {
             layers: None,
             current_state: ModelState::FIT, // set as a fitted model
-            weights: Save::from_archive(w_a),
-            biases: Save::from_archive(b_a),
+            weights: Save::from_archive(w_a)?,
+            biases: Save::from_archive(b_a)?,
             ..Default::default()
-        }
+        })
     }
 }
 

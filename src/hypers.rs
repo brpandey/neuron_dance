@@ -1,6 +1,6 @@
 use std::default::Default;
 use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
-use crate::types::Batch;
+use crate::types::{Batch, SimpleError};
 use crate::optimizer::{Optim, Optimizer};
 use crate::activation::{Act, ActivationStrings};
 use crate::cost::Loss;
@@ -78,7 +78,7 @@ impl Save for Hypers {
     type Target = HypersArchive;
 
     fn to_archive(&self) -> Self::Target { self.into() }
-    fn from_archive(archive: Self::Target) -> Self { Hypers::from(archive) }
+    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> { Ok(Hypers::from(archive)) }
 }
 
 impl From<HypersArchive> for Hypers {
