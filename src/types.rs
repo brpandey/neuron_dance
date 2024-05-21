@@ -98,15 +98,18 @@ pub enum ModelState { // models a linear sequence of state progression
 }
 
 impl ModelState {
-    pub fn is_valid_state(&self, other: ModelState) -> bool {
+    pub fn check_valid_state(&self, other: &ModelState) -> Result<bool, SimpleError> {
         let cur = *self;
 
-        match other {
-            ModelState::ADD if cur == ModelState::ADD => true,
-            ModelState::COMPILE if cur == ModelState::ADD => true,
-            ModelState::FIT if cur == ModelState::COMPILE => true,
-            ModelState::EVAL if cur == ModelState::FIT => true,
-            _ => false,
+        match *other {
+            ModelState::ADD if cur == ModelState::ADD => Ok(true),
+            ModelState::COMPILE if cur == ModelState::ADD => Ok(true),
+            ModelState::FIT if cur == ModelState::COMPILE => Ok(true),
+            ModelState::EVAL if cur == ModelState::FIT => Ok(true),
+            _ => {
+                let str = format!("Invalid model operation {:?} given current model state {:?}", other, self);
+                Err(SimpleError::InvalidModel(str))
+            },
         }
     }
 }
@@ -123,8 +126,10 @@ pub enum SimpleError {
     Shape(#[from] ndarray::ShapeError),
     #[error("Deserialize error -- {0}")]
     Deserialize(#[from] nanoserde::DeBinErr),
-    #[error("Incorrect model operation")]
-    InvalidModel,
+    #[error("Invalid model operation -- {0}")]
+    InvalidModel(String),
+    #[error(transparent)]
+    Unexpected(#[from] Box<dyn std::error::Error>),
 }
 
 impl SimpleError {

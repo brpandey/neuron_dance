@@ -22,6 +22,8 @@ use crate::{
     save::{Save, Archive, VecArray2Archive},
 };
 
+const WRONG_ORDER: &str = "User error wrong order of operations";
+
 #[derive(Debug, Default)]
 pub struct Network {
     layers: Option<LayerStack>,
@@ -46,12 +48,12 @@ impl Network {
     /**** Public associated methods ****/
 
     pub fn add<L: Layer<Output = LayerTerms> + 'static>(&mut self, layer: L) {
-        if !self.is_valid_state(ModelState::ADD) { return } // do no-op
+        self.check_valid_state(ModelState::ADD).expect(WRONG_ORDER);
         self.layers.as_mut().unwrap().add(layer);
     }
 
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
-        if !self.is_valid_state(ModelState::COMPILE) { return } // do no-op
+        self.check_valid_state(ModelState::COMPILE).expect(WRONG_ORDER);
 
         let (output_size, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
         let output_act = *acts.get(acts.len()-1).unwrap();
@@ -83,7 +85,7 @@ impl Network {
 
     /// Train model with relevant dataset given the specified hyperparameters
     pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch_type: Batch, eval: Eval) {
-        if !self.is_valid_state(ModelState::FIT) { return } // do no-op
+        self.check_valid_state(ModelState::FIT).expect(WRONG_ORDER);
 
         let mut cache = self.cache.take().unwrap();
         let mut optt = Optim::Default;
@@ -106,19 +108,19 @@ impl Network {
     }
 
     pub fn eval(&mut self, subsets: &TrainTestSubsetRef, eval: Eval) {
-        if !self.is_valid_state(ModelState::EVAL) { return } // no-op
+        self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
         let mut tally = self.metrics.as_mut().unwrap().create_tally(None, (0, 0));
         self.evaluate(subsets, &eval, &mut tally);
     }
 
-    pub fn predict(&self, x: ArrayView2<f64>) -> Result<Array2<f64>, SimpleError> {
-        if !self.is_valid_state(ModelState::EVAL) { return Err(SimpleError::InvalidModel) }
+    pub fn predict(&self, x: ArrayView2<f64>) {
+        self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
         let mut none = None;
-        Ok(self.predict_(x, &mut none))
+        self.predict_(x, &mut none);
     }
 
-    pub fn predict_using_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> Result<usize, SimpleError> {
-        if !self.is_valid_state(ModelState::EVAL) { return Err(SimpleError::InvalidModel) }
+    pub fn predict_using_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> usize {
+        self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
         let mut none = None;
 
         let subset_ref = match eval {
@@ -152,11 +154,13 @@ impl Network {
 
         subset_ref.features_peek(&x);
 
-        Ok(y_label)
+        y_label
     }
 
-    pub fn store(&mut self, token: &str) -> Result<(), SimpleError>{
-        if self.current_state != ModelState::FIT { return Err(SimpleError::InvalidModel) } // only store fitted models
+    pub fn store(&mut self, token: &str) -> Result<(), SimpleError> {
+        if self.current_state < ModelState::FIT {
+            panic!("Unable to store model since it hasn't been properly fitted");
+        } // only store fitted models
 
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
@@ -377,8 +381,8 @@ impl Network {
         tally.display();
     }
 
-    fn is_valid_state(&self, other: ModelState) -> bool {
-        self.current_state.is_valid_state(other)
+    fn check_valid_state(&self, other: ModelState) -> Result<bool, SimpleError> {
+        self.current_state.check_valid_state(&other)
     }
 }
 
