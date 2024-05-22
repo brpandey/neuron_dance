@@ -442,3 +442,39 @@ impl Add<Hypers> for Network {
         network
     }
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::layers::{Act, Dense, Input1};
+
+    #[test]
+    fn model_check1() { // can't compile a model until layers have been added
+        std::panic::set_hook(Box::new(|_| {})); // suppress panic output
+
+        let result = std::panic::catch_unwind(|| {
+            let mut model = Network::new();
+            model.compile(Loss::Quadratic, 0.1, 0.2, Metr(" accuracy "));
+        });
+
+        assert!(&result.is_err());
+    }
+
+    #[test]
+    fn model_check2() { // can't store a model until it has been fitted
+        std::panic::set_hook(Box::new(|_| {})); // suppress panic output
+
+        let result = std::panic::catch_unwind(|| {
+            let mut model = Network::new();
+            Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
+            Network::add(&mut model, Dense(3, Act::Relu));
+            Network::add(&mut model, Dense(1, Act::Sigmoid));
+
+            model.store("temp").unwrap();
+        });
+
+        assert!(&result.is_err());
+    }
+}
