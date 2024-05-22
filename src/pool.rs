@@ -1,10 +1,14 @@
 use ndarray::{s, Array, Array2, ArrayView2};
 use ndarray_stats::QuantileExt;
 
+pub enum PoolType {
+    MAX,
+}
+
 pub struct Pool;
 
 impl Pool {
-    pub fn apply(a: ArrayView2<f64>, pool_size: usize, stride_size: usize) -> Array2<f64> {
+    pub fn apply(a: ArrayView2<f64>, pool_size: usize, stride_size: usize, pt: PoolType) -> Array2<f64> {
         let mut vec = vec![];
 
         let side = a.shape()[0];
@@ -20,15 +24,17 @@ impl Pool {
         }
 
         // downsample feature maps
-        // create max pool, taking the max value from each kernel matrix
-        let max_pool: Vec<f64> = vec.iter().map(|f| {
-            *f.max().unwrap()
+        let pool: Vec<f64> = vec.iter().map(|f| {
+            match pt {
+                // create max pool, taking the max value from each kernel matrix
+                PoolType::MAX => *f.max().unwrap(),
+            }
         }).collect();
 
-        // max pool is (14,14) as max len is 196 side len is 14
-        let len = max_pool.len();
+        // pool is (14,14) as max len is 196 side len is 14
+        let len = pool.len();
         let side = num::integer::sqrt(len);
 
-        Array::from_shape_vec((side, side), max_pool).unwrap()
+        Array::from_shape_vec((side, side), pool).unwrap()
     }
 }

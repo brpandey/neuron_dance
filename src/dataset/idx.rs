@@ -33,10 +33,10 @@ impl MnistData {
 impl Peek for MnistData {
     fn peek(x: &Array2<f64>, text: Option<&str>) {
         use crate::visualize::Visualize;
-        use crate::pool::Pool;
+        use crate::pool::{Pool, PoolType};
 
         let image = x.clone().into_shape(Self::SHAPE).unwrap();
-        let reduced_image = Pool::apply(image.view(), 2, 2);
+        let reduced_image = Pool::apply(image.view(), 2, 2, PoolType::MAX);
         Visualize::table_preview(&reduced_image.view(), None, true, text);
     }
 }
