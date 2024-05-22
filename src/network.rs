@@ -460,6 +460,15 @@ mod tests {
         });
 
         assert!(&result.is_err());
+
+        let result = std::panic::catch_unwind(|| {
+            let mut model = Network::new();
+            Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
+            Network::add(&mut model, Dense(3, Act::Relu));
+            model.compile(Loss::Quadratic, 0.1, 0.2, Metr(" accuracy "));
+        });
+
+        assert!(&result.is_ok());
     }
 
     #[test]
