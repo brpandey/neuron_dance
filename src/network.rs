@@ -15,7 +15,7 @@ use crate::{
     activation::ActFp, algebra::AlgebraExt, // import local traits
     gradient_cache::{GradientCache, GT},
     hypers::Hypers, chain_rule::ChainRuleComputation,
-    dataset::TrainTestSubsetRef,
+    dataset::TrainTestSubsets,
     layers::{Layer, LayerStack, LayerTerms},
     cost::{Cost, Loss}, metrics::{Metrics, Tally},
     types::{Batch, Eval, Metr, ModelState, SimpleError}, optimizer::{Optim, ParamKey},
@@ -85,7 +85,7 @@ impl Network {
     }
 
     /// Train model with relevant dataset given the specified hyperparameters
-    pub fn fit(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, batch_type: Batch, eval: Eval) {
+    pub fn fit(&mut self, subsets: &TrainTestSubsets, epochs: usize, batch_type: Batch, eval: Eval) {
         self.check_valid_state(ModelState::FIT).expect(WRONG_ORDER);
 
         let mut cache = self.cache.take().unwrap();
@@ -108,7 +108,7 @@ impl Network {
         self.current_state = ModelState::FIT;
     }
 
-    pub fn eval(&mut self, subsets: &TrainTestSubsetRef, eval: Eval) {
+    pub fn eval(&mut self, subsets: &TrainTestSubsets, eval: Eval) {
         self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
         let mut tally = self.metrics.as_mut().unwrap().create_tally(None, (0, 0));
         self.evaluate(subsets, &eval, &mut tally);
@@ -120,28 +120,25 @@ impl Network {
         self.predict_(x, &mut none);
     }
 
-    pub fn predict_using_random(&self, subsets: &TrainTestSubsetRef, eval: Eval) -> usize {
+    pub fn predict_using_random(&self, subsets: &TrainTestSubsets, eval: Eval) -> usize {
         self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
         let mut none = None;
 
-        let subset_ref = match eval {
-            Eval::Train => &subsets.0, // train subset
-            Eval::Test => &subsets.1, // test subset
-        };
-
-        let (x, y) = subset_ref.random();
+        let subset_ref = subsets.subset_ref(&eval);
+        let (x, y) = subset_ref.random(); // retrieve random set of input and output pairs
         let output = self.predict_(x.t(), &mut none);
 
-        let y_pred = output.arg_max();
-        let y_label = y[(0,0)] as usize;
-
         let class_names: Option<&Vec<String>> = subset_ref.class_names();
+
+        let y_pred = output.arg_max();
 
         // map y values to a class names value if one is provided
         let y_pred_txt = class_names.map_or(
             y_pred.to_string(),
             |vec| vec.get(y_pred).map_or("?".to_string(), |v| v.clone())
         );
+
+        let y_label = y[(0,0)] as usize;
 
         let y_label_txt = class_names.map_or(
             y_label.to_string(),
@@ -188,10 +185,10 @@ impl Network {
     /**** Private associated methods ****/
 
     /// Sgd employs 1 sample chosen at random from the data set for gradient descent
-    fn train_sgd(&mut self, subsets: &TrainTestSubsetRef, epochs: usize, gc: &mut GradientCache, eval: Eval) {
+    fn train_sgd(&mut self, subsets: &TrainTestSubsets, epochs: usize, gc: &mut GradientCache, eval: Eval) {
         let (mut rng, mut random_index);
         let (mut x_single, mut y_single);
-        let train = &subsets.0;
+        let train = subsets.train();
 
         rng = rand::thread_rng();
         for _ in 0..epochs { // SGD_EPOCHS { // train and update network based on single observation sample
@@ -215,12 +212,11 @@ impl Network {
     /// until it has covered all of the data set to form a single epoch out of a handful of epochs.
 
     /// Note: Probably more accurate to call it train stochastic mini batch
-    fn train_minibatch(&mut self, subsets: &TrainTestSubsetRef, epochs: usize,
+    fn train_minibatch(&mut self, subsets: &TrainTestSubsets, epochs: usize,
                        batch_size: usize, gc: &mut GradientCache, eval: Eval) {
-
         let (mut x_minibatch, mut y_minibatch);
         let optimizer_type = self.hypers.optimizer_type();
-        let train = &subsets.0;
+        let train = subsets.train();
         let mut tally;
 
         let mut row_indices = (0..train.size).collect::<Vec<usize>>();
@@ -345,16 +341,12 @@ impl Network {
 
     /// Compare the classes represented by the prediction output with the known classes
     /// represented by the data set's test y data. Upon match, increase the model's accuracy
-    fn evaluate(&self, subsets: &TrainTestSubsetRef, eval: &Eval,
+    fn evaluate(&self, subsets: &TrainTestSubsets, eval: &Eval,
                 tally: &mut Tally) {
 
-        let s = match *eval {
-            Eval::Train => &subsets.0, // train subset
-            Eval::Test => &subsets.1, // test subset
-        };
-
+        let s = subsets.subset_ref(eval);
         // retrieve eval data, labels, and size
-        let (x_data, y_data, n_data) : (&Array2<f64>, &Array2<f64>, usize) = (s.x, s.y, s.size);
+        let (x_data, y_data, n_data) : (&Array2<f64>, &Array2<f64>, usize) = (&s.x, &s.y, s.size);
 
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
@@ -449,14 +441,18 @@ impl Add<Hypers> for Network {
 mod tests {
     use super::*;
     use crate::layers::{Act, Dense, Input1};
+    use std::sync::OnceLock;
+    use crate::dataset::DataSet;
+
+    static TTS: OnceLock<TrainTestSubsets> = OnceLock::new();
 
     #[test]
-    fn model_check1() { // can't compile a model until layers have been added
+    fn model_check_compile_before_add() { // can't compile a model until layers have been added
         std::panic::set_hook(Box::new(|_| {})); // suppress panic output
 
         let result = std::panic::catch_unwind(|| {
             let mut model = Network::new();
-            model.compile(Loss::Quadratic, 0.1, 0.2, Metr(" accuracy "));
+            model.compile(Loss::Quadratic, 0.1, 0.2, Metr("accuracy"));
         });
 
         assert!(&result.is_err());
@@ -472,9 +468,12 @@ mod tests {
     }
 
     #[test]
-    fn model_check2() { // can't store a model until it has been fitted
+    fn model_check_store_before_fit() { // can't store a model until it has been fitted
+        use crate::dataset::csv::{CSVData, CSVType};
+
         std::panic::set_hook(Box::new(|_| {})); // suppress panic output
 
+        // incorrect model construction pass
         let result = std::panic::catch_unwind(|| {
             let mut model = Network::new();
             Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
@@ -485,5 +484,24 @@ mod tests {
         });
 
         assert!(&result.is_err());
+
+        let subsets = TTS.get_or_init(|| {
+            let mut data = CSVData::new(CSVType::RGB);
+            data.fetch().unwrap();
+            data.train_test_split(2.0/3.0)
+        });
+
+        // correct model construction pass
+        let result = std::panic::catch_unwind(|| {
+            let mut model = Network::new();
+            Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
+            Network::add(&mut model, Dense(3, Act::Relu));
+            Network::add(&mut model, Dense(1, Act::Sigmoid));
+            model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy"));
+            model.fit(subsets, 5, Batch::SGD, Eval::Train);
+            model.store("temp").unwrap();
+        });
+
+        assert!(&result.is_ok());
     }
 }

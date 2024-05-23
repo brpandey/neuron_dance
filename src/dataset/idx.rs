@@ -4,7 +4,7 @@ use ndarray::Array2;
 use std::fs::File;
 use std::io::{Cursor, Read};
 
-use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsetData};
+use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsets};
 use crate::{visualize::Peek, types::SimpleError};
 
 // MnistData
@@ -79,15 +79,15 @@ impl DataSet for MnistData {
 
     fn shuffle(&mut self) {}
 
-    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsetData {
+    fn train_test_split(&mut self, _split_ratio: f32) -> TrainTestSubsets {
         let _ = self.fetch();
 
         // Extract data from boxed raws
-        let tts = TrainTestSubsetData{
-            format: DataSetFormat::IDX,
-            headers: None, data: self.data.take().unwrap(),
-            class_names: self.class_names.clone(),
-        };
+        let tts = TrainTestSubsets::new(
+            DataSetFormat::IDX,
+            self.data.take().unwrap(),
+            self.class_names.clone()
+        );
 
         println!("Loaded data, subset shapes are {}\n", &tts);
         tts

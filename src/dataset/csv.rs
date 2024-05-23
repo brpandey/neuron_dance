@@ -5,7 +5,7 @@ use ndarray_rand::{RandomExt, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 
-use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsetData, TrainTestTuple};
+use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple};
 use crate::visualize::{Visualize, Peek};
 use crate::types::SimpleError;
 
@@ -99,14 +99,13 @@ impl <'b> DataSet for CSVData<'b> {
         self.2 = Some(shuffled);
     }
 
-    fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsetData {
+    fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsets {
         if self.2.is_none() {
             let _ = self.fetch();
         }
 
         let scale = self.1;
         let data = self.2.as_mut().unwrap(); // todo! must return error if self.2 is none!
-        let headers = self.3.clone();
         let class_names = self.4.clone();
 
         let n_size = data.shape()[0]; // 1345
@@ -137,7 +136,7 @@ impl <'b> DataSet for CSVData<'b> {
         );
 
         let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2);
-        let tts = TrainTestSubsetData { format: DataSetFormat::CSV, headers, data: ttt, class_names };
+        let tts = TrainTestSubsets::new(DataSetFormat::CSV, ttt, class_names);
 
         println!("Data subset shapes {}\n", &tts);
 

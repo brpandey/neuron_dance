@@ -3,7 +3,7 @@ use neuron_dance::{
     dataset::{
         csv::{CSVData, CSVType},
         idx::{MnistData, MnistType},
-        DataSet, TrainTestSubsetRef,
+        DataSet, TrainTestSubsets,
     },
     layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit},
     network::Network,
@@ -47,8 +47,7 @@ fn main() {
     dataset.shuffle();
     dataset.head();
 
-    let mut tts = dataset.train_test_split(train_percentage);
-    let mut subsets = tts.get_ref();
+    let mut subsets = dataset.train_test_split(train_percentage);
     let mut model;
 
     match ntype {
@@ -61,8 +60,7 @@ fn main() {
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
         },
         NetworkType::Diabetes => {
-            tts = tts.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
-            subsets = tts.get_ref();
+            subsets = subsets.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
 
             model = Network::new();
             model.add(Input1(8));
@@ -124,7 +122,7 @@ fn main() {
     }
 }
 
-pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsetRef<'a>) {
+pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsets) {
     use strum::IntoEnumIterator;
 
     // make random selections for 4 individual images, alternating from Eval::Test or Train set
