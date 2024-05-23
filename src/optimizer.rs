@@ -47,14 +47,6 @@ pub enum HistType { // Historical Type
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
 pub struct CompositeKey(ParamKey, HistType);
 
-/*
-impl Display for Optim { // use debug fmt imp for display
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-*/
-
 pub trait Optimizer {
     fn calculate<'a>(&mut self, _key: ParamKey, value: &'a Array2<f64>, _t: usize) -> Cow<'a, Array2<f64>> {
         Cow::Borrowed(value)

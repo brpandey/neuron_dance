@@ -22,6 +22,13 @@ use std::borrow::Cow;
 use crate::optimizer::{Optimizer, ParamKey, HistType, CompositeKey};
 use crate::algebra::AlgebraExt;
 
+/***********************************************************************************************************
+Adam Optimizer implementation is currently not optimized and epoch training will take longer
+than the default no optimized implementation.  When Adam is run it reaches a higher model accuracy earlier in
+its epochs progression at the expense of taking longer to compute, versus the default non-optimized version
+will take more epochs but each epoch will be faster since there's less computational overhead
+***********************************************************************************************************/
+
 #[derive(Debug)]
 pub struct Adam {
     hist_types: Vec<HistType>,
