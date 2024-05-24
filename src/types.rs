@@ -130,6 +130,8 @@ pub enum SimpleError {
     Deserialize(#[from] nanoserde::DeBinErr),
     #[error("Invalid model operation -- {0}")]
     InvalidModel(String),
+    #[error("Not well-formed path token -- {0}")]
+    PathToken(String),
     #[error(transparent)]
     Unexpected(#[from] Box<dyn std::error::Error>),
 }

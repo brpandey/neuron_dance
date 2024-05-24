@@ -5,39 +5,34 @@ use ndarray_rand::{RandomExt, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
 
-use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple};
+use crate::dataset::{sanitize_token, ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple};
 use crate::visualize::{Visualize, Peek};
 use crate::types::SimpleError;
 
-//                       ctype     scale    data             headers               class_names
-pub struct CSVData<'a>(CSVType<'a>, f64, Option<Array2<f64>>, Option<Vec<String>>, Option<Vec<String>>);
+#[derive(Default)]
+pub struct CSVData<'a> {
+    ctype: CSVType<'a>,
+    scale: f64,
+    class_names: Option<Vec<String>>,
+    data: Option<Array2<f64>>,
+    headers: Option<Vec<String>>,
+}
 
+#[derive(Default)]
 pub enum CSVType<'a> {
+    #[default]
     RGB,
     Custom(&'a str, Option<Vec<&'a str>>), // filename w/o csv suffix and class names if relevant
 }
 
 impl <'a> CSVType<'a> {
-    pub fn filename(&self) -> String {
+    pub fn filename(&self) -> Result<String, SimpleError> {
         let token = match self {
             CSVType::RGB => "rgb",
-            CSVType::Custom(ref t, _) => CSVType::sanitize(t),
+            CSVType::Custom(ref t, _) => sanitize_token(t)?,
         };
 
-        format!("{}/data/csv/{}.csv", ROOT_DIR, token)
-    }
-
-    pub fn sanitize(token: &str) -> &str {
-        use std::path::Path;
-        // ensure token doesn't have parent directory traversal in string
-        if let Some(t) = Path::new(token).file_name().as_ref().and_then(|os| os.to_str()) {
-            match t.split_once('.') {
-                None => t,
-                Some((a, _b)) => a
-            }
-        } else {
-            panic!("Unable to retrieve custom csv file");
-        }
+        Ok(format!("{}/data/csv/{}.csv", ROOT_DIR, token))
     }
 }
 
@@ -45,10 +40,11 @@ impl <'b> CSVData<'b> {
     pub fn new<'a>(ctype: CSVType<'a>) -> Self
     where 'a: 'b {
         match ctype {
-            CSVType::RGB => Self(ctype, 256.0, None, None, None),
+            CSVType::RGB => Self { ctype, scale: 256.0, ..Default::default()},
             CSVType::Custom(_, ref names) => {
-                let n = names.as_ref().map(|v| v.iter().map(|s| s.to_string()).collect());
-                Self(ctype, 1.0, None, None, n)
+                let cn = names.as_ref()
+                    .map(|v| v.iter().map(|s| s.to_string()).collect());
+                Self { ctype, scale: 1.0, class_names: cn, ..Default::default() }
             },
         }
     }
@@ -63,7 +59,9 @@ impl Peek for CSVData<'_> {
 impl <'b> DataSet for CSVData<'b> {
 
     fn fetch(&mut self) -> Result<(), SimpleError> {
-        let token = &self.0.filename();
+        if self.data.is_some() { return Ok(()) }; // fetch unless already previously fetched data
+
+        let token = &self.ctype.filename()?;
 
         let mut reader = Builder::new()
             .has_headers(true)
@@ -74,21 +72,21 @@ impl <'b> DataSet for CSVData<'b> {
 
         let data_array: Array2<f64> = reader.deserialize_array2_dynamic()?;
 
-        self.2 = Some(data_array);
-        self.3 = Some(headers);
+        self.data = Some(data_array);
+        self.headers = Some(headers);
 
         Ok(())
     }
 
     fn head(&self) {
-        if self.2.is_none() { return } // if data hasn't been fetched, return early
-        Visualize::table_preview(&self.2.as_ref().unwrap().view(), self.3.as_ref(), false, Some("> head csv-file"));
+        if self.data.is_none() { return } // ensure data has been fetched before performing head preview
+        Visualize::table_preview(&self.data.as_ref().unwrap().view(), self.headers.as_ref(), false, Some("> head csv-file"));
     }
 
     fn shuffle(&mut self) {
-        if self.2.is_none() { return } // if data hasn't been fetched, return early
+        if self.data.is_none() { return } // ensure data has been fetched before shuffling
 
-        let data = self.2.as_mut().unwrap();
+        let data = self.data.as_mut().unwrap();
         let seed = 42; // for reproducibility
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
@@ -96,20 +94,20 @@ impl <'b> DataSet for CSVData<'b> {
 
         // take random shuffling following a normal distribution
         let shuffled = data.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
-        self.2 = Some(shuffled);
+        self.data = Some(shuffled);
     }
 
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsets {
-        if self.2.is_none() {
+        if self.data.is_none() {
             let _ = self.fetch();
         }
 
-        let scale = self.1;
-        let data = self.2.as_mut().unwrap(); // todo! must return error if self.2 is none!
-        let class_names = self.4.clone();
+        let scale = self.scale;
+        let data = self.data.as_mut().unwrap();
+        let class_names = self.class_names.clone();
 
-        let n_size = data.shape()[0]; // 1345
-        let n_features = data.shape()[1]; // 4, => 3 input features + 1 outcome / target (columns)
+        let n_size = data.shape()[0]; // for example for csv1 / rgb this would be 1345 rows
+        let n_features = data.shape()[1]; // same example, e.g. 4, => 3 input features + 1 outcome / target (columns)
 
         let n1 = (n_size as f32 * split_ratio).ceil() as usize;
         let n2 = n_size - n1;

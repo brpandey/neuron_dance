@@ -1,4 +1,4 @@
-use std::{env, fmt};
+use std::{env, fmt, path::Path};
 use ndarray::{Array2, Axis};
 
 use crate::algebra::AlgebraExt;
@@ -21,6 +21,19 @@ pub trait DataSet {
     fn shuffle(&mut self);
     fn train_test_split(&mut self, split_ratio: f32) -> TrainTestSubsets;
 }
+
+pub fn sanitize_token(token: &str) -> Result<&str, SimpleError> {
+    // ensure token doesn't have parent directory traversal in string
+    if let Some(t) = Path::new(token).file_name().as_ref().and_then(|os| os.to_str()) {
+        match t.split_once('.') {
+            None => Ok(t),
+            Some((a, _b)) => Ok(a),
+        }
+    } else {
+        Err(SimpleError::PathToken(format!("Path token is not well-formed {}", &token)))
+    }
+}
+
 
 //                           x_train    y_train        # train  x_test     y_test     # test
 pub type TrainTestTuple = (Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize);

@@ -1,8 +1,9 @@
 use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
 use ndarray::{Array, Array2};
-use std::{fs::File, fmt::Debug, path::Path};
+use std::{fs::File, fmt::Debug};
 use std::io::{Read, Write};
 use crate::types::SimpleError;
+use crate::dataset::sanitize_token;
 
 pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -18,11 +19,12 @@ pub trait Save {
 
     // file save and restore methods which internally use
     // intermediate to and from archive mapping
-    fn save<P: AsRef<Path> + std::fmt::Display>(&mut self, token: P) -> Result<(), SimpleError>
+    fn save(&mut self, token: &str) -> Result<(), SimpleError>
     where
-        <Self as Save>::Target: SerBin
+        <Self as Save>::Target: SerBin, Self: Sized,
     {
-        let path = format!("{}/saved_models/{}", ROOT_DIR, token);
+        let tok = sanitize_token(token)?;
+        let path = format!("{}/saved_models/{}", ROOT_DIR, tok);
         let archive = self.to_archive();
         let mut f = File::create(path)?;
 
@@ -31,13 +33,12 @@ pub trait Save {
         Ok(())
     }
 
-    fn restore<P>(token: P) -> Result<Self, SimpleError>
+    fn restore(token: &str) -> Result<Self, SimpleError>
     where
-        P: AsRef<Path> + std::fmt::Display,
-        Self: Sized,
-        <Self as Save>::Target: DeBin
+        <Self as Save>::Target: DeBin, Self: Sized
     {
-        let path = format!("{}/saved_models/{}", ROOT_DIR, token);
+        let tok = sanitize_token(token)?;
+        let path = format!("{}/saved_models/{}", ROOT_DIR, tok);
 
         let mut file = File::open(path)?;
         let mut buf = vec![];
