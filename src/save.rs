@@ -19,12 +19,13 @@ pub trait Save {
 
     // file save and restore methods which internally use
     // intermediate to and from archive mapping
-    fn save(&mut self, token: &str) -> Result<(), SimpleError>
+    fn save<S>(&mut self, token: S) -> Result<(), SimpleError>
     where
+        S: AsRef<str>,
         <Self as Save>::Target: SerBin, Self: Sized,
     {
-        let tok = sanitize_token(token)?;
-        let path = format!("{}/saved_models/{}", ROOT_DIR, tok);
+        let tok = sanitize_token(token.as_ref())?;
+        let path = format!("{}/saved_models/{}.txt", ROOT_DIR, tok);
         let archive = self.to_archive();
         let mut f = File::create(path)?;
 
@@ -33,12 +34,13 @@ pub trait Save {
         Ok(())
     }
 
-    fn restore(token: &str) -> Result<Self, SimpleError>
+    fn restore<S>(token: S) -> Result<Self, SimpleError>
     where
+        S: AsRef<str>,
         <Self as Save>::Target: DeBin, Self: Sized
     {
-        let tok = sanitize_token(token)?;
-        let path = format!("{}/saved_models/{}", ROOT_DIR, tok);
+        let tok = sanitize_token(token.as_ref())?;
+        let path = format!("{}/saved_models/{}.txt", ROOT_DIR, tok);
 
         let mut file = File::open(path)?;
         let mut buf = vec![];

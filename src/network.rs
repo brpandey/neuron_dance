@@ -163,8 +163,8 @@ impl Network {
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
 
-        self.save(&filename1)?;
-        self.hypers.save(&filename2)?;
+        self.save(filename1)?;
+        self.hypers.save(filename2)?;
 
         Ok(())
     }
@@ -173,8 +173,8 @@ impl Network {
         let filename1 = format!("{}-network-dump.txt", token);
         let filename2 = format!("{}-hypers-dump.txt", token);
 
-        let net = <Network as Save>::restore(&filename1)?;
-        let hypers = <Hypers as Save>::restore(&filename2)?;
+        let net = <Network as Save>::restore(filename1)?;
+        let hypers = <Hypers as Save>::restore(filename2)?;
 
         Ok(net + hypers)
     }
