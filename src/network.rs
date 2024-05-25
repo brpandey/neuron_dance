@@ -456,6 +456,17 @@ mod tests {
 
     static TTS: OnceLock<TrainTestSubsets> = OnceLock::new();
 
+    fn subsets_init() -> &'static TrainTestSubsets {
+        use crate::dataset::csv::{CSVData, CSVType};
+
+        TTS.get_or_init(|| {
+            println!("Initializing subsets once (Should only see once)");
+            let mut data = CSVData::new(CSVType::RGB);
+            data.fetch().unwrap();
+            data.train_test_split(2.0/3.0)
+        })
+    }
+
     #[test]
     fn model_check_compile_before_add() { // can't compile a model until layers have been added
         std::panic::set_hook(Box::new(|_| {})); // suppress panic output
@@ -479,8 +490,6 @@ mod tests {
 
     #[test]
     fn model_check_store_before_fit() { // can't store a model until it has been fitted
-        use crate::dataset::csv::{CSVData, CSVType};
-
         std::panic::set_hook(Box::new(|_| {})); // suppress panic output
 
         // incorrect model construction pass
@@ -495,11 +504,7 @@ mod tests {
 
         assert!(&result.is_err());
 
-        let subsets = TTS.get_or_init(|| {
-            let mut data = CSVData::new(CSVType::RGB);
-            data.fetch().unwrap();
-            data.train_test_split(2.0/3.0)
-        });
+        let subsets = subsets_init();
 
         // correct model construction pass
         let result = std::panic::catch_unwind(|| {
@@ -507,11 +512,29 @@ mod tests {
             Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
             Network::add(&mut model, Dense(3, Act::Relu));
             Network::add(&mut model, Dense(1, Act::Sigmoid));
-            model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy"));
-            model.fit(subsets, 5, Batch::SGD, Eval::Train);
+            model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" "));
+            model.fit(subsets, 5, Batch::SGD, Eval::Train).unwrap();
             model.store("temp").unwrap();
         });
 
         assert!(&result.is_ok());
+    }
+
+    #[test]
+    fn model_load_before_store() { // can't store a model until it has been fitted
+        let subsets = subsets_init();
+
+        let mut model = Network::new();
+        Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
+        Network::add(&mut model, Dense(3, Act::Relu));
+        Network::add(&mut model, Dense(1, Act::Sigmoid));
+        model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" "));
+        model.fit(subsets, 5, Batch::SGD, Eval::Train).unwrap();
+
+        // incorrect operation of loading before storing
+        //        model.store("tempA").unwrap();
+        let result = Network::load("tempA");
+
+        assert!(&result.is_err());
     }
 }
