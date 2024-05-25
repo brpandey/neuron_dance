@@ -56,9 +56,7 @@ impl Adam {
         hist_types.iter().fold(store, |acc, p_type| {
             // Generate composite keys in the form ParamKey, HistType
             let composite_key = CompositeKey(key, *p_type);
-            if !acc.contains_key(&composite_key) { // if not found initialize with zero'd tensor
-                acc.insert(composite_key, Array2::zeros(shape));
-            }
+            acc.entry(composite_key).or_insert_with(|| Array2::zeros(shape));
             acc
         });
 

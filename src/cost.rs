@@ -41,17 +41,13 @@ pub trait Objective {
     }
 }
 
-#[derive(Copy, Clone, Debug, strum_macros::Display, strum_macros::EnumString)]
+#[derive(Copy, Clone, Debug, Default, strum_macros::Display, strum_macros::EnumString)]
 pub enum Loss {
+    #[default]
     Quadratic,
     BinaryCrossEntropy,
     CategoricalCrossEntropy,
 }
-
-impl Default for Loss {
-    fn default() -> Self { Loss::Quadratic }
-}
-
 
 impl From<Loss> for Box<dyn Cost> {
     fn from(loss_type: Loss) -> Self {
