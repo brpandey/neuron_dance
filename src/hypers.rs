@@ -11,6 +11,7 @@ pub struct Hypers {
     learning_rate: f64,
     l2_rate: f64,
     optimizer: Option<Box<dyn Optimizer>>,
+    input_size: usize,
     class_size: usize,
     activations: Vec<Act>,
     loss_type: Loss,
@@ -19,13 +20,14 @@ pub struct Hypers {
 }
 
 impl Hypers {
-    pub fn new(learning_rate: f64, l2_rate: f64, class_size: usize, activations: Vec<Act>, loss_type: Loss) -> Self {
+    pub fn new(learning_rate: f64, l2_rate: f64, input_size: usize, class_size: usize, activations: Vec<Act>, loss_type: Loss) -> Self {
         let optimizer = Some(Optim::Default.into());
 
         Self {
             learning_rate,
             l2_rate,
             optimizer,
+            input_size,
             class_size,
             activations,
             loss_type,
@@ -41,6 +43,8 @@ impl Hypers {
             }
         }
     }
+
+    pub fn input_size(&self) -> usize { self.input_size }
 
     pub fn l2_regularization_rate(&self) -> f64 {
         self.l2_rate
@@ -86,7 +90,7 @@ impl From<HypersArchive> for Hypers {
         Hypers {
             learning_rate: ar.0, l2_rate: ar.1,
             optimizer: Some(ar.6.parse::<Optim>().unwrap().into()),
-            class_size: ar.2, activations: ar.3.into(),
+            input_size: 0, class_size: ar.2, activations: ar.3.into(),
             loss_type: ar.4.parse().unwrap(), batch_type: ar.5.parse().unwrap(),
             optimizer_type: ar.6.parse().unwrap(),
         }

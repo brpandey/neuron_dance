@@ -35,12 +35,13 @@ pub fn sanitize_token(token: &str) -> Result<&str, SimpleError> {
 }
 
 
-//                           x_train    y_train        # train  x_test     y_test     # test
-pub type TrainTestTuple = (Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize);
+//                           x_train    y_train        # train  x_test     y_test    # test # n_features
+pub type TrainTestTuple = (Array2<f64>, Array2<f64>, usize, Array2<f64>, Array2<f64>, usize, usize);
 
 pub struct TrainTestSubsets {
     train: Subset,
     test: Subset,
+    n_features: usize,
 }
 
 impl TrainTestSubsets {
@@ -61,8 +62,10 @@ impl TrainTestSubsets {
             class_names: class_names,
         };
 
-        Self { train, test }
+        Self { train, test, n_features: data.6 }
     }
+
+    pub fn num_features(&self) -> usize { return self.n_features }
 
     // scale is 0 min 1 max
     pub fn min_max_scale(&self, min: f64, max: f64) -> Self {
@@ -89,7 +92,7 @@ impl TrainTestSubsets {
             format: self.test.format, class_names: self.test.class_names.clone()
         };
 
-        Self { train, test }
+        Self { train, test, n_features: self.n_features }
     }
 
     pub fn train(&self) -> &'_ Subset { &self.train }

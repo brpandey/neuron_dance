@@ -19,6 +19,7 @@ pub struct MnistData {
 
 impl MnistData {
     pub const SHAPE: (usize, usize) = (28, 28);
+    pub const N_FEATURES: usize = 784;
 
     pub fn new(mtype: MnistType) -> Self {
         let subset_types = (
@@ -52,7 +53,7 @@ impl DataSet for MnistData {
 
             let ttt = // train test tuple
                 (x_raw.take().unwrap(), y_raw.take().unwrap(), x_raw.size(),
-                 x_raw_test.take().unwrap(), y_raw_test.take().unwrap(), x_raw_test.size());
+                 x_raw_test.take().unwrap(), y_raw_test.take().unwrap(), x_raw_test.size(), MnistData::N_FEATURES);
 
             self.data = Some(ttt);
         }
@@ -248,6 +249,8 @@ impl RawImages {
         cur.read_to_end(&mut buf)?;
 
         let flattened_shape = shape1 * shape2 as usize; // instead of a 28x28 matrix, we grab 784 * 1 in an array2
+        assert_eq!(flattened_shape, MnistData::N_FEATURES);
+
         let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64 / 255.0 as f64).collect(); // normalize to value between 0 and 1
         let data = Array2::from_shape_vec((n_images, flattened_shape), floats)?; // e.g. 10,000 x 784
         Ok(Self(Some(data), n_images))

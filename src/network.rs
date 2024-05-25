@@ -56,14 +56,15 @@ impl Network {
     pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
         self.check_valid_state(ModelState::COMPILE).expect(WRONG_ORDER);
 
-        let (output_size, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
+        let (size_ends, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
         let output_act = *acts.get(acts.len()-1).unwrap();
+        let (input_size, output_size) = size_ends;
 
         let loss: Box<dyn Cost> = loss_type.into();
         let (cost_fp, cost_deriv_fp, cost_comb_rule_fp) = loss.triple();
 
         let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size, l2_rate));
-        let hypers = Hypers::new(learning_rate, l2_rate, output_size, acts, loss_type);
+        let hypers = Hypers::new(learning_rate, l2_rate, input_size, output_size, acts, loss_type);
 
         // initialize network properly
         let n = Network {
@@ -85,8 +86,15 @@ impl Network {
     }
 
     /// Train model with relevant dataset given the specified hyperparameters
-    pub fn fit(&mut self, subsets: &TrainTestSubsets, epochs: usize, batch_type: Batch, eval: Eval) {
+    pub fn fit(&mut self, subsets: &TrainTestSubsets, epochs: usize, batch_type: Batch, eval: Eval) -> Result<(), SimpleError>{
         self.check_valid_state(ModelState::FIT).expect(WRONG_ORDER);
+        let (layer_size, n_features) = (self.hypers.input_size(), subsets.num_features());
+
+        if layer_size != n_features { // input layer size specified incorrectly
+            let e = SimpleError::InputLayerSizeNoMatch(layer_size, n_features);
+            eprintln!("Unrecoverable error: {}", &e);
+            return Err(e);
+        }
 
         let mut cache = self.cache.take().unwrap();
         let mut optt = Optim::Default;
@@ -106,6 +114,8 @@ impl Network {
         }
 
         self.current_state = ModelState::FIT;
+
+        Ok(())
     }
 
     pub fn eval(&mut self, subsets: &TrainTestSubsets, eval: Eval) {

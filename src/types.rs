@@ -128,10 +128,12 @@ pub enum SimpleError {
     Shape(#[from] ndarray::ShapeError),
     #[error("Deserialize error -- {0}")]
     Deserialize(#[from] nanoserde::DeBinErr),
-    #[error("Invalid model operation -- {0}")]
+    #[error("Model operation out of order -- {0}")]
     InvalidModel(String),
-    #[error("Not well-formed path token -- {0}")]
+    #[error("Path token not well-formed -- {0}")]
     PathToken(String),
+    #[error("User specified input layer size {0} doesn't match dataset input feature size {1}")]
+    InputLayerSizeNoMatch(usize, usize),
     #[error(transparent)]
     Unexpected(#[from] Box<dyn std::error::Error>),
 }

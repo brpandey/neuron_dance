@@ -107,7 +107,8 @@ impl <'b> DataSet for CSVData<'b> {
         let class_names = self.class_names.clone();
 
         let n_size = data.shape()[0]; // for example for csv1 / rgb this would be 1345 rows
-        let n_features = data.shape()[1]; // same example, e.g. 4, => 3 input features + 1 outcome / target (columns)
+        let n_columns = data.shape()[1]; // same example, e.g. 4, => 3 input features + 1 outcome / target (columns)
+        let n_features = n_columns-1;
 
         let n1 = (n_size as f32 * split_ratio).ceil() as usize;
         let n2 = n_size - n1;
@@ -115,13 +116,13 @@ impl <'b> DataSet for CSVData<'b> {
         let mut first_raw_vec = data.clone().into_raw_vec();
 
         // hence the first_raw_vec is now size n1 * n_features, leaving second_raw_vec with remainder
-        let second_raw_vec = first_raw_vec.split_off(n1 * n_features); 
+        let second_raw_vec = first_raw_vec.split_off(n1 * n_columns); 
 
-        let train_data = Array2::from_shape_vec((n1, n_features), first_raw_vec).unwrap();
-        let test_data = Array2::from_shape_vec((n2, n_features), second_raw_vec).unwrap();
+        let train_data = Array2::from_shape_vec((n1, n_columns), first_raw_vec).unwrap();
+        let test_data = Array2::from_shape_vec((n2, n_columns), second_raw_vec).unwrap();
 
-        let (s1, e1) = (0, n_features-1); // train data
-        let e2 = n_features; // label data (last data column)
+        let (s1, e1) = (0, n_features); // train data
+        let e2 = n_columns; // label data (last data column)
 
         let (x_train, y_train) = (
             train_data.slice(s![.., s1..e1]).to_owned() / scale,
@@ -133,7 +134,7 @@ impl <'b> DataSet for CSVData<'b> {
             test_data.slice(s![.., e1..e2]).to_owned(),
         );
 
-        let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2);
+        let ttt: TrainTestTuple = (x_train, y_train, n1, x_test, y_test, n2, n_features);
         let tts = TrainTestSubsets::new(DataSetFormat::CSV, ttt, class_names);
 
         println!("Data subset shapes {}\n", &tts);

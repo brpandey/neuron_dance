@@ -7,7 +7,7 @@ pub mod dataset;
 pub mod layers;
 mod cost;
 mod metrics;
-pub mod types;
+mod types;
 mod weight;
 mod optimizer;
 mod gradient;

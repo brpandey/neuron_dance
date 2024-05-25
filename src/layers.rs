@@ -13,7 +13,7 @@ pub struct Dense(pub usize, pub Act);
 // re-export types into Layer, to consolidate interface
 pub use crate::activation::Act;
 pub use crate::cost::Loss;
-pub use crate::types::{Batch, Eval, Metr};
+pub use crate::types::{Batch, Eval, Metr, SimpleError};
 pub use crate::weight::Weit;
 pub use crate::optimizer::Optim;
 
@@ -110,27 +110,27 @@ impl LayerStack {
 }
 
 impl Layer for LayerStack {
-    // (last_size, weights, biases, forward, backward, output_act)
-    type Output = (usize, Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<ActFp>, Vec<ActFp>, Vec<Act>);
+    // ((input_size,last_size), weights, biases, forward, backward, output_act)
+    type Output = ((usize,usize), Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<ActFp>, Vec<ActFp>, Vec<Act>);
 
     fn reduce(&self) -> Self::Output {
         use statrs::distribution::Normal;
         use ndarray_rand::RandomExt;
 
-        let acc = (0, vec![], vec![], vec![], vec![], vec![]); // acc is of type Output
+        let acc = ((0,0), vec![], vec![], vec![], vec![], vec![]); // acc is of type Output
 
         self.0.iter().enumerate().fold(acc, |mut acc, (i,l)| {
             match l.reduce() {
                 LayerTerms::Input(ref order, size) if order.valid(i) => {
-                    acc.0 = size; // save input size as last size
+                    acc.0 = (size, size); // save input size as last size
                     acc
                 },
                 LayerTerms::Dense(ref order, size, act, act_type, weit) if order.valid(i) => {
                     let (act_fp, act_deriv_fp) = act.pair(); // activation and activation derivative functions
 
-                    let x = acc.0; // (previous size) current layer inputs
+                    let x = acc.0.1; // (previous size) current layer inputs
                     let y = size; // current layer neurons (outputs)
-                    acc.0 = size; // save last size, which at end will be output_size
+                    acc.0.1 = size; // save last size, which at end will be output_size
 
                     // Note: z = wx + b, w is on left and x is transposed from csv row into vertical collumn
                     let b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4

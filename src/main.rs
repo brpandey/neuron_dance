@@ -5,11 +5,11 @@ use neuron_dance::{
         idx::{MnistData, MnistType},
         DataSet, TrainTestSubsets,
     },
-    layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit},
+    layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit, SimpleError},
     network::Network,
 };
 
-fn main() {
+fn main() -> Result<(), SimpleError>{
     let mut matches = Command::new("neuron_dance")
         .about("Neuron Dance")
         .arg(
@@ -57,7 +57,7 @@ fn main() {
             model.add(Dense(3, Act::Relu));
             model.add(Dense(1, Act::Sigmoid));
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
-            model.fit(&subsets, 10000, Batch::SGD, Eval::Train); // using SGD approach (doesn't have momentum supported)
+            model.fit(&subsets, 10000, Batch::SGD, Eval::Train)?; // using SGD approach (doesn't have momentum supported)
         },
         NetworkType::Diabetes => {
             subsets = subsets.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
@@ -68,17 +68,17 @@ fn main() {
             model.add(Dense(8, Act::Relu));
             model.add(Dense(1, Act::Sigmoid_(Weit::GlorotN)));
             model.compile(Loss::BinaryCrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
-            model.fit(&subsets, 50, Batch::Mini(10), Eval::Train);
+            model.fit(&subsets, 50, Batch::Mini(10), Eval::Train)?;
             model.view();
         },
         NetworkType::Iris => {
             model = Network::new();
-            model.add(Input1(4));
+            model.add(Input1(6));
             model.add(Dense(10, Act::Relu));
             model.add(Dense(10, Act::Relu));
             model.add(Dense(3, Act::Sigmoid));
             model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("Accuracy, cost"));
-            model.fit(&subsets, 50, Batch::Mini(5), Eval::Test);
+            model.fit(&subsets, 50, Batch::Mini(5), Eval::Test)?;
 
             // Now that model has been trained, make random selections
             random_predicts(&model, &subsets);
@@ -90,7 +90,7 @@ fn main() {
             model.add(Dense(100, Act::Sigmoid_(Weit::GlorotN)));
             model.add(Dense(10, Act::Sigmoid_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test);
+            model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test)?;
 
             random_predicts(&model, &subsets); // Now that model has been trained, make random selections
             //            model.view();
@@ -102,7 +102,7 @@ fn main() {
             model.add(Dense(128, Act::Relu));
             model.add(Dense(10, Act::Softmax_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::CategoricalCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 10, Batch::Mini_(5, Optim::Default), Eval::Test);
+            model.fit(&subsets, 10, Batch::Mini_(5, Optim::Default), Eval::Test)?;
         },
         NetworkType::Preload => {
             let tok = NetworkType::FashionMnist.to_string();
@@ -120,6 +120,8 @@ fn main() {
         let mut newmodel = Network::load(&token).map_err(|e| e.print_and_exit()).unwrap();
         newmodel.eval(&subsets, Eval::Test);
     }
+
+    Ok(())
 }
 
 pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsets) {
