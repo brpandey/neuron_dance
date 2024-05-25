@@ -155,7 +155,8 @@ impl Subset {
         decoder.read_to_end(&mut decoded_buf)?;
 
         // Create content from decoded file
-        Ok(Raw::new(decoded_buf)?)
+
+        Raw::new(decoded_buf)
     }
 }
 
@@ -237,7 +238,7 @@ impl RawImages {
     fn new(cur: &mut Cursor<Vec<u8>>, ndim: usize) -> Result<Self, SimpleError> {
         // extract sizes info given magic number metadata info about num dimensions
         let acc: Result<Vec<usize>, SimpleError> = Ok(Vec::with_capacity(ndim));
-        let sizes = (0..ndim).into_iter().fold(acc, |mut acc, _| {
+        let sizes = (0..ndim).fold(acc, |mut acc, _| {
             let size = cur.read_u32::<BigEndian>()?;
             acc.as_mut().unwrap().push(size as usize); acc
         })?;
@@ -248,10 +249,10 @@ impl RawImages {
         let mut buf: Vec<u8> = vec![];
         cur.read_to_end(&mut buf)?;
 
-        let flattened_shape = shape1 * shape2 as usize; // instead of a 28x28 matrix, we grab 784 * 1 in an array2
+        let flattened_shape = shape1 * shape2; // instead of a 28x28 matrix, we grab 784 * 1 in an array2
         assert_eq!(flattened_shape, MnistData::N_FEATURES);
 
-        let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64 / 255.0 as f64).collect(); // normalize to value between 0 and 1
+        let floats: Vec<f64> = buf.iter().map(|ch| *ch as f64 / 255.0).collect(); // normalize to value between 0 and 1
         let data = Array2::from_shape_vec((n_images, flattened_shape), floats)?; // e.g. 10,000 x 784
         Ok(Self(Some(data), n_images))
     }

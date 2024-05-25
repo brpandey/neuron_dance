@@ -50,7 +50,7 @@ impl TrainTestSubsets {
             x: data.0,
             y: data.1,
             size: data.2,
-            format: format.clone(),
+            format,
             class_names: class_names.clone(),
         };
 
@@ -58,14 +58,14 @@ impl TrainTestSubsets {
             x: data.3,
             y: data.4,
             size: data.5,
-            format: format,
-            class_names: class_names,
+            format,
+            class_names,
         };
 
         Self { train, test, n_features: data.6 }
     }
 
-    pub fn num_features(&self) -> usize { return self.n_features }
+    pub fn num_features(&self) -> usize { self.n_features }
 
     // scale is 0 min 1 max
     pub fn min_max_scale(&self, min: f64, max: f64) -> Self {

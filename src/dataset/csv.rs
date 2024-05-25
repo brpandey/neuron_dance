@@ -29,7 +29,7 @@ impl <'a> CSVType<'a> {
     pub fn filename(&self) -> Result<String, SimpleError> {
         let token = match self {
             CSVType::RGB => "rgb",
-            CSVType::Custom(ref t, _) => sanitize_token(t)?,
+            CSVType::Custom(t, _) => sanitize_token(t)?,
         };
 
         Ok(format!("{}/data/csv/{}.csv", ROOT_DIR, token))
@@ -90,7 +90,7 @@ impl <'b> DataSet for CSVData<'b> {
         let seed = 42; // for reproducibility
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let n_size = data.shape()[0] as usize; // 1345
+        let n_size = data.shape()[0];
 
         // take random shuffling following a normal distribution
         let shuffled = data.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
@@ -106,8 +106,8 @@ impl <'b> DataSet for CSVData<'b> {
         let data = self.data.as_mut().unwrap();
         let class_names = self.class_names.clone();
 
-        let n_size = data.shape()[0]; // for example for csv1 / rgb this would be 1345 rows
-        let n_columns = data.shape()[1]; // same example, e.g. 4, => 3 input features + 1 outcome / target (columns)
+        let n_size = data.shape()[0]; // # rows
+        let n_columns = data.shape()[1]; //# columns (inc target)
         let n_features = n_columns-1;
 
         let n1 = (n_size as f32 * split_ratio).ceil() as usize;
