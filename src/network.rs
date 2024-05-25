@@ -53,11 +53,11 @@ impl Network {
         self.current_state = ModelState::ADD;
     }
 
-    pub fn compile<'a>(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'a>) {
+    pub fn compile(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'_>) {
         self.check_valid_state(ModelState::COMPILE).expect(WRONG_ORDER);
 
         let (size_ends, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
-        let output_act = *acts.get(acts.len()-1).unwrap();
+        let output_act = *acts.last().unwrap();
         let (input_size, output_size) = size_ends;
 
         let loss: Box<dyn Cost> = loss_type.into();
@@ -206,11 +206,7 @@ impl Network {
             x_single = train.x.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
             y_single = train.y.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
 
-            self.train_iteration(
-                x_single.t(), &y_single,
-                gc, self.hypers.learning_rate(),
-                self.hypers.l2_regularization_rate(), train.size, 0,
-            );
+            self.train_iteration(x_single.t(), &y_single, gc, train.size, 0);
         }
 
         let (batch, epoch) = (Some(Batch::SGD), (0, epochs));
@@ -236,16 +232,12 @@ impl Network {
         for e in 0..epochs {
             row_indices.shuffle(&mut r);
 
-            for c in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
-                x_minibatch = train.x.select(Axis(0), &c);
-                y_minibatch = train.y.select(Axis(0), &c);
+            for chunk_ref in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
+                x_minibatch = train.x.select(Axis(0), chunk_ref);
+                y_minibatch = train.y.select(Axis(0), chunk_ref);
 
                 // transpose to ensure proper matrix multi fit
-                self.train_iteration(
-                    x_minibatch.t(), &y_minibatch,
-                    gc, self.hypers.learning_rate(),
-                    self.hypers.l2_regularization_rate(), train.size, e,
-                );
+                self.train_iteration(x_minibatch.t(), &y_minibatch, gc, train.size, e);
             }
 
             tally = self.metrics.as_mut().unwrap().create_tally(b, (e+1, epochs));
@@ -253,13 +245,14 @@ impl Network {
         }
     }
 
+    // Note - Consider grouping parameters into subtype?
     fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>,
-                       gc: &mut GradientCache, lr: f64, l2_rate: f64, total_size: usize, t: usize) {
+                       gc: &mut GradientCache, total_size: usize, t: usize) {
 
         gc.add(GT::Features, x_iteration.to_owned());
         self.forward_pass(x_iteration, gc);
         let chain_rule_compute = self.backward_pass(y_iteration, gc);
-        self.update_iteration(chain_rule_compute, lr, l2_rate, total_size, t);
+        self.update_iteration(chain_rule_compute, total_size, t);
     }
 
     // forward pass is a wrapper around predict as it tracks the intermediate linear and non-linear values
@@ -285,10 +278,10 @@ impl Network {
             z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
             a = (act_fun)(&z); // non-linear,  σ(z)
 
-            wrapped.as_mut().map(|c| {
-                c.add(GT::Linear, z);
-                c.add(GT::Nonlinear, (&a).to_owned());
-            });
+            if let Some(cache) = wrapped.as_mut() {
+                cache.add(GT::Linear, z);
+                cache.add(GT::Nonlinear, a.to_owned());
+            }
 
             acc = a;
         }
@@ -316,11 +309,15 @@ impl Network {
         crc
     }
 
-    fn update_iteration(&mut self, crc: ChainRuleComputation, learning_rate: f64, l2_rate: f64, n_total: usize, t: usize) {
+    fn update_iteration(&mut self, crc: ChainRuleComputation, n_total: usize, t: usize) {
         // Apply delta contributions to current biases and weights by subtracting
         // The negative gradient uses the chain rule to find a local
         // minima in our neural network cost graph as opposed to maxima (positive gradient)
         let (mut adj, mut velocity, mut key);
+
+        let learning_rate = self.hypers.learning_rate();
+        let l2_rate = self.hypers.l2_regularization_rate();
+
         let optimizer = self.hypers.optimizer();
 
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
@@ -329,7 +326,7 @@ impl Network {
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
             key = ParamKey::BiasGradient(i as u8);
-            adj = optimizer.calculate(key, &db, t);
+            adj = optimizer.calculate(key, db, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *b -= &velocity;
@@ -342,7 +339,7 @@ impl Network {
             // optimizer, if enabled, is used to calibrate the constant learning rate
             // more accurately with more data
             key = ParamKey::WeightGradient(i as u8);
-            adj = optimizer.calculate(key, &dw, t);
+            adj = optimizer.calculate(key, dw, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
             *w = &*w*weight_decay - velocity;
