@@ -30,8 +30,9 @@ use ndarray::Array2;
 use ndarray_rand::RandomExt;
 
 // Weight Initialization Types
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub enum Weit {
+    #[default]
     Default,
     He,
     GlorotN,
@@ -39,11 +40,6 @@ pub enum Weit {
     NormalizedGlorot,
     LeCunn
 }
-
-impl Default for Weit {
-    fn default() -> Self { Weit::Default }
-}
-
 
 impl Weit {
     pub fn random(&self, fan_out: usize, fan_in: usize) -> Array2<f64> {

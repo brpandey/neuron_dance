@@ -48,13 +48,13 @@ impl Network {
     /**** Public associated methods ****/
 
     pub fn add<L: Layer<Output = LayerTerms> + 'static>(&mut self, layer: L) {
-        self.check_valid_state(ModelState::ADD).expect(WRONG_ORDER);
+        self.check_valid_state(ModelState::Add).expect(WRONG_ORDER);
         self.layers.as_mut().unwrap().add(layer);
-        self.current_state = ModelState::ADD;
+        self.current_state = ModelState::Add;
     }
 
     pub fn compile(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'_>) {
-        self.check_valid_state(ModelState::COMPILE).expect(WRONG_ORDER);
+        self.check_valid_state(ModelState::Compile).expect(WRONG_ORDER);
 
         let (size_ends, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
         let output_act = *acts.last().unwrap();
@@ -71,7 +71,7 @@ impl Network {
             weights, biases, forward,
             layers: self.layers.take(),
             cache: None, hypers, metrics,
-            current_state: ModelState::COMPILE,
+            current_state: ModelState::Compile,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
@@ -87,7 +87,7 @@ impl Network {
 
     /// Train model with relevant dataset given the specified hyperparameters
     pub fn fit(&mut self, subsets: &TrainTestSubsets, epochs: usize, batch_type: Batch, eval: Eval) -> Result<(), SimpleError>{
-        self.check_valid_state(ModelState::FIT).expect(WRONG_ORDER);
+        self.check_valid_state(ModelState::Fit).expect(WRONG_ORDER);
         let (layer_size, n_features) = (self.hypers.input_size(), subsets.num_features());
 
         if layer_size != n_features { // input layer size specified incorrectly
@@ -113,25 +113,25 @@ impl Network {
             self.train_minibatch(subsets, epochs, batch_type.value(), &mut cache, eval)
         }
 
-        self.current_state = ModelState::FIT;
+        self.current_state = ModelState::Fit;
 
         Ok(())
     }
 
     pub fn eval(&mut self, subsets: &TrainTestSubsets, eval: Eval) {
-        self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
+        self.check_valid_state(ModelState::Eval).expect(WRONG_ORDER);
         let mut tally = self.metrics.as_mut().unwrap().create_tally(None, (0, 0));
         self.evaluate(subsets, &eval, &mut tally);
     }
 
     pub fn predict(&self, x: ArrayView2<f64>) {
-        self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
+        self.check_valid_state(ModelState::Eval).expect(WRONG_ORDER);
         let mut none = None;
         self.predict_(x, &mut none);
     }
 
     pub fn predict_using_random(&self, subsets: &TrainTestSubsets, eval: Eval) -> usize {
-        self.check_valid_state(ModelState::EVAL).expect(WRONG_ORDER);
+        self.check_valid_state(ModelState::Eval).expect(WRONG_ORDER);
         let mut none = None;
 
         let subset_ref = subsets.subset_ref(&eval);
@@ -166,7 +166,7 @@ impl Network {
     }
 
     pub fn store(&mut self, token: &str) -> Result<(), SimpleError> {
-        if self.current_state < ModelState::FIT {
+        if self.current_state < ModelState::Fit {
             panic!("Unable to store model since it hasn't been properly fitted");
         } // only store fitted models
 
@@ -416,7 +416,7 @@ impl Save for Network {
 
         Ok(Network {
             layers: None,
-            current_state: ModelState::FIT, // set as a fitted model
+            current_state: ModelState::Fit, // set as a fitted model
             weights: Save::from_archive(w_a)?,
             biases: Save::from_archive(b_a)?,
             ..Default::default()

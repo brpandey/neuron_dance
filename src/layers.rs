@@ -107,7 +107,15 @@ impl LayerStack {
     }
 
     pub fn len(&self) -> usize { self.0.len() }
+    pub fn is_empty(&self) -> bool { self.0.len() == 0 }
 }
+
+impl Default for LayerStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 impl Layer for LayerStack {
     // ((input_size,last_size), weights, biases, forward, backward, output_act)

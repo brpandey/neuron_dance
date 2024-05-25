@@ -124,13 +124,13 @@ fn main() -> Result<(), SimpleError>{
     Ok(())
 }
 
-pub fn random_predicts<'a>(model: &Network, subsets: &TrainTestSubsets) {
+pub fn random_predicts(model: &Network, subsets: &TrainTestSubsets) {
     use strum::IntoEnumIterator;
 
     // make random selections for 4 individual images, alternating from Eval::Test or Train set
     for i in 0..4 {
         let e = Eval::iter().nth(i % 2).unwrap();
-        model.predict_using_random(&subsets, e);
+        model.predict_using_random(subsets, e);
     }
 }
 

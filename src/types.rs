@@ -7,8 +7,9 @@ use crate::optimizer::Optim;
 #[derive(Debug, Copy, Clone, strum::EnumIter)]
 pub enum Eval { Train, Test }
 
-#[derive(Debug, Copy, Clone, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
+#[derive(Debug, Default, Copy, Clone, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
 pub enum Batch {
+    #[default]
     SGD,
     Mini(usize),
     Mini_(usize, Optim)
@@ -17,7 +18,7 @@ pub enum Batch {
 impl Batch {
     pub fn is_mini(&self) -> bool {
         if let Batch::Mini(_) | Batch::Mini_(_,_) = self { return true }
-        return false
+        false
     }
 
     pub fn value(&self) -> usize {
@@ -29,15 +30,11 @@ impl Batch {
 
     pub fn text_display(&self) -> String {
         match self {
-            Batch::SGD => format!("(SGD)"),
-            Batch::Mini(_) | Batch::Mini_(_, Optim::Default) => format!("(MiniBatch)"),
+            Batch::SGD => "(SGD)".to_string(),
+            Batch::Mini(_) | Batch::Mini_(_, Optim::Default) => "(MiniBatch)".to_string(),
             Batch::Mini_(_, optt) => format!("(MiniBatch + {})", &optt),
         }
     }
-}
-
-impl Default for Batch {
-    fn default() -> Self { Batch::SGD }
 }
 
 #[derive(Debug)]
@@ -56,16 +53,13 @@ impl Classification {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, strum_macros::Display, strum_macros::EnumString)]
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq, strum_macros::Display, strum_macros::EnumString)]
 pub enum Mett { // Metrics Type
+    #[default]
     #[strum(ascii_case_insensitive)]
     Accuracy,
     #[strum(ascii_case_insensitive)]
     Cost,
-}
-
-impl Default for Mett {
-    fn default() -> Self { Mett::Accuracy }
 }
 
 pub struct Metr<'a>(pub &'a str); // str format metric type specified in layer
@@ -77,7 +71,7 @@ impl<'a> Default for Metr<'a> {
 impl<'a> Metr<'a> {
     pub fn to_vec(&mut self) -> Vec<Mett> { // convert Metr to a collection of Mett's
         let text = self.0;
-        let vec: Vec<&str> = text.split(",").map(|t| t.trim()).collect();
+        let vec: Vec<&str> = text.split(',').map(|t| t.trim()).collect();
 
         vec.into_iter().fold(vec![], |mut acc, v| {
             if let Ok(m) = v.parse() {
@@ -91,11 +85,11 @@ impl<'a> Metr<'a> {
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
 pub enum ModelState { // models a linear sequence of state progression / also used to resemble operations
     #[default]
-    EMPTY = 0, // start state
-    ADD = 1, // valid operations => add layers or compile
-    COMPILE = 2, // valid operations => fit
-    FIT = 3, // valid operations => eval or predict
-    EVAL = 4, // used as a comparative state, never set to this value
+    Empty = 0, // start state
+    Add = 1, // valid operations => add layers or compile
+    Compile = 2, // valid operations => fit
+    Fit = 3, // valid operations => eval or predict
+    Eval = 4, // used as a comparative state, never set to this value
 }
 
 impl ModelState {
@@ -104,10 +98,10 @@ impl ModelState {
 
         // explicitly state allowable conditions
         match *op {
-            ModelState::ADD if cur == ModelState::ADD || cur == ModelState::EMPTY => Ok(true),
-            ModelState::COMPILE if cur == ModelState::ADD => Ok(true),
-            ModelState::FIT if cur == ModelState::COMPILE => Ok(true),
-            ModelState::EVAL if cur == ModelState::FIT => Ok(true),
+            ModelState::Add if cur == ModelState::Add || cur == ModelState::Empty => Ok(true),
+            ModelState::Compile if cur == ModelState::Add => Ok(true),
+            ModelState::Fit if cur == ModelState::Compile => Ok(true),
+            ModelState::Eval if cur == ModelState::Fit => Ok(true),
             _ => {
                 let txt = format!("Invalid model operation {:?} given current model state {:?}", op, self);
                 Err(SimpleError::InvalidModel(txt))

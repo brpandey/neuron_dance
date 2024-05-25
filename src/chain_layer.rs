@@ -28,8 +28,8 @@ impl ComputeLayer {
     // returns the acc in the chain rule computation aka dc_dz
     pub fn acc(&mut self) -> Option<Array2<f64>> { 
         match self {
-            ComputeLayer::Output(l2) => return l2.dc_dz.take(),
-            ComputeLayer::Hidden(l1) => return l1.shared.dc_dz1.take()
+            ComputeLayer::Output(l2) => l2.dc_dz.take(),
+            ComputeLayer::Hidden(l1) => l1.shared.dc_dz1.take()
         }
     }
 }
