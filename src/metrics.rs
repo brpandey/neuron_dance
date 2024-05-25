@@ -14,7 +14,7 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    pub fn new<'a>(mut metrics_type: Metr<'a>, cost_fp: CostFp, output_size: usize, l2_rate: f64) -> Self {
+    pub fn new(mut metrics_type: Metr<'_>, cost_fp: CostFp, output_size: usize, l2_rate: f64) -> Self {
         let metrics_list = metrics_type.to_vec();
 
         // reduce metrics list into hash table for easy lookup
@@ -25,9 +25,9 @@ impl Metrics {
     }
 
     pub fn create_tally(&mut self, batch_type: Option<Batch>,
-                    epoch: (usize, usize)) -> Tally {
+                        epoch: (usize, usize)) -> Tally {
         Tally::new(
-            self.metrics_map.clone(), self.cost_fp.clone(), self.l2_rate,
+            self.metrics_map.clone(), self.cost_fp, self.l2_rate,
             batch_type, epoch, self.one_hot.clone(),
         )
     }
@@ -113,12 +113,12 @@ impl Tally {
         self.display_list = vec![]; // reset
 
         if self.metrics_map.contains_key(&Mett::Accuracy) {
-            self.display_list.push(AccuracyM::new(self.total_matches, total_size));
+            self.display_list.push(AccuracyM::new_display(self.total_matches, total_size));
             self.total_matches = 0; // reset
         }
 
         if self.metrics_map.contains_key(&Mett::Cost) {
-            self.display_list.push(LossM::new(self.total_cost, total_size));
+            self.display_list.push(LossM::new_display(self.total_cost, total_size));
             self.total_cost = 0.0; // reset
         }
     }
@@ -143,7 +143,7 @@ impl Tally {
 
         // print each specific metric's display text
         m_txts.iter().for_each(|t| println!("{t}"));
-        println!("");
+        println!(" ");
     }
 
     pub fn one_hot(&self, index: usize) -> Option<&Array2<f64>> { self.one_hot.get(&index) }
@@ -155,7 +155,7 @@ struct AccuracyM(f64, usize, usize);
 struct LossM(f64, f64, usize);
 
 impl AccuracyM {
-    pub fn new(matches: usize, n_total: usize) -> Box<dyn Display> {
+    pub fn new_display(matches: usize, n_total: usize) -> Box<dyn Display> {
         if n_total == 0 { panic!("total size can't be zero"); }
         Box::new(AccuracyM(matches as f64/n_total as f64, matches, n_total))
     }
@@ -168,7 +168,7 @@ impl fmt::Display for AccuracyM {
 }
 
 impl LossM {
-    pub fn new(total_cost: f64, n_total: usize) -> Box<dyn Display> {
+    pub fn new_display(total_cost: f64, n_total: usize) -> Box<dyn Display> {
         if n_total == 0 { panic!("total size can't be zero"); }
         Box::new(LossM(total_cost/n_total as f64, total_cost, n_total))
     }
