@@ -82,16 +82,14 @@ impl GradientCache {
         rule.apply(y_cow.view())
     }
 
-    pub fn activation_derivative(&mut self) -> Array2<f64> // returns da_dz
+    pub fn activation_derivative(&mut self) -> Array2<f64>
     {
         let last_z = self.stack.pop(GT::Linear).array();
         let a_derivative = self.stack.pop(GT::ActivationDerivative).fp();
-        let da_dz = (a_derivative)(&last_z);
-
-        da_dz
+        (a_derivative)(&last_z) // da_dz
     }
 
-    fn one_hot_target<'a, 'b>(&'a mut self, y: &'b Array2<f64>) -> CowArray<'b, f64, Ix2> {
+    fn one_hot_target<'a>(& mut self, y: &'a Array2<f64>) -> CowArray<'a, f64, Ix2> {
         match self.classification {
             Classification::MultiClass(output_size) => {
                 // Output labels is a matrix that accounts for output size and mini batch size
