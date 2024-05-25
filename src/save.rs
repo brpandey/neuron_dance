@@ -46,7 +46,7 @@ pub trait Save {
         let mut buf = vec![];
         file.read_to_end(&mut buf)?;
         let archive = DeBin::deserialize_bin(&buf)?;
-        Ok(Save::from_archive(archive)?)
+        Save::from_archive(archive)
     }
 }
 

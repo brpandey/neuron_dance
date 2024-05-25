@@ -27,7 +27,7 @@ impl Visualize {
                          headers: Option<&Vec<String>>, ascii_art: bool, text: Option<&str>) {
         use ndarray_stats::QuantileExt;
 
-        text.map(|t| println!("{t}"));
+        text.inspect(|t| println!("{t}"));
 
         // print first rows, whichever is shorter
         let max = if ascii_art { Self::ASCII_ART_SIZE } else { Self::TABLE_FIRST_ROWS };
@@ -43,8 +43,8 @@ impl Visualize {
             .set_width(120);
 
         // set table header
-        if headers.is_some() {
-            table.set_header(*headers.as_ref().unwrap());
+        if let Some(h) = &headers {
+            table.set_header(*h);
         }
 
         let mut row_view;
@@ -59,12 +59,12 @@ impl Visualize {
                 cur = row_view.sum() == 0. &&
                     *QuantileExt::max(&row_view).unwrap() == 0.;
 
-                // if regular row with nonzero terms, add it
-                // if current row's sum is 0, but previous row wasn't all zeros, add it -- to slightly compact table
-                if cur == false || (cur == true && prev == false ) {
+                // if current row with nonzero terms, add it OR 
+                // if previous row wasn't all zeros, add it -- to slightly compact table
+                if !cur || !prev {
                     table.add_row(
                         row_view.into_iter()
-                            .map(|v| Self::float_to_ascii(&v))
+                            .map(Self::float_to_ascii)
                             .collect::<Vec<char>>()
                     );
                 }
@@ -109,7 +109,7 @@ impl Visualize {
         // map data to color, fill cell with color given color's rgb value
         for (empty_cell, data_value) in empty_cells.iter().zip(normalized_image.iter()) {
             let data_value_scaled = data_value.sqrt() / max_value.sqrt();
-            let color = color_scale.eval_continuous(data_value_scaled as f64);
+            let color = color_scale.eval_continuous(data_value_scaled);
             empty_cell.fill(&RGBColor(color.r, color.g, color.b)).unwrap();
         };
 

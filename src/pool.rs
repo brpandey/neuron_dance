@@ -2,7 +2,7 @@ use ndarray::{s, Array, Array2, ArrayView2};
 use ndarray_stats::QuantileExt;
 
 pub enum PoolType {
-    MAX,
+    Max,
 }
 
 pub struct Pool;
@@ -27,7 +27,7 @@ impl Pool {
         let pool: Vec<f64> = vec.iter().map(|f| {
             match pt {
                 // create max pool, taking the max value from each kernel matrix
-                PoolType::MAX => *f.max().unwrap(),
+                PoolType::Max => *f.max().unwrap(),
             }
         }).collect();
 
