@@ -73,7 +73,7 @@ fn main() -> Result<(), SimpleError>{
         },
         NetworkType::Iris => {
             model = Network::new();
-            model.add(Input1(6));
+            model.add(Input1(4));
             model.add(Dense(10, Act::Relu));
             model.add(Dense(10, Act::Relu));
             model.add(Dense(3, Act::Sigmoid));

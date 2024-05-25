@@ -453,6 +453,7 @@ mod tests {
     use crate::layers::{Act, Dense, Input1};
     use std::sync::OnceLock;
     use crate::dataset::DataSet;
+    use crate::types::SimpleError;
 
     static TTS: OnceLock<TrainTestSubsets> = OnceLock::new();
 
@@ -513,7 +514,7 @@ mod tests {
             Network::add(&mut model, Dense(3, Act::Relu));
             Network::add(&mut model, Dense(1, Act::Sigmoid));
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" "));
-            model.fit(subsets, 5, Batch::SGD, Eval::Train).unwrap();
+            model.fit(subsets, 1, Batch::SGD, Eval::Train).unwrap();
             model.store("temp").unwrap();
         });
 
@@ -525,16 +526,37 @@ mod tests {
         let subsets = subsets_init();
 
         let mut model = Network::new();
-        Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
+        Network::add(&mut model, Input1(3));
         Network::add(&mut model, Dense(3, Act::Relu));
         Network::add(&mut model, Dense(1, Act::Sigmoid));
         model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" "));
-        model.fit(subsets, 5, Batch::SGD, Eval::Train).unwrap();
+        model.fit(subsets, 1, Batch::SGD, Eval::Train).unwrap();
 
         // incorrect operation of loading before storing
         //        model.store("tempA").unwrap();
         let result = Network::load("tempA");
 
         assert!(&result.is_err());
+    }
+
+    #[allow(unused_variables)]
+    #[test]
+    fn input_layer_dataset_shape_no_match() {
+        let subsets = subsets_init();
+
+        let n_features = subsets.num_features();
+        let input_layer_size = 6;
+
+        let mut model = Network::new();
+
+        // input layer size is too big!
+        Network::add(&mut model, Input1(input_layer_size));
+        Network::add(&mut model, Dense(3, Act::Relu));
+        Network::add(&mut model, Dense(1, Act::Sigmoid));
+        model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" "));
+
+        let e = model.fit(subsets, 1, Batch::SGD, Eval::Train).unwrap_err();
+
+        assert!(matches!(e, SimpleError::InputLayerSizeNoMatch(input_layer_size, n_features)));
     }
 }
