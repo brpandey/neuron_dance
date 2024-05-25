@@ -55,9 +55,9 @@ impl Adam {
     {
         hist_types.iter().fold(store, |acc, p_type| {
             // Generate composite keys in the form ParamKey, HistType
-            let composite_key = CompositeKey(key.clone(), *p_type);
+            let composite_key = CompositeKey(key, *p_type);
             if !acc.contains_key(&composite_key) { // if not found initialize with zero'd tensor
-                acc.insert(composite_key.clone(), Array2::zeros(shape));
+                acc.insert(composite_key, Array2::zeros(shape));
             }
             acc
         });
@@ -83,11 +83,11 @@ impl Optimizer for Adam {
 
         // 3 Account for errors/biases since mean and variance were initalized to 0's
 
-        let mean = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Mean)).unwrap();
+        let mean = self.historical.get_mut(&CompositeKey(key, HistType::Mean)).unwrap();
         *mean = mean.smooth(self.beta1, value, false);
         let m_hat = Self::bias_correct(mean, self.beta1, t);
 
-        let variance = self.historical.get_mut(&CompositeKey(key.clone(), HistType::Variance)).unwrap();
+        let variance = self.historical.get_mut(&CompositeKey(key, HistType::Variance)).unwrap();
         *variance = variance.smooth(self.beta2, value, true);
         let v_hat = Self::bias_correct(variance, self.beta2, t);
 

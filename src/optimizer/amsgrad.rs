@@ -35,9 +35,9 @@ impl Optimizer for AmsGrad {
     fn calculate<'a>(&mut self, key: ParamKey, value: &'a Array2<f64>, t: usize) -> Cow<'a, Array2<f64>> {
         Adam::initialize(key, value.raw_dim(), &self.hist_types, &mut self.historical);
 
-        let m_key = CompositeKey(key.clone(), HistType::Mean);
-        let v_key = CompositeKey(key.clone(), HistType::Variance);
-        let vh_key = CompositeKey(key.clone(), HistType::Vhat);
+        let m_key = CompositeKey(key, HistType::Mean);
+        let v_key = CompositeKey(key, HistType::Variance);
+        let vh_key = CompositeKey(key, HistType::Vhat);
 
         let mean = self.historical.get(&m_key).unwrap();
         let variance = self.historical.get(&v_key).unwrap();

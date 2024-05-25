@@ -19,16 +19,13 @@ use nanoserde::{DeBin, SerBin};
 
 use crate::optimizer::{adam::Adam, amsgrad::AmsGrad, nadam::NAdam};
 
-#[derive(Debug, Copy, Clone, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
+#[derive(Copy, Clone, Debug, Default, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
 pub enum Optim {
+    #[default]
     Default,
     Adam,
     AMSGrad,
     NAdam,
-}
-
-impl Default for Optim {
-    fn default() -> Self { Optim::Default }
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
