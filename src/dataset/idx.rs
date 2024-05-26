@@ -37,8 +37,10 @@ impl Peek for MnistData {
         use crate::pool::{Pool, PoolType};
 
         let image = x.clone().into_shape(Self::SHAPE).unwrap();
-        let reduced_image = Pool::apply(image.view(), 2, 2, PoolType::Max);
-        Visualize::table_preview(&reduced_image.view(), None, true, text);
+
+        if let Some(reduced_image) = Pool::apply(image.view(), 2, 2, PoolType::Max) {
+            Visualize::table_preview(&reduced_image.view(), None, true, text);
+        }
     }
 }
 
