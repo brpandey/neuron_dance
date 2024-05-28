@@ -1,12 +1,13 @@
 use csv::ReaderBuilder as Builder;
-use ndarray::{Array2, Axis, s};
+use ndarray::{Array2, Axis, s, Data, Ix2, ArrayBase};
 use ndarray_csv::Array2Reader;
 use ndarray_rand::{RandomExt, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
+use std::fmt::Display;
 
 use crate::dataset::{sanitize_token, ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple};
-use crate::visualize::{Visualize, Peek};
+use crate::visualize::{Visualize, Peek, Empty};
 use crate::types::SimpleError;
 
 #[derive(Default)]
@@ -51,8 +52,8 @@ impl <'b> CSVData<'b> {
 }
 
 impl Peek for CSVData<'_> {
-    fn peek(x: &Array2<f64>, text: Option<&str>) {
-        Visualize::table_preview(&x.view(), None, false, text);
+    fn peek<S: Data<Elem = f64>, T: AsRef<str> + Display>(x: &ArrayBase<S, Ix2>, text: Option<T>) {
+        Visualize::table_preview(x, None::<Empty>, false, text);
     }
 }
 
@@ -80,7 +81,10 @@ impl <'b> DataSet for CSVData<'b> {
 
     fn head(&self) {
         if self.data.is_none() { return } // ensure data has been fetched before performing head preview
-        Visualize::table_preview(&self.data.as_ref().unwrap().view(), self.headers.as_ref(), false, Some("> head csv-file"));
+        Visualize::table_preview(
+            self.data.as_ref().unwrap(),
+            self.headers.as_deref(), false, Some("> head csv-file")
+        );
     }
 
     fn shuffle(&mut self) {

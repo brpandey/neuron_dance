@@ -1,4 +1,4 @@
-use ndarray::{s, Array, Array2, ArrayView2};
+use ndarray::{s, Array, Array2, Ix2, ArrayBase, Data};
 use ndarray_stats::QuantileExt;
 
 pub enum PoolType {
@@ -8,7 +8,9 @@ pub enum PoolType {
 pub struct Pool;
 
 impl Pool {
-    pub fn apply(a: ArrayView2<f64>, pool_size: usize, stride_size: usize, pt: PoolType) -> Option<Array2<f64>> {
+    pub fn apply<S>(a: &ArrayBase<S, Ix2>, pool_size: usize, stride_size: usize, pt: PoolType) -> Option<Array2<f64>>
+    where S: Data<Elem = f64>
+    {
         let mut vec = vec![];
         let side = a.shape()[0];
 
@@ -45,7 +47,7 @@ impl Pool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use ndarray::{arr2, Array2};
 
     #[test]
     fn apply_max_pool() {

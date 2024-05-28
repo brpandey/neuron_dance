@@ -1,8 +1,7 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use flate2::read::GzDecoder;
-use ndarray::Array2;
-use std::fs::File;
-use std::io::{Cursor, Read};
+use ndarray::{Array2, ArrayBase, Data, Ix2};
+use std::{fs::File, io::{Cursor, Read}, fmt::Display};
 
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsets};
 use crate::{visualize::Peek, types::SimpleError};
@@ -32,17 +31,23 @@ impl MnistData {
 }
 
 impl Peek for MnistData {
-    fn peek(x: &Array2<f64>, text: Option<&str>) {
-        use crate::visualize::Visualize;
+    fn peek<S: Data<Elem = f64>, T: AsRef<str> + Display>(x: &ArrayBase<S, Ix2>, text: Option<T>) {
+        use crate::visualize::{Visualize, Empty};
         use crate::pool::{Pool, PoolType};
 
-        let image = x.clone().into_shape(Self::SHAPE).unwrap();
+        let revert = x.dim(); // stash original shape
 
-        if let Some(reduced_image) = Pool::apply(image.view(), 2, 2, PoolType::Max) {
-            Visualize::table_preview(&reduced_image.view(), None, true, text);
+        let image = x.to_shape(Self::SHAPE).unwrap();
+
+        if let Some(reduced_image) = Pool::apply(&image, 2, 2, PoolType::Max) {
+            Visualize::table_preview(&reduced_image, None::<Empty>, true, text);
         }
+
+        x.to_shape(revert).unwrap(); // revert back shape
     }
 }
+
+
 
 impl DataSet for MnistData {
     fn fetch(&mut self) -> Result<(), SimpleError> {

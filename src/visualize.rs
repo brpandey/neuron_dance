@@ -1,4 +1,5 @@
-use ndarray::{Array2, ArrayView2};
+use std::fmt::Display;
+use ndarray::{ArrayBase, Data, Ix2};
 use comfy_table::{Table, ContentArrangement};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use plotters::{prelude::*, backend::BitMapBackend as BMB};
@@ -7,8 +8,11 @@ use viuer::{print_from_file, Config};
 
 use crate::algebra::AlgebraExt;
 
+// providing a None option requires type annotations sometimes
+pub type Empty<'a> = &'a[&'a str]; 
+
 pub trait Peek {
-    fn peek(x: &Array2<f64>, txt: Option<&str>);
+    fn peek<S: Data<Elem = f64>, T: AsRef<str> + Display>(x: &ArrayBase<S, Ix2>, text: Option<T>);
 }
 
 pub struct Visualize;
@@ -18,10 +22,15 @@ impl Visualize {
     const TABLE_FIRST_ROWS: usize = 4;
     const IMAGE_SIZE: (u32, u32) = (300, 300);
     const HEATMAPS_PER_ROW: u8 = 7;
+    const TABLE_WIDTH: u16 = 120;
 
     // preview first rows of data source
-    pub fn table_preview(data: &ArrayView2<f64>, headers: Option<&Vec<String>>,
-                         ascii_art: bool, text: Option<&str>) -> Table {
+    pub fn table_preview<S, T1, T2>(data: &ArrayBase<S, Ix2>, headers: Option<&[T1]>, ascii_art: bool, text: Option<T2>) -> Table
+    where
+        S: Data<Elem = f64>,
+        T1: AsRef<str> + Display,
+        T2: AsRef<str> + Display,
+    {
         use ndarray_stats::QuantileExt;
 
         text.inspect(|t| println!("{t}"));
@@ -38,11 +47,11 @@ impl Visualize {
             .load_preset(UTF8_FULL)
             .apply_modifier(UTF8_ROUND_CORNERS)
             .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_width(120);
+            .set_width(Self::TABLE_WIDTH);
 
         // set table header
         if let Some(h) = &headers {
-            table.set_header(*h);
+            table.set_header(h.as_ref());
         }
 
         let mut row_view;
@@ -88,7 +97,10 @@ impl Visualize {
         }
     }
 
-    pub fn heatmap_row(image: &ArrayView2<f64>, index: u8) {
+    pub fn heatmap_row<S>(image: &ArrayBase<S, Ix2>, index: u8)
+    where
+        S: Data<Elem = f64>
+    {
         let col_index = index % Self::HEATMAPS_PER_ROW;  // only accept < 10 heatmap images per row
         let row_index = index / Self::HEATMAPS_PER_ROW;
         let (n_rows, n_cols) = (image.shape()[0], image.shape()[1]);
@@ -141,7 +153,7 @@ mod tests {
         let headers = vec!["A".to_string(), "B".to_string(), "C".to_string(), "D".to_string()];
 
         let t = Visualize::table_preview(
-            &input.view(), Some(&headers),
+            &input, Some(&headers),
             false, None);
 
         let out =
@@ -169,7 +181,7 @@ mod tests {
 
         // view in regular table view (only prints first four rows)
         let t = Visualize::table_preview(
-            &input.view(), None,
+            &input, None,
             false, None);
 
         let out1 =
@@ -187,7 +199,7 @@ mod tests {
 
         // view same data but in ascii table view
         let t = Visualize::table_preview(
-            &input.view(), None,
+            &input, None,
             true, None);
 
         // image of a hat
@@ -208,6 +220,6 @@ mod tests {
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ╰───┴───┴───┴───┴───┴───┴───┴───┴───╯";
 
-            assert_eq!(t.to_string(), out2.to_string());
+        assert_eq!(t.to_string(), out2.to_string());
     }
 }
