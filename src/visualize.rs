@@ -1,12 +1,9 @@
-use ndarray::ArrayView2;
+use ndarray::{Array2, ArrayView2};
 use comfy_table::{Table, ContentArrangement};
-use comfy_table::modifiers::UTF8_ROUND_CORNERS;
-use comfy_table::presets::UTF8_FULL;
-use plotters::prelude::*;
-use plotters::backend::BitMapBackend as BMB;
+use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
+use plotters::{prelude::*, backend::BitMapBackend as BMB};
 use colorous::{PLASMA, GREYS, TURBO};
 use viuer::{print_from_file, Config};
-use ndarray::Array2;
 
 use crate::algebra::AlgebraExt;
 
@@ -23,8 +20,8 @@ impl Visualize {
     const HEATMAPS_PER_ROW: u8 = 7;
 
     // preview first rows of data source
-    pub fn table_preview(data: &ArrayView2<f64>, 
-                         headers: Option<&Vec<String>>, ascii_art: bool, text: Option<&str>) {
+    pub fn table_preview(data: &ArrayView2<f64>, headers: Option<&Vec<String>>,
+                         ascii_art: bool, text: Option<&str>) -> Table {
         use ndarray_stats::QuantileExt;
 
         text.inspect(|t| println!("{t}"));
@@ -32,9 +29,10 @@ impl Visualize {
         // print first rows, whichever is shorter
         let max = if ascii_art { Self::ASCII_ART_SIZE } else { Self::TABLE_FIRST_ROWS };
         let n_rows = std::cmp::min(data.nrows(), max);
-        if n_rows == 0 { return } // exit early, nothing to preview
 
         let mut table = Table::new();
+
+        if n_rows == 0 { return table } // exit early, nothing to preview
 
         table
             .load_preset(UTF8_FULL)
@@ -75,7 +73,8 @@ impl Visualize {
             }
         }
 
-        println!("{table}");
+        println!("{}", &table);
+        table
     }
 
     fn float_to_ascii(val: &f64) -> char {
@@ -85,7 +84,6 @@ impl Visualize {
             v if v > 0 && v <= 50 => '%',
             v if v > 50 && v <= 75 => '@',
             v if v > 75 && v < 100 => 'X',
-            v if v > 100 => '#',
             _ => ' ',
         }
     }
@@ -129,5 +127,87 @@ impl Visualize {
         };
 
         print_from_file(&filename, &conf).expect("Unable to print image");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::arr2;
+
+    #[test]
+    pub fn regular_table_pre() {
+        let input = arr2(&[[9.0, 5.3, 1.4, 7.2]]);
+        let headers = vec!["A".to_string(), "B".to_string(), "C".to_string(), "D".to_string()];
+
+        let t = Visualize::table_preview(
+            &input.view(), Some(&headers),
+            false, None);
+
+        let out =
+"╭───┬─────┬─────┬─────╮
+│ A ┆ B   ┆ C   ┆ D   │
+╞═══╪═════╪═════╪═════╡
+│ 9 ┆ 5.3 ┆ 1.4 ┆ 7.2 │
+╰───┴─────┴─────┴─────╯";
+
+        assert_eq!(t.to_string(), out.to_string());
+    }
+
+    #[test]
+    pub fn ascii_table_pre() {
+        let input = arr2(&[
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.4, 0.7, 0.85, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.8, 0.81, 0.82, 0.8, 0.8, 0.0, 0.0],
+            [0.0, 0.0, 0.8, 0.8, 0.6, 0.6, 0.8, 0.0, 0.0],
+            [0.0, 0.0, 0.8, 0.8, 0.6, 0.8, 0.6, 0.0, 0.0],
+            [0.8, 0.8, 0.8, 0.8, 0.8, 0.6, 0.8, 0.8, 0.8],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ]);
+
+        // view in regular table view (only prints first four rows)
+        let t = Visualize::table_preview(
+            &input.view(), None,
+            false, None);
+
+        let out1 =
+"╭───┬───┬─────┬──────┬──────┬──────┬─────┬───┬───╮
+│ 0 ┆ 0 ┆ 0   ┆ 0    ┆ 0    ┆ 0    ┆ 0   ┆ 0 ┆ 0 │
+├╌╌╌┼╌╌╌┼╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌┼╌╌╌┼╌╌╌┤
+│ 0 ┆ 0 ┆ 0   ┆ 0    ┆ 0    ┆ 0    ┆ 0   ┆ 0 ┆ 0 │
+├╌╌╌┼╌╌╌┼╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌┼╌╌╌┼╌╌╌┤
+│ 0 ┆ 0 ┆ 0   ┆ 0.4  ┆ 0.7  ┆ 0.85 ┆ 0   ┆ 0 ┆ 0 │
+├╌╌╌┼╌╌╌┼╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌┼╌╌╌┼╌╌╌┤
+│ 0 ┆ 0 ┆ 0.8 ┆ 0.81 ┆ 0.82 ┆ 0.8  ┆ 0.8 ┆ 0 ┆ 0 │
+╰───┴───┴─────┴──────┴──────┴──────┴─────┴───┴───╯";
+
+        assert_eq!(t.to_string(), out1.to_string());
+
+        // view same data but in ascii table view
+        let t = Visualize::table_preview(
+            &input.view(), None,
+            true, None);
+
+        // image of a hat
+        let out2 =
+            "╭───┬───┬───┬───┬───┬───┬───┬───┬───╮
+│   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
+├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
+│   ┆   ┆   ┆ % ┆ @ ┆ X ┆   ┆   ┆   │
+├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
+│   ┆   ┆ X ┆ X ┆ X ┆ X ┆ X ┆   ┆   │
+├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
+│   ┆   ┆ X ┆ X ┆ @ ┆ @ ┆ X ┆   ┆   │
+├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
+│   ┆   ┆ X ┆ X ┆ @ ┆ X ┆ @ ┆   ┆   │
+├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
+│ X ┆ X ┆ X ┆ X ┆ X ┆ @ ┆ X ┆ X ┆ X │
+├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
+│   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
+╰───┴───┴───┴───┴───┴───┴───┴───┴───╯";
+
+            assert_eq!(t.to_string(), out2.to_string());
     }
 }
