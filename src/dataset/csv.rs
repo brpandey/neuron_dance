@@ -4,7 +4,6 @@ use ndarray_csv::Array2Reader;
 use ndarray_rand::{RandomExt, rand::SeedableRng};
 use rand_isaac::isaac64::Isaac64Rng;
 use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
-use std::fmt::Display;
 
 use crate::dataset::{sanitize_token, ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple};
 use crate::visualize::{Visualize, Peek, Empty};
@@ -52,7 +51,7 @@ impl <'b> CSVData<'b> {
 }
 
 impl Peek for CSVData<'_> {
-    fn peek<S: Data<Elem = f64>, T: AsRef<str> + Display>(x: &ArrayBase<S, Ix2>, text: Option<T>) {
+    fn peek<S: Data<Elem = f64>>(x: &ArrayBase<S, Ix2>, text: Option<&str>) {
         Visualize::table_preview(x, None::<Empty>, false, text);
     }
 }

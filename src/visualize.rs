@@ -12,7 +12,7 @@ use crate::algebra::AlgebraExt;
 pub type Empty<'a> = &'a[&'a str]; 
 
 pub trait Peek {
-    fn peek<S: Data<Elem = f64>, T: AsRef<str> + Display>(x: &ArrayBase<S, Ix2>, text: Option<T>);
+    fn peek<S: Data<Elem = f64>>(x: &ArrayBase<S, Ix2>, text: Option<&str>);
 }
 
 pub struct Visualize;
@@ -25,11 +25,10 @@ impl Visualize {
     const TABLE_WIDTH: u16 = 120;
 
     // preview first rows of data source
-    pub fn table_preview<S, T1, T2>(data: &ArrayBase<S, Ix2>, headers: Option<&[T1]>, ascii_art: bool, text: Option<T2>) -> Table
+    pub fn table_preview<S, T>(data: &ArrayBase<S, Ix2>, headers: Option<&[T]>, ascii_art: bool, text: Option<&str>) -> Table
     where
         S: Data<Elem = f64>,
-        T1: AsRef<str> + Display,
-        T2: AsRef<str> + Display,
+        T: AsRef<str> + Display,
     {
         use ndarray_stats::QuantileExt;
 
@@ -51,7 +50,7 @@ impl Visualize {
 
         // set table header
         if let Some(h) = &headers {
-            table.set_header(h.as_ref());
+            table.set_header(*h);
         }
 
         let mut row_view;

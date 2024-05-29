@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use flate2::read::GzDecoder;
 use ndarray::{Array2, ArrayBase, Data, Ix2};
-use std::{fs::File, io::{Cursor, Read}, fmt::Display};
+use std::{fs::File, io::{Cursor, Read}};
 
 use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsets};
 use crate::{visualize::Peek, types::SimpleError};
@@ -31,19 +31,18 @@ impl MnistData {
 }
 
 impl Peek for MnistData {
-    fn peek<S: Data<Elem = f64>, T: AsRef<str> + Display>(x: &ArrayBase<S, Ix2>, text: Option<T>) {
+    fn peek<S: Data<Elem = f64>>(x: &ArrayBase<S, Ix2>, text: Option<&str>) {
         use crate::visualize::{Visualize, Empty};
         use crate::pool::{Pool, PoolType};
 
         let revert = x.dim(); // stash original shape
-
         let image = x.to_shape(Self::SHAPE).unwrap();
 
         if let Some(reduced_image) = Pool::apply(&image, 2, 2, PoolType::Max) {
             Visualize::table_preview(&reduced_image, None::<Empty>, true, text);
         }
 
-        x.to_shape(revert).unwrap(); // revert back shape
+        x.to_shape(revert).unwrap(); // revert back
     }
 }
 
