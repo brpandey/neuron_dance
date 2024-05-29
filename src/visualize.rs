@@ -180,7 +180,7 @@ mod tests {
 
         // view in regular table view (only prints first four rows)
         let t = Visualize::table_preview(
-            &input, None,
+            &input, None::<Empty>,
             false, None);
 
         let out1 =
@@ -198,7 +198,7 @@ mod tests {
 
         // view same data but in ascii table view
         let t = Visualize::table_preview(
-            &input, None,
+            &input, None::<Empty>,
             true, None);
 
         // image of a hat

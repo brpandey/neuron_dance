@@ -70,12 +70,12 @@ mod tests {
         );
 
         // stride 2
-        let result = Pool::apply(input.view(), 2, 2, PoolType::Max).unwrap();
+        let result = Pool::apply(&input, 2, 2, PoolType::Max).unwrap();
 
         assert_eq!(result, output2);
 
         // stride 1
-        let result = Pool::apply(input.view(), 2, 1, PoolType::Max).unwrap();
+        let result = Pool::apply(&input, 2, 1, PoolType::Max).unwrap();
 
         assert_eq!(result, output1);
     }
