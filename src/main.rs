@@ -78,7 +78,7 @@ fn main() -> Result<(), SimpleError>{
             model.add(Dense(10, Act::Relu));
             model.add(Dense(3, Act::Sigmoid));
             model.compile(Loss::BinaryCrossEntropy, 0.005, 0.3, Metr("Accuracy, cost"));
-            model.fit(&subsets, 50, Batch::Mini_(5, Optim::Adam), Eval::Test)?;
+            model.fit(&subsets, 50, Batch::Mini(5), Eval::Test)?;
 
             // Now that model has been trained, make random selections
             random_predicts(&model, &subsets);
