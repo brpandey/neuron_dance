@@ -187,31 +187,38 @@ mod tests {
     use super::*;
     use crate::optimizer::Optim;
 
-    fn metrics_init(toggle: bool) -> Metrics {
+    fn metrics_init(mett: Option<Mett>) -> Metrics {
         use crate::cost::{Objective, binary_cross_entropy::BinaryCrossEntropy};
 
         let cost_fp = <BinaryCrossEntropy as Objective>::evaluate;
         let output_size = 3;
         let l2_rate = 3.0;
 
-        if toggle {
-            Metrics::new(Metr("accuracy"), cost_fp, output_size, l2_rate)
-        } else {
-            Metrics::new(Metr("cost"), cost_fp, output_size, l2_rate)
+        match mett {
+            Some(Mett::Accuracy) => Metrics::new(Metr("accuracy"), cost_fp, output_size, l2_rate),
+            Some(Mett::Cost) => Metrics::new(Metr("cost"), cost_fp, output_size, l2_rate),
+            None => Metrics::new(Metr(""), cost_fp, output_size, l2_rate)
         }
     }
 
     #[test]
     pub fn test_tally_sgd() {
-        let mut m = metrics_init(true);
+        let mut m = metrics_init(Some(Mett::Accuracy));
         let mut tally = m.create_tally(Some(Batch::SGD), (0, 0));
 
         let counts = 100;
 
         for c in 0..counts {
-            if c % 3 == 0 { tally.t_match(); } // 33
-            if c % 4 == 0 { tally.t_match(); } // 26
+            if c % 3 == 0 { tally.t_match(); } // 34
         }
+
+        assert_eq!(34, tally.total_matches);
+
+        for c in 0..counts {
+            if c % 4 == 0 { tally.t_match(); } // 25
+        }
+
+        assert_eq!(25 + 34, tally.total_matches);
 
         tally.summarize(counts);
         let mut out = VecDeque::new();
@@ -222,14 +229,14 @@ mod tests {
 
     #[test]
     pub fn test_tally_mini() {
-        let mut m = metrics_init(true);
+        let mut m = metrics_init(Some(Mett::Accuracy));
         let mut tally = m.create_tally(Some(Batch::Mini_(5, Optim::Adam)), (0, 0));
 
         let counts = 100;
 
         for c in 0..counts {
-            if c % 3 == 0 { tally.t_match(); } // 33
-            if c % 4 == 0 { tally.t_match(); } // 26
+            if c % 3 == 0 { tally.t_match(); } // 34
+            if c % 4 == 0 { tally.t_match(); } // 25
         }
 
         tally.summarize(counts);
@@ -239,4 +246,20 @@ mod tests {
 
         assert_eq!(out, tally.display(false));
     }
+
+    #[test]
+    pub fn test_tally_no_metrics() {
+        let mut m = metrics_init(None); // no metrics specified
+        let mut tally = m.create_tally(Some(Batch::SGD), (0, 0));
+
+        let counts = 100;
+
+        for c in 0..counts {
+            if c % 3 == 0 { tally.t_match(); } // 34
+        }
+
+        tally.summarize(counts);
+        assert_eq!(VecDeque::new(), tally.display(false));
+    }
+
 }
