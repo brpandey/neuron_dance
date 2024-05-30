@@ -185,17 +185,25 @@ impl fmt::Display for LossM {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::optimizer::Optim;
 
-    #[test]
-    pub fn test_tally_sgd() {
+    fn metrics_init(toggle: bool) -> Metrics {
         use crate::cost::{Objective, binary_cross_entropy::BinaryCrossEntropy};
-        use crate::types::Batch;
 
         let cost_fp = <BinaryCrossEntropy as Objective>::evaluate;
         let output_size = 3;
         let l2_rate = 3.0;
 
-        let mut m = Metrics::new(Metr("accuracy"), cost_fp, output_size, l2_rate);
+        if toggle {
+            Metrics::new(Metr("accuracy"), cost_fp, output_size, l2_rate)
+        } else {
+            Metrics::new(Metr("cost"), cost_fp, output_size, l2_rate)
+        }
+    }
+
+    #[test]
+    pub fn test_tally_sgd() {
+        let mut m = metrics_init(true);
         let mut tally = m.create_tally(Some(Batch::SGD), (0, 0));
 
         let counts = 100;
@@ -214,15 +222,7 @@ mod tests {
 
     #[test]
     pub fn test_tally_mini() {
-        use crate::cost::{Objective, binary_cross_entropy::BinaryCrossEntropy};
-        use crate::types::Batch;
-        use crate::optimizer::Optim;
-
-        let cost_fp = <BinaryCrossEntropy as Objective>::evaluate;
-        let output_size = 3;
-        let l2_rate = 3.0;
-
-        let mut m = Metrics::new(Metr("accuracy"), cost_fp, output_size, l2_rate);
+        let mut m = metrics_init(true);
         let mut tally = m.create_tally(Some(Batch::Mini_(5, Optim::Adam)), (0, 0));
 
         let counts = 100;
