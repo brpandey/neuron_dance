@@ -1,4 +1,4 @@
-use std::{{fmt, fmt::Display}, collections::HashMap};
+use std::{{fmt, fmt::Display}, collections::{HashMap, VecDeque}};
 use ndarray::{Array2, arr2};
 
 use crate::{
@@ -123,8 +123,7 @@ impl Tally {
         }
     }
 
-    pub fn display(&self) {
-        use std::collections::VecDeque;
+    pub fn display(&self, show: bool) -> VecDeque<String> {
         // generate text related to batch type leveraging Display trait
         let b = self.batch_type.as_ref().map_or(String::from(""), |v| v.text_display());
 
@@ -142,8 +141,10 @@ impl Tally {
         }
 
         // print each specific metric's display text
-        m_txts.iter().for_each(|t| println!("{t}"));
+        if show { m_txts.iter().for_each(|t| println!("{t}")); }
         println!(" ");
+
+        m_txts
     }
 
     pub fn one_hot(&self, index: usize) -> Option<&Array2<f64>> { self.one_hot.get(&index) }
@@ -177,5 +178,65 @@ impl LossM {
 impl fmt::Display for LossM {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Avg Loss {:.4} {:.4}/{}", self.0, self.1, self.2)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_tally_sgd() {
+        use crate::cost::{Objective, binary_cross_entropy::BinaryCrossEntropy};
+        use crate::types::Batch;
+
+        let cost_fp = <BinaryCrossEntropy as Objective>::evaluate;
+        let output_size = 3;
+        let l2_rate = 3.0;
+
+        let mut m = Metrics::new(Metr("accuracy"), cost_fp, output_size, l2_rate);
+        let mut tally = m.create_tally(Some(Batch::SGD), (0, 0));
+
+        let counts = 100;
+
+        for c in 0..counts {
+            if c % 3 == 0 { tally.t_match(); } // 33
+            if c % 4 == 0 { tally.t_match(); } // 26
+        }
+
+        tally.summarize(counts);
+        let mut out = VecDeque::new();
+        out.push_back("Accuracy 0.5900 59/100 (SGD)".to_string());
+
+        assert_eq!(out, tally.display(false));
+    }
+
+    #[test]
+    pub fn test_tally_mini() {
+        use crate::cost::{Objective, binary_cross_entropy::BinaryCrossEntropy};
+        use crate::types::Batch;
+        use crate::optimizer::Optim;
+
+        let cost_fp = <BinaryCrossEntropy as Objective>::evaluate;
+        let output_size = 3;
+        let l2_rate = 3.0;
+
+        let mut m = Metrics::new(Metr("accuracy"), cost_fp, output_size, l2_rate);
+        let mut tally = m.create_tally(Some(Batch::Mini_(5, Optim::Adam)), (0, 0));
+
+        let counts = 100;
+
+        for c in 0..counts {
+            if c % 3 == 0 { tally.t_match(); } // 33
+            if c % 4 == 0 { tally.t_match(); } // 26
+        }
+
+        tally.summarize(counts);
+        let mut out = VecDeque::new();
+        out.push_back("Epoch 0/0".to_string());
+        out.push_back("\tAccuracy 0.5900 59/100 (MiniBatch + Adam)".to_string());
+
+        assert_eq!(out, tally.display(false));
     }
 }

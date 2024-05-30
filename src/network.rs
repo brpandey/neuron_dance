@@ -378,7 +378,7 @@ impl Network {
         }
 
         tally.summarize(n_data);
-        tally.display();
+        tally.display(true);
     }
 
     fn check_valid_state(&self, other: ModelState) -> Result<bool, SimpleError> {
