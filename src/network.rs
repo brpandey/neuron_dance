@@ -469,14 +469,14 @@ mod tests {
     fn model_check_compile_before_add() { // can't compile a model until layers have been added
         std::panic::set_hook(Box::new(|_| {})); // suppress panic output
 
-        let result = std::panic::catch_unwind(|| {
+        let result = std::panic::catch_unwind(|| { // compile before add
             let mut model = Network::new();
             model.compile(Loss::Quadratic, 0.1, 0.2, Metr("accuracy"));
         });
 
         assert!(&result.is_err());
 
-        let result = std::panic::catch_unwind(|| {
+        let result = std::panic::catch_unwind(|| { // compile after add
             let mut model = Network::new();
             Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
             Network::add(&mut model, Dense(3, Act::Relu));
@@ -501,6 +501,10 @@ mod tests {
         });
 
         assert!(&result.is_err());
+
+        let err = result.unwrap_err();
+        dbg!(err.downcast_ref::<&str>().unwrap());
+        assert_eq!(*err.downcast_ref::<&str>().unwrap(), "Unable to store model since it hasn't been properly fitted");
 
         let subsets = subsets_init();
 
@@ -534,6 +538,8 @@ mod tests {
         let result = Network::load("tempA");
 
         assert!(&result.is_err());
+        let error_str = &result.unwrap_err().to_string();
+        assert_eq!(error_str, "Unable to perform IO -- No such file or directory (os error 2)");
     }
 
     #[allow(unused_variables)]

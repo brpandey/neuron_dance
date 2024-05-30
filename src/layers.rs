@@ -156,3 +156,39 @@ impl Layer for LayerStack {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn invalid_layer_ordering() {
+
+        let result = std::panic::catch_unwind(|| {
+            let mut stack = LayerStack::new();
+            stack.add(Input1(4));
+            stack.add(Dense(6, Act::Sigmoid_(Weit::GlorotU)));
+            stack.add(Dense(3, Act::Sigmoid));
+            stack.reduce();
+        });
+
+        assert!(&result.is_ok());
+        dbg!(&result);
+        // len, is_empty
+
+        std::panic::set_hook(Box::new(|_| {})); // suppress panic output
+
+        let p = std::panic::catch_unwind(|| {
+            let mut stack = LayerStack::new();
+            stack.add(Dense(6, Act::Sigmoid_(Weit::GlorotU)));
+            stack.add(Input1(4));
+            stack.add(Dense(3, Act::Sigmoid));
+            stack.reduce();
+        });
+
+        assert!(&p.is_err());
+
+        let err = p.unwrap_err();
+        assert_eq!(*err.downcast_ref::<&str>().unwrap(), "Layer order is incorrect, perhaps input layer is not first layer added?");
+    }
+}
