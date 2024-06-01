@@ -1,11 +1,11 @@
-use std::default::Default;
-use nanoserde::{DeBin, SerBin}; 
-use crate::types::Batch;
-use crate::optimizer::{Optim, Optimizer};
 use crate::activation::Act;
-use crate::cost::Loss;
-use crate::save::Save;
 use crate::archive::Archive;
+use crate::cost::Loss;
+use crate::optimizer::{Optim, Optimizer};
+use crate::save::Save;
+use crate::types::Batch;
+use nanoserde::{DeBin, SerBin};
+use std::default::Default;
 
 #[derive(Clone, Debug, Default, DeBin, SerBin, PartialEq)]
 pub struct Hypers {
@@ -20,7 +20,14 @@ pub struct Hypers {
 }
 
 impl Hypers {
-    pub fn new(learning_rate: f64, l2_rate: f64, input_size: usize, class_size: usize, activations: Vec<Act>, loss_type: Loss) -> Self {
+    pub fn new(
+        learning_rate: f64,
+        l2_rate: f64,
+        input_size: usize,
+        class_size: usize,
+        activations: Vec<Act>,
+        loss_type: Loss,
+    ) -> Self {
         Self {
             learning_rate,
             l2_rate,
@@ -41,7 +48,9 @@ impl Hypers {
         }
     }
 
-    pub fn input_size(&self) -> usize { self.input_size }
+    pub fn input_size(&self) -> usize {
+        self.input_size
+    }
 
     pub fn l2_regularization_rate(&self) -> f64 {
         self.l2_rate
@@ -63,9 +72,15 @@ impl Hypers {
         self.optimizer_type
     }
 
-    pub fn loss_type(&self) -> Loss { self.loss_type }
-    pub fn activations(&self) -> &'_ Vec<Act> { self.activations.as_ref() }
-    pub fn class_size(&self) -> usize { self.class_size }
+    pub fn loss_type(&self) -> Loss {
+        self.loss_type
+    }
+    pub fn activations(&self) -> &'_ Vec<Act> {
+        self.activations.as_ref()
+    }
+    pub fn class_size(&self) -> usize {
+        self.class_size
+    }
 }
 
 impl Archive for Hypers {}
@@ -76,5 +91,7 @@ impl Save for Hypers {
 }
 
 impl From<&Hypers> for Hypers {
-    fn from(h: &Hypers) -> Self { h.clone() }
+    fn from(h: &Hypers) -> Self {
+        h.clone()
+    }
 }

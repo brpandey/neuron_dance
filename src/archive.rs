@@ -61,10 +61,10 @@ pub struct NetworkArchive {
 impl Archive for NetworkArchive {}
 
 impl From<&Network> for NetworkArchive {
-    fn from(archive: &Network) -> Self {
+    fn from(network: &Network) -> Self {
         NetworkArchive {
-            weights: Some(archive.weights().into()),
-            biases: Some(archive.biases().into()),
+            weights: Some(network.weights().into()),
+            biases: Some(network.biases().into()),
         }
     }
 }
