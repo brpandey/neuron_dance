@@ -28,9 +28,10 @@ use either::*;
 use statrs::distribution::{Normal, Uniform};
 use ndarray::Array2;
 use ndarray_rand::RandomExt;
+use nanoserde::{SerBin, DeBin};
 
 // Weight Initialization Types
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, SerBin, DeBin, PartialEq)]
 pub enum Weit {
     #[default]
     Default,

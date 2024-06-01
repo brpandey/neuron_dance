@@ -7,7 +7,7 @@ use crate::optimizer::Optim;
 #[derive(Debug, Copy, Clone, strum::EnumIter)]
 pub enum Eval { Train, Test }
 
-#[derive(Debug, Default, Copy, Clone, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
+#[derive(Debug, Default, Copy, Clone, DeBin, SerBin, PartialEq)]
 pub enum Batch {
     #[default]
     SGD,

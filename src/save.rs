@@ -1,7 +1,6 @@
 use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
 use ndarray::{Array, Array2};
-use std::{fs::File, fmt::Debug};
-use std::io::{Read, Write};
+use std::{fs::File, fmt::Debug, io::{Read, Write}};
 use crate::types::SimpleError;
 use crate::dataset::sanitize_token;
 
@@ -17,9 +16,9 @@ pub trait Save {
     fn to_archive(&self) -> Self::Target;
     fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> where Self: Sized;
 
-    // file save and restore methods which internally use
-    // intermediate to and from archive mapping
-    fn save<S>(&mut self, token: S) -> Result<(), SimpleError>
+    // file save and restore methods which use
+    // intermediate or proxy archive mapping
+    fn save<S>(&self, token: S) -> Result<(), SimpleError>
     where
         S: AsRef<str>,
         <Self as Save>::Target: SerBin, Self: Sized,
@@ -45,6 +44,7 @@ pub trait Save {
         let mut file = File::open(path)?;
         let mut buf = vec![];
         file.read_to_end(&mut buf)?;
+
         let archive = DeBin::deserialize_bin(&buf)?;
         Save::from_archive(archive)
     }
@@ -56,32 +56,39 @@ pub struct VecArray2Archive<T> { // archive version of Array2 w/o pulling in nda
     pub values: Option<Vec<Vec<T>>>
 }
 
-impl<F64: Clone + Debug + Default + DeBin + SerBin> Archive for VecArray2Archive<F64> {}
+impl From<VecArray2Archive<f64>> for Vec<Array2<f64>> {
+    fn from(archive: VecArray2Archive<f64>) -> Self {
+        let (mut a, mut vec) = (archive, vec![]);
+        let values_iter = a.values.take().unwrap().into_iter();
+        let shapes_iter = a.shapes.take().unwrap().into_iter();
 
-impl Save for Vec<Array2<f64>> { // custom trait for std lib type
-    type Target = VecArray2Archive<f64>;
+        for (v, s) in values_iter.zip(shapes_iter) {
+            let array = Array::from_shape_vec(s, v).unwrap();
+            vec.push(array);
+        }
 
-    fn to_archive(&self) -> Self::Target {
+        vec
+    }
+}
+
+impl From<&Vec<Array2<f64>>> for VecArray2Archive<f64> {
+    fn from(vec: &Vec<Array2<f64>>) -> Self {
         let (mut values, mut shapes) = (vec![], vec![]);
 
-        for v in self.iter() {
+        for v in vec.iter() {
             values.push((*v).clone().into_raw_vec());
             shapes.push(v.dim());
         }
 
         VecArray2Archive{ shapes: Some(shapes), values: Some(values) }
     }
+}
 
-    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> {
-        let (mut a, mut vec) = (archive, vec![]);
-        let values_iter = a.values.take().unwrap().into_iter();
-        let shapes_iter = a.shapes.take().unwrap().into_iter();
+impl<F64: Clone + Debug + Default + DeBin + SerBin> Archive for VecArray2Archive<F64> {}
 
-        for (v, s) in values_iter.zip(shapes_iter) {
-            let array = Array::from_shape_vec(s, v)?;
-            vec.push(array);
-        }
+impl Save for Vec<Array2<f64>> { // custom trait for std lib type
+    type Target = VecArray2Archive<f64>;
 
-        Ok(vec)
-    }
+    fn to_archive(&self) -> Self::Target { self.into() }
+    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> { Ok(archive.into()) }
 }

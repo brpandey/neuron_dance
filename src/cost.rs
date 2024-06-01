@@ -4,8 +4,8 @@ pub mod quadratic;
 
 use core::f64;
 use ndarray::{Array2, ArrayView2};
-use std::{convert::From, fmt::Debug};
-use std::default::Default;
+use std::{convert::From, fmt::Debug, default::Default};
+use nanoserde::{DeBin, SerBin}; 
 
 use crate::gradient::CombinateRule;
 use crate::activation::{Act, ActFp};
@@ -41,7 +41,7 @@ pub trait Objective {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, strum_macros::Display, strum_macros::EnumString)]
+#[derive(Copy, Clone, Debug, Default, DeBin, SerBin, PartialEq)]
 pub enum Loss {
     #[default]
     Quadratic,

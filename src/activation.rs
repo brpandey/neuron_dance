@@ -83,7 +83,7 @@ impl FromStr for Box<dyn Activation> {
     }
 }
 
-#[derive(Debug, Copy, Clone, Display, EnumString)]
+#[derive(Debug, Copy, Clone, SerBin, DeBin, PartialEq, Display, EnumString)]
 pub enum Act {
     Relu, // uses default weight initialization type
     Relu_(Weit), // with supplied weight initialization type
@@ -122,10 +122,6 @@ impl From<Act> for Box<dyn Activation> {
     }
 }
 
-
-#[derive(Clone, Debug, Default, DeBin, SerBin)]
-pub struct ActivationStrings(Vec<String>);
-
 pub struct ActivationFps(Vec<ActFp>);
 
 impl ActivationFps {
@@ -143,19 +139,3 @@ impl From<&Vec<Act>> for ActivationFps {
         ActivationFps(v)
     }
 }
-
-impl From<&Vec<Act>> for ActivationStrings {
-    fn from(vec: &Vec<Act>) -> Self {
-        let v: Vec<String> = vec.iter().map(|a| a.to_string()).collect();
-        ActivationStrings(v)
-    }
-}
-
-impl From<ActivationStrings> for Vec<Act> {
-    fn from(acts: ActivationStrings) -> Self {
-        acts.0.iter()
-            .map(|act| act.parse().unwrap())
-            .collect::<Vec<Act>>()
-    }
-}
-

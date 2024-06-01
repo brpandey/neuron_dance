@@ -16,10 +16,11 @@ use std::borrow::Cow;
 use std::default::Default;
 use ndarray::Array2;
 use nanoserde::{DeBin, SerBin};
+use strum_macros::{Display, EnumString};
 
 use crate::optimizer::{adam::Adam, amsgrad::AmsGrad, nadam::NAdam};
 
-#[derive(Copy, Clone, Debug, Default, strum_macros::Display, strum_macros::EnumString, DeBin, SerBin)]
+#[derive(Copy, Clone, Debug, Default, Display, EnumString, DeBin, SerBin, PartialEq)]
 pub enum Optim {
     #[default]
     Default,

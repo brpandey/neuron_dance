@@ -6,10 +6,10 @@
 
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
-use std::{iter::Iterator, default::Default, ops::Add, io::{ErrorKind, Error}};
+use std::{iter::Iterator, default::Default, ops::Add};
 use ndarray::{Array2, ArrayView2, Axis};
 use rand::{Rng, seq::SliceRandom};
-use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
+use nanoserde::{DeBin, SerBin};
 
 use crate::{
     activation::ActFp, algebra::AlgebraExt, // import local traits
@@ -109,7 +109,7 @@ impl Network {
         }
 
         if batch_type.is_mini() {
-            self.hypers.set_optimizer(optt.into(), optt);
+            self.hypers.set_optimizer(optt);
             self.train_minibatch(subsets, epochs, batch_type.value(), &mut cache, eval)
         }
 
@@ -318,7 +318,7 @@ impl Network {
         let learning_rate = self.hypers.learning_rate();
         let l2_rate = self.hypers.l2_regularization_rate();
 
-        let optimizer = self.hypers.optimizer();
+        let mut optimizer = self.hypers.optimizer();
 
         let (b_deltas, w_deltas) = (crc.bias_deltas(), crc.weight_deltas());
 
@@ -397,30 +397,31 @@ impl Archive for NetworkArchive {}
 impl Save for Network {
     type Target = NetworkArchive;
 
-    fn to_archive(&self) -> Self::Target {
+    fn to_archive(&self) -> Self::Target { self.into() }
+    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> { Ok(archive.into()) }
+}
+
+impl From<&Network> for NetworkArchive {
+    fn from(archive: &Network) -> Self {
         NetworkArchive {
-            weights: Some(self.weights.to_archive()),
-            biases: Some(self.biases.to_archive()),
+            weights: Some((&archive.weights).into()),
+            biases: Some((&archive.biases).into()),
         }
     }
+}
 
-    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> {
+impl From<NetworkArchive> for Network {
+    fn from(archive: NetworkArchive) -> Self {
         let mut a = archive;
-        let err1 = Error::new(ErrorKind::Other, "network archive weights none");
-        let err2 = Error::new(ErrorKind::Other, "network archive biases none");
-        let (w_a, b_a) = (
-            // if from_archive is not called with well populated archive
-            a.weights.take().ok_or(SimpleError::Unexpected(Box::new(err1)))?,
-            a.biases.take().ok_or(SimpleError::Unexpected(Box::new(err2)))?
-        );
+        let (w_a, b_a) = (a.weights.take().unwrap(), a.biases.take().unwrap());
 
-        Ok(Network {
+        Network {
             layers: None,
             current_state: ModelState::Fit, // set as a fitted model
-            weights: Save::from_archive(w_a)?,
-            biases: Save::from_archive(b_a)?,
+            weights: w_a.into(), 
+            biases: b_a.into(), 
             ..Default::default()
-        })
+        }
     }
 }
 
