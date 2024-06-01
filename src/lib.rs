@@ -18,3 +18,4 @@ mod one_hot;
 mod visualize;
 mod pool;
 mod save;
+mod archive;

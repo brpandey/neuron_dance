@@ -9,7 +9,6 @@ extern crate blas_src; // C & Fortran linear algebra library for optimized matri
 use std::{iter::Iterator, default::Default, ops::Add};
 use ndarray::{Array2, ArrayView2, Axis};
 use rand::{Rng, seq::SliceRandom};
-use nanoserde::{DeBin, SerBin};
 
 use crate::{
     activation::ActFp, algebra::AlgebraExt, // import local traits
@@ -19,7 +18,7 @@ use crate::{
     layers::{Layer, LayerStack, LayerTerms},
     cost::{Cost, Loss}, metrics::{Metrics, Tally},
     types::{Batch, Eval, Metr, ModelState, SimpleError}, optimizer::{Optim, ParamKey},
-    save::{Save, Archive, VecArray2Archive},
+    save::Save, archive::NetworkArchive,
 };
 
 const WRONG_ORDER: &str = "User error ~ wrong order of operations";
@@ -191,6 +190,10 @@ impl Network {
 
     pub fn view(&self) { println!("{:#?}", &self); }
 
+    /**** Pub crate associated methods ****/
+
+    pub(crate) fn weights(&self) -> &Vec<Array2<f64>> { self.weights.as_ref() }
+    pub(crate) fn biases(&self) -> &Vec<Array2<f64>> { self.biases.as_ref()  }
 
     /**** Private associated methods ****/
 
@@ -386,30 +389,6 @@ impl Network {
     }
 }
 
-#[derive(Clone, Debug, Default, DeBin, SerBin)]
-pub struct NetworkArchive { // subset of Network
-    pub weights: Option<VecArray2Archive<f64>>,
-    pub biases: Option<VecArray2Archive<f64>>,
-}
-
-impl Archive for NetworkArchive {}
-
-impl Save for Network {
-    type Target = NetworkArchive;
-
-    fn to_archive(&self) -> Self::Target { self.into() }
-    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> { Ok(archive.into()) }
-}
-
-impl From<&Network> for NetworkArchive {
-    fn from(archive: &Network) -> Self {
-        NetworkArchive {
-            weights: Some((&archive.weights).into()),
-            biases: Some((&archive.biases).into()),
-        }
-    }
-}
-
 impl From<NetworkArchive> for Network {
     fn from(archive: NetworkArchive) -> Self {
         let mut a = archive;
@@ -423,6 +402,10 @@ impl From<NetworkArchive> for Network {
             ..Default::default()
         }
     }
+}
+
+impl Save for Network { // select NetworkArcihve as intermediate structure
+    type Proxy = NetworkArchive;
 }
 
 // Flesh out remaining network fields from hypers
@@ -442,7 +425,6 @@ impl Add<Hypers> for Network {
         network
     }
 }
-
 
 
 #[cfg(test)]

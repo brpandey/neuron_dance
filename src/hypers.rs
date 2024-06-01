@@ -1,10 +1,11 @@
 use std::default::Default;
 use nanoserde::{DeBin, SerBin}; 
-use crate::types::{Batch, SimpleError};
+use crate::types::Batch;
 use crate::optimizer::{Optim, Optimizer};
 use crate::activation::Act;
 use crate::cost::Loss;
-use crate::save::{Save, Archive};
+use crate::save::Save;
+use crate::archive::Archive;
 
 #[derive(Clone, Debug, Default, DeBin, SerBin, PartialEq)]
 pub struct Hypers {
@@ -69,9 +70,11 @@ impl Hypers {
 
 impl Archive for Hypers {}
 
+// Hypers doesn't require a new intermediate proxy structure hence use self
 impl Save for Hypers {
-    type Target = Hypers; // Hypers doesn't require an intermediate or proxy structure
+    type Proxy = Hypers;
+}
 
-    fn to_archive(&self) -> Self::Target { self.clone() }
-    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> { Ok(archive) }
+impl From<&Hypers> for Hypers {
+    fn from(h: &Hypers) -> Self { h.clone() }
 }

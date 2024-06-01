@@ -1,27 +1,39 @@
-use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
-use ndarray::{Array, Array2};
-use std::{fs::File, fmt::Debug, io::{Read, Write}};
+/// Save trait
+/// Defines a simple interface for binary file serialization and deserialization
+/// using nanoserde instead of other libraries for its tiny dependency
+/// footprint and speed
+
+/// Defines an associated type Proxy which serves as a mapping between
+/// type's structure and type's preference for its archived version
+/// Could be same as type or different as long as there are conversion routines
+
+use nanoserde::{DeBin, SerBin};
+use std::{fs::File, io::{Read, Write}};
 use crate::types::SimpleError;
 use crate::dataset::sanitize_token;
+use crate::archive::Archive;
 
 pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
-// Marker trait
-pub trait Archive: Clone + Debug + Default + DeBin + SerBin {}
-
 pub trait Save {
-    type Target: Archive;
+    type Proxy: Archive; // intermediate structure
 
-    // define intermediate mapping to an archived version of type
-    fn to_archive(&self) -> Self::Target;
-    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> where Self: Sized;
+    fn to_archive(&self) -> Self::Proxy
+    where <Self as Save>::Proxy: for<'a> From<&'a Self> {
+        self.into()
+    }
+
+    fn from_archive(archive: Self::Proxy) -> Result<Self, SimpleError>
+    where Self: Sized, Self: From<<Self as Save>::Proxy> {
+        Ok(archive.into())
+    }
 
     // file save and restore methods which use
     // intermediate or proxy archive mapping
     fn save<S>(&self, token: S) -> Result<(), SimpleError>
     where
-        S: AsRef<str>,
-        <Self as Save>::Target: SerBin, Self: Sized,
+        S: AsRef<str>, <Self as Save>::Proxy: SerBin,
+        Self: Sized, <Self as Save>::Proxy: for<'a> From<&'a Self>
     {
         let tok = sanitize_token(token.as_ref())?;
         let path = format!("{}/saved_models/{}.txt", ROOT_DIR, tok);
@@ -35,8 +47,8 @@ pub trait Save {
 
     fn restore<S>(token: S) -> Result<Self, SimpleError>
     where
-        S: AsRef<str>,
-        <Self as Save>::Target: DeBin, Self: Sized
+        S: AsRef<str>, <Self as Save>::Proxy: DeBin,
+        Self: Sized, Self: From<<Self as Save>::Proxy>
     {
         let tok = sanitize_token(token.as_ref())?;
         let path = format!("{}/saved_models/{}.txt", ROOT_DIR, tok);
@@ -48,47 +60,4 @@ pub trait Save {
         let archive = DeBin::deserialize_bin(&buf)?;
         Save::from_archive(archive)
     }
-}
-
-#[derive(Clone, Debug, Default, DeBin, SerBin)]
-pub struct VecArray2Archive<T> { // archive version of Array2 w/o pulling in ndarray serde features additional code
-    pub shapes: Option<Vec<(usize, usize)>>,
-    pub values: Option<Vec<Vec<T>>>
-}
-
-impl From<VecArray2Archive<f64>> for Vec<Array2<f64>> {
-    fn from(archive: VecArray2Archive<f64>) -> Self {
-        let (mut a, mut vec) = (archive, vec![]);
-        let values_iter = a.values.take().unwrap().into_iter();
-        let shapes_iter = a.shapes.take().unwrap().into_iter();
-
-        for (v, s) in values_iter.zip(shapes_iter) {
-            let array = Array::from_shape_vec(s, v).unwrap();
-            vec.push(array);
-        }
-
-        vec
-    }
-}
-
-impl From<&Vec<Array2<f64>>> for VecArray2Archive<f64> {
-    fn from(vec: &Vec<Array2<f64>>) -> Self {
-        let (mut values, mut shapes) = (vec![], vec![]);
-
-        for v in vec.iter() {
-            values.push((*v).clone().into_raw_vec());
-            shapes.push(v.dim());
-        }
-
-        VecArray2Archive{ shapes: Some(shapes), values: Some(values) }
-    }
-}
-
-impl<F64: Clone + Debug + Default + DeBin + SerBin> Archive for VecArray2Archive<F64> {}
-
-impl Save for Vec<Array2<f64>> { // custom trait for std lib type
-    type Target = VecArray2Archive<f64>;
-
-    fn to_archive(&self) -> Self::Target { self.into() }
-    fn from_archive(archive: Self::Target) -> Result<Self, SimpleError> { Ok(archive.into()) }
 }
