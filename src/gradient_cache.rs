@@ -1,12 +1,12 @@
-use std::collections::HashMap;
 use ndarray::{s, Array1, Array2, CowArray, Ix2};
+use std::collections::HashMap;
 
 use crate::{
     activation::{Act, ActFp},
-    cost::{CostDFp, CostCRFp},
-    gradient_stack::{GradientStack},
-    types::{Batch, Classification},
+    cost::{CostCRFp, CostDFp},
+    gradient_stack::GradientStack,
     one_hot::one_hot,
+    types::{Batch, Classification},
 };
 
 pub use crate::gradient_stack::GT;
@@ -30,7 +30,6 @@ impl GradientCache {
         cost_d_fps: (CostDFp, CostCRFp),
         output_act_type: Act,
     ) -> Self {
-
         // Precompute one hot encoded vectors given output layer size
         let one_hot = one_hot(output_size, 0);
         let classification = Classification::new(output_size);
@@ -76,20 +75,25 @@ impl GradientCache {
 
         // Generate appropriate combinate rule given particular cost function and activation type
         // Feed in relevant parameters
-        let rule = (self.cost_combinate_fp)(self.cost_derivative_fp, last_a, y_cow.view(),
-                                       a_derivative, last_z, self.output_act_type);
+        let rule = (self.cost_combinate_fp)(
+            self.cost_derivative_fp,
+            last_a,
+            y_cow.view(),
+            a_derivative,
+            last_z,
+            self.output_act_type,
+        );
 
         rule.apply(y_cow.view())
     }
 
-    pub fn activation_derivative(&mut self) -> Array2<f64>
-    {
+    pub fn activation_derivative(&mut self) -> Array2<f64> {
         let last_z = self.stack.pop(GT::Linear).array();
         let a_derivative = self.stack.pop(GT::ActivationDerivative).fp();
         (a_derivative)(&last_z) // da_dz
     }
 
-    fn one_hot_target<'a>(& mut self, y: &'a Array2<f64>) -> CowArray<'a, f64, Ix2> {
+    fn one_hot_target<'a>(&mut self, y: &'a Array2<f64>) -> CowArray<'a, f64, Ix2> {
         match self.classification {
             Classification::MultiClass(output_size) => {
                 // Output labels is a matrix that accounts for output size and mini batch size
@@ -108,7 +112,7 @@ impl GradientCache {
                 // e.g. where y is 10 output size x 1 batch size or 10 output size x 32 batch size
                 for i in 0..actual_batch_size {
                     let label = y[[i, 0]] as usize; // y is the label data, in form of a single column
-                     // one hot encode the label, so 0 would be [1,0] and 1 would be [0,1] for output layer size 2
+                                                    // one hot encode the label, so 0 would be [1,0] and 1 would be [0,1] for output layer size 2
                     let enc_label = self.one_hot.get(&label).unwrap();
                     // assign encoded label on the column level (vertical)
                     output_labels.slice_mut(s![.., i]).assign(enc_label);

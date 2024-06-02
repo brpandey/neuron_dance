@@ -9,6 +9,10 @@ impl Decider for Relu {
     }
 
     fn gradient(z: f64) -> f64 {
-        if z > 0.0 { 1.0 } else { 0.0 }
+        if z > 0.0 {
+            1.0
+        } else {
+            0.0
+        }
     }
 }

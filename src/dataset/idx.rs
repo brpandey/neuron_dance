@@ -1,10 +1,13 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use flate2::read::GzDecoder;
 use ndarray::{Array2, ArrayBase, Data, Ix2};
-use std::{fs::File, io::{Cursor, Read}};
+use std::{
+    fs::File,
+    io::{Cursor, Read},
+};
 
-use crate::dataset::{ROOT_DIR, DataSet, DataSetFormat, TrainTestTuple, TrainTestSubsets};
-use crate::{visualize::Peek, types::SimpleError};
+use crate::dataset::{DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple, ROOT_DIR};
+use crate::{types::SimpleError, visualize::Peek};
 
 // MnistData
 type Subsets = (Subset, Subset, Subset, Subset);
@@ -22,18 +25,25 @@ impl MnistData {
 
     pub fn new(mtype: MnistType) -> Self {
         let subset_types = (
-            Subset::Train(Raw::Images(None)), Subset::Train(Raw::Labels(None)), // train
-            Subset::Test(Raw::Images(None)), Subset::Test(Raw::Labels(None)) // test
+            Subset::Train(Raw::Images(None)),
+            Subset::Train(Raw::Labels(None)), // train
+            Subset::Test(Raw::Images(None)),
+            Subset::Test(Raw::Labels(None)), // test
         );
 
-        MnistData{ mtype, subset_types, data: None, class_names: mtype.class_names() }
+        MnistData {
+            mtype,
+            subset_types,
+            data: None,
+            class_names: mtype.class_names(),
+        }
     }
 }
 
 impl Peek for MnistData {
     fn peek<S: Data<Elem = f64>>(x: &ArrayBase<S, Ix2>, text: Option<&str>) {
-        use crate::visualize::{Visualize, Empty};
         use crate::pool::{Pool, PoolType};
+        use crate::visualize::{Empty, Visualize};
 
         let revert = x.dim(); // stash original shape
         let image = x.to_shape(Self::SHAPE).unwrap();
@@ -46,16 +56,16 @@ impl Peek for MnistData {
     }
 }
 
-
-
 impl DataSet for MnistData {
     fn fetch(&mut self) -> Result<(), SimpleError> {
         // only fetch if data not resident already
         if self.data.is_none() {
             let t = &self.mtype.token();
 
-            let (mut x_raw, mut y_raw) = (self.subset_types.0.fetch(t)?, self.subset_types.1.fetch(t)?);
-            let (mut x_raw_test, mut y_raw_test) = (self.subset_types.2.fetch(t)?, self.subset_types.3.fetch(t)?);
+            let (mut x_raw, mut y_raw) =
+                (self.subset_types.0.fetch(t)?, self.subset_types.1.fetch(t)?);
+            let (mut x_raw_test, mut y_raw_test) =
+                (self.subset_types.2.fetch(t)?, self.subset_types.3.fetch(t)?);
 
             let ttt = // train test tuple
                 (x_raw.take().unwrap(), y_raw.take().unwrap(), x_raw.size(),
@@ -71,7 +81,9 @@ impl DataSet for MnistData {
         use crate::visualize::Visualize;
         let num_heatmaps = 7;
 
-        if self.data.is_none() { return } // if data hasn't been fetched, return early
+        if self.data.is_none() {
+            return;
+        } // if data hasn't been fetched, return early
 
         println!("> head 0..{num_heatmaps} mnist-file | heatmap");
 
@@ -93,7 +105,7 @@ impl DataSet for MnistData {
         let tts = TrainTestSubsets::new(
             DataSetFormat::IDX,
             self.data.take().unwrap(),
-            self.class_names.clone()
+            self.class_names.clone(),
         );
 
         println!("Loaded data, subset shapes are {}\n", &tts);
@@ -123,7 +135,18 @@ impl MnistType {
         match self {
             MnistType::Regular => None,
             MnistType::Fashion => {
-                let n = vec!["T-shirt", "Trouser", "Pullover", "Dress", "Coat", "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"];
+                let n = vec![
+                    "T-shirt",
+                    "Trouser",
+                    "Pullover",
+                    "Dress",
+                    "Coat",
+                    "Sandal",
+                    "Shirt",
+                    "Sneaker",
+                    "Bag",
+                    "Ankle boot",
+                ];
                 let names = n.into_iter().map(|v| v.to_string()).collect();
                 Some(names)
             }
@@ -211,7 +234,7 @@ impl Raw {
 
     fn size(&self) -> usize {
         match self {
-            Raw::Labels(Some(ref r)) => r.1,  // access size field for RawLabels
+            Raw::Labels(Some(ref r)) => r.1, // access size field for RawLabels
             Raw::Images(Some(ref r)) => r.1, // access size field for RawImages
             _ => 0,
         }
@@ -246,7 +269,8 @@ impl RawImages {
         let acc: Result<Vec<usize>, SimpleError> = Ok(Vec::with_capacity(ndim));
         let sizes = (0..ndim).fold(acc, |mut acc, _| {
             let size = cur.read_u32::<BigEndian>()?;
-            acc.as_mut().unwrap().push(size as usize); acc
+            acc.as_mut().unwrap().push(size as usize);
+            acc
         })?;
 
         let (n_images, shape1, shape2) = (sizes[0], sizes[1], sizes[2]);

@@ -1,3 +1,8 @@
+use either::*;
+use nanoserde::{DeBin, SerBin};
+use ndarray::Array2;
+use ndarray_rand::RandomExt;
+use statrs::distribution::{Normal, Uniform};
 /// Weit or Weight Initialization Types
 /// Provides layer specific initialization strategies to avoid vanishing or
 /// exploding gradients from too large of weights or too small weights that
@@ -22,13 +27,7 @@
 /// Normal distributions have a bell shape with values near the center more likely
 /// than at the edges (e.g. shoe sizes). Whereas Uniform distributions are equally
 /// spread out the data in more of a rectangular shape (e.g. rolling a dice)
-
 use std::default::Default;
-use either::*;
-use statrs::distribution::{Normal, Uniform};
-use ndarray::Array2;
-use ndarray_rand::RandomExt;
-use nanoserde::{SerBin, DeBin};
 
 // Weight Initialization Types
 #[derive(Copy, Clone, Debug, Default, SerBin, DeBin, PartialEq)]
@@ -39,38 +38,38 @@ pub enum Weit {
     GlorotN,
     GlorotU,
     NormalizedGlorot,
-    LeCunn
+    LeCunn,
 }
 
 impl Weit {
     pub fn random(&self, fan_out: usize, fan_in: usize) -> Array2<f64> {
-        let fan_avg = (fan_in+fan_out) as f64 / 2.0;
+        let fan_avg = (fan_in + fan_out) as f64 / 2.0;
 
         let either = match self {
             Weit::GlorotN => {
-                let glorot_term = 1.0/(fan_avg).sqrt();
+                let glorot_term = 1.0 / (fan_avg).sqrt();
                 Left(Normal::new(0., glorot_term).unwrap())
-            },
+            }
             // XavierN/GlorotU - Tanh, Sigmoid, Softmax
             Weit::GlorotU => {
-                let glorot_term = 3.0/(fan_avg).sqrt();
+                let glorot_term = 3.0 / (fan_avg).sqrt();
                 Right(Uniform::new(-glorot_term, glorot_term).unwrap())
-            },
+            }
             Weit::NormalizedGlorot => {
-                let glorot_term = (6.0_f64).sqrt()/((fan_in+fan_out) as f64).sqrt(); // ... uniform distribution
+                let glorot_term = (6.0_f64).sqrt() / ((fan_in + fan_out) as f64).sqrt(); // ... uniform distribution
                 Right(Uniform::new(-glorot_term, glorot_term).unwrap())
-            },
+            }
             // He - ReLu, LeakyRelu, ELU, GELU, Swish, Mesh
             Weit::He => {
                 let he_term = (2.0 / fan_in as f64).sqrt();
                 Left(Normal::new(0., he_term).unwrap())
-            },
+            }
             // LeCunn - SELU
             Weit::LeCunn => {
-                let lecunn_term = 1.0/(fan_in as f64).sqrt();
+                let lecunn_term = 1.0 / (fan_in as f64).sqrt();
                 Left(Normal::new(0., lecunn_term).unwrap())
-            },
-            Weit::Default => Left(Normal::new(0., 1.).unwrap()) // StandardNormal
+            }
+            Weit::Default => Left(Normal::new(0., 1.).unwrap()), // StandardNormal
         };
 
         match either {

@@ -1,13 +1,15 @@
 use csv::ReaderBuilder as Builder;
-use ndarray::{Array2, Axis, s, Data, Ix2, ArrayBase};
+use ndarray::{s, Array2, ArrayBase, Axis, Data, Ix2};
 use ndarray_csv::Array2Reader;
-use ndarray_rand::{RandomExt, rand::SeedableRng};
-use rand_isaac::isaac64::Isaac64Rng;
 use ndarray_rand::SamplingStrategy::WithoutReplacement as strategy;
+use ndarray_rand::{rand::SeedableRng, RandomExt};
+use rand_isaac::isaac64::Isaac64Rng;
 
-use crate::dataset::{sanitize_token, ROOT_DIR, DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple};
-use crate::visualize::{Visualize, Peek, Empty};
+use crate::dataset::{
+    sanitize_token, DataSet, DataSetFormat, TrainTestSubsets, TrainTestTuple, ROOT_DIR,
+};
 use crate::types::SimpleError;
+use crate::visualize::{Empty, Peek, Visualize};
 
 #[derive(Default)]
 pub struct CSVData<'a> {
@@ -25,7 +27,7 @@ pub enum CSVType<'a> {
     Custom(&'a str, Option<Vec<&'a str>>), // filename w/o csv suffix and class names if relevant
 }
 
-impl <'a> CSVType<'a> {
+impl<'a> CSVType<'a> {
     pub fn filename(&self) -> Result<String, SimpleError> {
         let token = match self {
             CSVType::RGB => "rgb",
@@ -36,16 +38,28 @@ impl <'a> CSVType<'a> {
     }
 }
 
-impl <'b> CSVData<'b> {
+impl<'b> CSVData<'b> {
     pub fn new<'a>(ctype: CSVType<'a>) -> Self
-    where 'a: 'b {
+    where
+        'a: 'b,
+    {
         match ctype {
-            CSVType::RGB => Self { ctype, scale: 256.0, ..Default::default()},
-            CSVType::Custom(_, ref names) => {
-                let cn = names.as_ref()
-                    .map(|v| v.iter().map(|s| s.to_string()).collect());
-                Self { ctype, scale: 1.0, class_names: cn, ..Default::default() }
+            CSVType::RGB => Self {
+                ctype,
+                scale: 256.0,
+                ..Default::default()
             },
+            CSVType::Custom(_, ref names) => {
+                let cn = names
+                    .as_ref()
+                    .map(|v| v.iter().map(|s| s.to_string()).collect());
+                Self {
+                    ctype,
+                    scale: 1.0,
+                    class_names: cn,
+                    ..Default::default()
+                }
+            }
         }
     }
 }
@@ -56,19 +70,22 @@ impl Peek for CSVData<'_> {
     }
 }
 
-impl <'b> DataSet for CSVData<'b> {
-
+impl<'b> DataSet for CSVData<'b> {
     fn fetch(&mut self) -> Result<(), SimpleError> {
-        if self.data.is_some() { return Ok(()) }; // fetch unless already previously fetched data
+        if self.data.is_some() {
+            return Ok(());
+        }; // fetch unless already previously fetched data
 
         let token = &self.ctype.filename()?;
 
-        let mut reader = Builder::new()
-            .has_headers(true)
-            .from_path(token)?;
+        let mut reader = Builder::new().has_headers(true).from_path(token)?;
 
-        let headers: Vec<String> = reader.headers().unwrap().iter()
-            .map(|s| s.to_owned()).collect();
+        let headers: Vec<String> = reader
+            .headers()
+            .unwrap()
+            .iter()
+            .map(|s| s.to_owned())
+            .collect();
 
         let data_array: Array2<f64> = reader.deserialize_array2_dynamic()?;
 
@@ -79,15 +96,21 @@ impl <'b> DataSet for CSVData<'b> {
     }
 
     fn head(&self) {
-        if self.data.is_none() { return } // ensure data has been fetched before performing head preview
+        if self.data.is_none() {
+            return;
+        } // ensure data has been fetched before performing head preview
         Visualize::table_preview(
             self.data.as_ref().unwrap(),
-            self.headers.as_deref(), false, Some("> head csv-file")
+            self.headers.as_deref(),
+            false,
+            Some("> head csv-file"),
         );
     }
 
     fn shuffle(&mut self) {
-        if self.data.is_none() { return } // ensure data has been fetched before shuffling
+        if self.data.is_none() {
+            return;
+        } // ensure data has been fetched before shuffling
 
         let data = self.data.as_mut().unwrap();
         let seed = 42; // for reproducibility
@@ -96,7 +119,9 @@ impl <'b> DataSet for CSVData<'b> {
         let n_size = data.shape()[0];
 
         // take random shuffling following a normal distribution
-        let shuffled = data.sample_axis_using(Axis(0), n_size, strategy, &mut rng).to_owned();
+        let shuffled = data
+            .sample_axis_using(Axis(0), n_size, strategy, &mut rng)
+            .to_owned();
         self.data = Some(shuffled);
     }
 
@@ -111,7 +136,7 @@ impl <'b> DataSet for CSVData<'b> {
 
         let n_size = data.shape()[0]; // # rows
         let n_columns = data.shape()[1]; //# columns (inc target)
-        let n_features = n_columns-1;
+        let n_features = n_columns - 1;
 
         let n1 = (n_size as f32 * split_ratio).ceil() as usize;
         let n2 = n_size - n1;
@@ -119,7 +144,7 @@ impl <'b> DataSet for CSVData<'b> {
         let mut first_raw_vec = data.clone().into_raw_vec();
 
         // hence the first_raw_vec is now size n1 * n_features, leaving second_raw_vec with remainder
-        let second_raw_vec = first_raw_vec.split_off(n1 * n_columns); 
+        let second_raw_vec = first_raw_vec.split_off(n1 * n_columns);
 
         let train_data = Array2::from_shape_vec((n1, n_columns), first_raw_vec).unwrap();
         let test_data = Array2::from_shape_vec((n2, n_columns), second_raw_vec).unwrap();
@@ -132,7 +157,7 @@ impl <'b> DataSet for CSVData<'b> {
             train_data.slice(s![.., e1..e2]).to_owned(),
         );
 
-        let (x_test, y_test) : (Array2<f64>, Array2<f64>) = (
+        let (x_test, y_test): (Array2<f64>, Array2<f64>) = (
             test_data.slice(s![.., s1..e1]).to_owned() / scale,
             test_data.slice(s![.., e1..e2]).to_owned(),
         );

@@ -1,7 +1,6 @@
 /// Chain Layer
 
 /// Compute Layer finds individual gradient or rate of change for each layer
-
 use ndarray::{Array2, Axis};
 
 use crate::chain_rule::ChainRule;
@@ -15,21 +14,36 @@ pub enum ComputeLayer {
 // dc_db => dc_da * da_dz * dz_db   (or) dc_dz * dz_db
 // dc_dw => dc_da * da_dz * dz_dw.t (or) dc_dz * dz_dw.t
 
-pub struct OutputLayerTerms { pub dc_dz: Option<Array2<f64>>, pub dz_db: f64, pub dz_dw: Array2<f64>, pub bias_shape: (usize, usize)}
+pub struct OutputLayerTerms {
+    pub dc_dz: Option<Array2<f64>>,
+    pub dz_db: f64,
+    pub dz_dw: Array2<f64>,
+    pub bias_shape: (usize, usize),
+}
 
 // Hidden layer terms
 // dc_db = dc_dz2 * dz2_da1 * da1_dz1 * dz1_db1   (or) dc_dz1 * dz1_db1
 // dc_dw = dc_dz2 * dz2_da1 * da1_dz1 * dz1_dw1.t (or) dc_dz1 * dz1_dw1.t
 
-pub struct HiddenLayerTerms { pub shared: SharedHiddenTerms, pub dz1_db1: f64, pub dz1_dw1: Array2<f64>, pub bias_shape: (usize, usize)}
-pub struct SharedHiddenTerms { pub dc_dz2: Array2<f64>, pub dz2_da1: Array2<f64>, pub da1_dz1: Array2<f64>, pub dc_dz1: Option<Array2<f64>>} // last field is result
+pub struct HiddenLayerTerms {
+    pub shared: SharedHiddenTerms,
+    pub dz1_db1: f64,
+    pub dz1_dw1: Array2<f64>,
+    pub bias_shape: (usize, usize),
+}
+pub struct SharedHiddenTerms {
+    pub dc_dz2: Array2<f64>,
+    pub dz2_da1: Array2<f64>,
+    pub da1_dz1: Array2<f64>,
+    pub dc_dz1: Option<Array2<f64>>,
+} // last field is result
 
 impl ComputeLayer {
     // returns the acc in the chain rule computation aka dc_dz
-    pub fn acc(&mut self) -> Option<Array2<f64>> { 
+    pub fn acc(&mut self) -> Option<Array2<f64>> {
         match self {
             ComputeLayer::Output(l2) => l2.dc_dz.take(),
-            ComputeLayer::Hidden(l1) => l1.shared.dc_dz1.take()
+            ComputeLayer::Hidden(l1) => l1.shared.dc_dz1.take(),
         }
     }
 }
@@ -42,7 +56,6 @@ impl ChainRule for ComputeLayer {
         }
     }
 }
-
 
 impl ChainRule for OutputLayerTerms {
     fn chain_rule(&mut self) -> (Array2<f64>, Array2<f64>) {

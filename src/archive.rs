@@ -1,8 +1,8 @@
-use ndarray::{Array, Array2};
 use nanoserde::{DeBin, SerBin}; // tiny footprint and fast!
+use ndarray::{Array, Array2};
 use std::fmt::Debug;
 
-use crate::{save::Save, network::Network};
+use crate::{network::Network, save::Save};
 
 // Marker trait, ensures archive structure can be serialized and deserialized
 pub trait Archive: Clone + Debug + Default + DeBin + SerBin {}
@@ -13,7 +13,7 @@ pub trait Archive: Clone + Debug + Default + DeBin + SerBin {}
 #[derive(Clone, Debug, Default, DeBin, SerBin)]
 pub struct VecArray2Archive<T> {
     pub shapes: Option<Vec<(usize, usize)>>,
-    pub values: Option<Vec<Vec<T>>>
+    pub values: Option<Vec<Vec<T>>>,
 }
 
 impl From<VecArray2Archive<f64>> for Vec<Array2<f64>> {
@@ -40,7 +40,10 @@ impl From<&Vec<Array2<f64>>> for VecArray2Archive<f64> {
             shapes.push(v.dim());
         }
 
-        VecArray2Archive{ shapes: Some(shapes), values: Some(values) }
+        VecArray2Archive {
+            shapes: Some(shapes),
+            values: Some(values),
+        }
     }
 }
 

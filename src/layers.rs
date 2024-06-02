@@ -1,8 +1,8 @@
 use either::*;
-use std::{ops::RangeBounds, convert::Into, fmt, fmt::Debug};
 use ndarray::{Array, Array2};
+use std::{convert::Into, fmt, fmt::Debug, ops::RangeBounds};
 
-use crate::activation::{Activation, ActFp};
+use crate::activation::{ActFp, Activation};
 
 // Make fields public for layers literal construction
 
@@ -13,9 +13,9 @@ pub struct Dense(pub usize, pub Act);
 // re-export types into Layer, to consolidate interface
 pub use crate::activation::Act;
 pub use crate::cost::Loss;
+pub use crate::optimizer::Optim;
 pub use crate::types::{Batch, Eval, Metr, SimpleError};
 pub use crate::weight::Weit;
-pub use crate::optimizer::Optim;
 
 pub trait Layer {
     type Output;
@@ -41,7 +41,7 @@ impl LayerOrder {
     fn valid(&self, layer_index: usize) -> bool {
         match self.value() {
             Left(idx) => idx == layer_index,
-            Right(ref range) => range.contains(&layer_index)
+            Right(ref range) => range.contains(&layer_index),
         }
     }
 }
@@ -106,8 +106,12 @@ impl LayerStack {
         self.0.push(Box::new(l));
     }
 
-    pub fn len(&self) -> usize { self.0.len() }
-    pub fn is_empty(&self) -> bool { self.0.len() == 0 }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
+    }
 }
 
 impl Default for LayerStack {
@@ -116,29 +120,35 @@ impl Default for LayerStack {
     }
 }
 
-
 impl Layer for LayerStack {
     // ((input_size,last_size), weights, biases, forward, backward, output_act)
-    type Output = ((usize,usize), Vec<Array2<f64>>, Vec<Array2<f64>>, Vec<ActFp>, Vec<ActFp>, Vec<Act>);
+    type Output = (
+        (usize, usize),
+        Vec<Array2<f64>>,
+        Vec<Array2<f64>>,
+        Vec<ActFp>,
+        Vec<ActFp>,
+        Vec<Act>,
+    );
 
     fn reduce(&self) -> Self::Output {
-        use statrs::distribution::Normal;
         use ndarray_rand::RandomExt;
+        use statrs::distribution::Normal;
 
-        let acc = ((0,0), vec![], vec![], vec![], vec![], vec![]); // acc is of type Output
+        let acc = ((0, 0), vec![], vec![], vec![], vec![], vec![]); // acc is of type Output
 
-        self.0.iter().enumerate().fold(acc, |mut acc, (i,l)| {
+        self.0.iter().enumerate().fold(acc, |mut acc, (i, l)| {
             match l.reduce() {
                 LayerTerms::Input(ref order, size) if order.valid(i) => {
                     acc.0 = (size, size); // save input size as last size
                     acc
-                },
+                }
                 LayerTerms::Dense(ref order, size, act, act_type, weit) if order.valid(i) => {
                     let (act_fp, act_deriv_fp) = act.pair(); // activation and activation derivative functions
 
-                    let x = acc.0.1; // (previous size) current layer inputs
+                    let x = acc.0 .1; // (previous size) current layer inputs
                     let y = size; // current layer neurons (outputs)
-                    acc.0.1 = size; // save last size, which at end will be output_size
+                    acc.0 .1 = size; // save last size, which at end will be output_size
 
                     // Note: z = wx + b, w is on left and x is transposed from csv row into vertical collumn
                     let b = Array::random((y, 1), Normal::new(0., 1.).unwrap()); // for sizes [2,3,1] => 3x1 b1, b2, b3, and 1x1 b4
@@ -150,8 +160,10 @@ impl Layer for LayerStack {
                     acc.4.push(act_deriv_fp); // push to backward, or derivative activations
                     acc.5.push(act_type);
                     acc
-                },
-                _ => panic!("Layer order is incorrect, perhaps input layer is not first layer added?"),
+                }
+                _ => panic!(
+                    "Layer order is incorrect, perhaps input layer is not first layer added?"
+                ),
             }
         })
     }
@@ -163,7 +175,6 @@ mod tests {
 
     #[test]
     pub fn invalid_layer_ordering() {
-
         let result = std::panic::catch_unwind(|| {
             let mut stack = LayerStack::new();
             stack.add(Input1(4));
@@ -188,6 +199,9 @@ mod tests {
         assert!(&p.is_err());
 
         let err = p.unwrap_err();
-        assert_eq!(*err.downcast_ref::<&str>().unwrap(), "Layer order is incorrect, perhaps input layer is not first layer added?");
+        assert_eq!(
+            *err.downcast_ref::<&str>().unwrap(),
+            "Layer order is incorrect, perhaps input layer is not first layer added?"
+        );
     }
 }

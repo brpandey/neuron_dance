@@ -2,19 +2,18 @@
 
 /// AMSGrad is also an extension to Adam with the addition of a max variance second moment variable
 /// to help bias correct the variance, which prevents a rapid optimization deceleration
-
 use ndarray::Array2;
-use std::collections::HashMap;
 use std::borrow::Cow;
+use std::collections::HashMap;
 
-use crate::optimizer::{Optimizer, CompositeKey, ParamKey, HistType, adam::Adam};
 use crate::algebra::AlgebraExt;
+use crate::optimizer::{adam::Adam, CompositeKey, HistType, Optimizer, ParamKey};
 
 pub struct AmsGrad {
     hist_types: Vec<HistType>,
     historical: HashMap<CompositeKey, Array2<f64>>,
-    beta1: f64, // first order moment beta
-    beta2: f64, // second order moment beta
+    beta1: f64,   // first order moment beta
+    beta2: f64,   // second order moment beta
     epsilon: f64, // stabilizer to ensure denominator is never zero, should sqrt of second moment be 0
 }
 
@@ -32,7 +31,12 @@ impl AmsGrad {
 
 impl Optimizer for AmsGrad {
     // Produce adjustment value given specific param's key and value e.g. "dw0", and gradient value dw
-    fn calculate<'a>(&mut self, key: ParamKey, value: &'a Array2<f64>, t: usize) -> Cow<'a, Array2<f64>> {
+    fn calculate<'a>(
+        &mut self,
+        key: ParamKey,
+        value: &'a Array2<f64>,
+        t: usize,
+    ) -> Cow<'a, Array2<f64>> {
         Adam::initialize(key, value.raw_dim(), &self.hist_types, &mut self.historical);
 
         let m_key = CompositeKey(key, HistType::Mean);
@@ -48,7 +52,7 @@ impl Optimizer for AmsGrad {
         let v_hat = self.historical.get(&vh_key).unwrap();
         let vh = v_hat.maximum(&v); // take element-wise maximum of current and preceding v_hat
 
-        let momentum = &m/(vh.sqrt() + self.epsilon);
+        let momentum = &m / (vh.sqrt() + self.epsilon);
 
         // update
         self.historical.insert(m_key, m);
@@ -58,4 +62,3 @@ impl Optimizer for AmsGrad {
         Cow::Owned(momentum)
     }
 }
-

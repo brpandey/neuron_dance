@@ -1,3 +1,4 @@
+pub mod leaky_relu;
 /// Groups the common library of simple units or activation functions
 /// which when used in totality help model more complex target functions
 
@@ -12,24 +13,20 @@
 
 /// The simple units make micro decisions given their params and forward
 /// their answer in their output
-
-
 // To add new activation type update 3 places:
 // Add new activation module type here - Start (1)
 pub mod relu;
 pub mod sigmoid;
-pub mod tanh;
 pub mod softmax;
-pub mod leaky_relu;
+pub mod tanh;
 
-use std::{convert::From, str::FromStr, fmt::Debug};
+use nanoserde::{DeBin, SerBin};
 use ndarray::Array2;
+use std::{convert::From, fmt::Debug, str::FromStr};
 use strum_macros::{Display, EnumString};
-use nanoserde::{SerBin, DeBin};
 
 use crate::activation::{
-    relu::Relu, sigmoid::Sigmoid, tanh::Tanh,
-    softmax::Softmax, leaky_relu::LeakyRelu
+    leaky_relu::LeakyRelu, relu::Relu, sigmoid::Sigmoid, softmax::Softmax, tanh::Tanh,
 }; // Update (2)
 
 use crate::weight::Weit;
@@ -37,7 +34,7 @@ use crate::weight::Weit;
 pub type ActFp = fn(&Array2<f64>) -> Array2<f64>; // function pointer
 pub type ActBDFp = fn(Array2<f64>, Array2<f64>) -> Array2<f64>;
 
-pub trait Activation : Debug  {
+pub trait Activation: Debug {
     fn pair(&self) -> (ActFp, ActFp);
 }
 
@@ -55,10 +52,15 @@ pub trait Decider {
         z.mapv(|v| Self::decide(v))
     }
 
-    fn decide(z: f64) -> f64 { z }
-    fn gradient(z: f64) -> f64 { z }
+    fn decide(z: f64) -> f64 {
+        z
+    }
+    fn gradient(z: f64) -> f64 {
+        z
+    }
 
-    fn derivative(z: &Array2<f64>) -> Array2<f64> { // derivative is vectorized
+    fn derivative(z: &Array2<f64>) -> Array2<f64> {
+        // derivative is vectorized
         z.mapv(|v| Self::gradient(v))
     }
 }
@@ -85,7 +87,7 @@ impl FromStr for Box<dyn Activation> {
 
 #[derive(Debug, Copy, Clone, SerBin, DeBin, PartialEq, Display, EnumString)]
 pub enum Act {
-    Relu, // uses default weight initialization type
+    Relu,        // uses default weight initialization type
     Relu_(Weit), // with supplied weight initialization type
     Sigmoid,
     Sigmoid_(Weit),
@@ -125,16 +127,21 @@ impl From<Act> for Box<dyn Activation> {
 pub struct ActivationFps(Vec<ActFp>);
 
 impl ActivationFps {
-    pub fn into_inner(self) -> Vec<ActFp> { self.0 }
+    pub fn into_inner(self) -> Vec<ActFp> {
+        self.0
+    }
 }
 
 impl From<&Vec<Act>> for ActivationFps {
     fn from(acts: &Vec<Act>) -> Self {
-        let v = acts.iter().map(|a| {
-            let dyn_a: Box<dyn Activation> = (*a).into();
-            let (a_fp, _) = dyn_a.pair();
-            a_fp
-        }).collect::<Vec<ActFp>>();
+        let v = acts
+            .iter()
+            .map(|a| {
+                let dyn_a: Box<dyn Activation> = (*a).into();
+                let (a_fp, _) = dyn_a.pair();
+                a_fp
+            })
+            .collect::<Vec<ActFp>>();
 
         ActivationFps(v)
     }

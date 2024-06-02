@@ -1,15 +1,15 @@
+use ndarray::{ArrayBase, DataMut, DataOwned, Dimension, IntoDimension};
+use num::{Float, Zero};
 use std::collections::HashMap;
 use std::{clone::Clone, marker::Copy};
-use ndarray::{ArrayBase, DataOwned, DataMut, Dimension, IntoDimension};
-use num::{Float, Zero};
 
 pub fn one_hot<S, D, I, T>(shape: I, index: I) -> HashMap<usize, ArrayBase<S, D>>
 where
     S: DataOwned<Elem = T> + DataMut,
     T: Clone + Zero + Float,
     D: Dimension + Copy,
-    I: IntoDimension<Dim = D>, {
-
+    I: IntoDimension<Dim = D>,
+{
     let mut one_hot = HashMap::new();
     let mut zeros;
 

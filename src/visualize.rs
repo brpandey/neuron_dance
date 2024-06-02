@@ -1,15 +1,15 @@
-use std::fmt::Display;
-use ndarray::{ArrayBase, Data, Ix2};
-use comfy_table::{Table, ContentArrangement};
+use colorous::{GREYS, PLASMA, TURBO};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
-use plotters::{prelude::*, backend::BitMapBackend as BMB};
-use colorous::{PLASMA, GREYS, TURBO};
+use comfy_table::{ContentArrangement, Table};
+use ndarray::{ArrayBase, Data, Ix2};
+use plotters::{backend::BitMapBackend as BMB, prelude::*};
+use std::fmt::Display;
 use viuer::{print_from_file, Config};
 
 use crate::algebra::AlgebraExt;
 
 // providing a None option requires type annotations sometimes
-pub type Empty<'a> = &'a[&'a str]; 
+pub type Empty<'a> = &'a [&'a str];
 
 pub trait Peek {
     fn peek<S: Data<Elem = f64>>(x: &ArrayBase<S, Ix2>, text: Option<&str>);
@@ -25,7 +25,12 @@ impl Visualize {
     const TABLE_WIDTH: u16 = 120;
 
     // preview first rows of data source
-    pub fn table_preview<S, T>(data: &ArrayBase<S, Ix2>, headers: Option<&[T]>, ascii_art: bool, text: Option<&str>) -> Table
+    pub fn table_preview<S, T>(
+        data: &ArrayBase<S, Ix2>,
+        headers: Option<&[T]>,
+        ascii_art: bool,
+        text: Option<&str>,
+    ) -> Table
     where
         S: Data<Elem = f64>,
         T: AsRef<str> + Display,
@@ -35,12 +40,18 @@ impl Visualize {
         text.inspect(|t| println!("{t}"));
 
         // print first rows, whichever is shorter
-        let max = if ascii_art { Self::ASCII_ART_SIZE } else { Self::TABLE_FIRST_ROWS };
+        let max = if ascii_art {
+            Self::ASCII_ART_SIZE
+        } else {
+            Self::TABLE_FIRST_ROWS
+        };
         let n_rows = std::cmp::min(data.nrows(), max);
 
         let mut table = Table::new();
 
-        if n_rows == 0 { return table } // exit early, nothing to preview
+        if n_rows == 0 {
+            return table;
+        } // exit early, nothing to preview
 
         table
             .load_preset(UTF8_FULL)
@@ -62,16 +73,16 @@ impl Visualize {
             row_view = data.row(i);
 
             if ascii_art {
-                cur = row_view.sum() == 0. &&
-                    *QuantileExt::max(&row_view).unwrap() == 0.;
+                cur = row_view.sum() == 0. && *QuantileExt::max(&row_view).unwrap() == 0.;
 
-                // if current row with nonzero terms, add it OR 
+                // if current row with nonzero terms, add it OR
                 // if previous row wasn't all zeros, add it -- to slightly compact table
                 if !cur || !prev {
                     table.add_row(
-                        row_view.into_iter()
+                        row_view
+                            .into_iter()
                             .map(Self::float_to_ascii)
-                            .collect::<Vec<char>>()
+                            .collect::<Vec<char>>(),
                     );
                 }
 
@@ -98,9 +109,9 @@ impl Visualize {
 
     pub fn heatmap_row<S>(image: &ArrayBase<S, Ix2>, index: u8)
     where
-        S: Data<Elem = f64>
+        S: Data<Elem = f64>,
     {
-        let col_index = index % Self::HEATMAPS_PER_ROW;  // only accept < 10 heatmap images per row
+        let col_index = index % Self::HEATMAPS_PER_ROW; // only accept < 10 heatmap images per row
         let row_index = index / Self::HEATMAPS_PER_ROW;
         let (n_rows, n_cols) = (image.shape()[0], image.shape()[1]);
 
@@ -109,18 +120,24 @@ impl Visualize {
         let empty_cells = draw_area.split_evenly((n_cols, n_rows));
 
         // Scaling values
-        let normalized_image = image.map(|v| v/(n_cols as f64));
+        let normalized_image = image.map(|v| v / (n_cols as f64));
         let max_value: f64 = normalized_image.max();
 
         // Add continuous color scale to assist with mapping data value
-        let color_scale = match index % 3 { 0 => PLASMA, 1 => GREYS, _ => TURBO };
+        let color_scale = match index % 3 {
+            0 => PLASMA,
+            1 => GREYS,
+            _ => TURBO,
+        };
 
         // map data to color, fill cell with color given color's rgb value
         for (empty_cell, data_value) in empty_cells.iter().zip(normalized_image.iter()) {
             let data_value_scaled = data_value.sqrt() / max_value.sqrt();
             let color = color_scale.eval_continuous(data_value_scaled);
-            empty_cell.fill(&RGBColor(color.r, color.g, color.b)).unwrap();
-        };
+            empty_cell
+                .fill(&RGBColor(color.r, color.g, color.b))
+                .unwrap();
+        }
 
         // save heatmap image to file
         draw_area.present().unwrap();
@@ -130,10 +147,10 @@ impl Visualize {
 
         // scale and offset image and reload from file
         let conf = Config {
-            x: col_offset as u16, // terminal col offset
-            y: 5 + row_offset as i16,  // terminal row offset
-            width: Some(20), // term cell dimension width
-            height: Some(10), // term cell dimension height
+            x: col_offset as u16,     // terminal col offset
+            y: 5 + row_offset as i16, // terminal row offset
+            width: Some(20),          // term cell dimension width
+            height: Some(10),         // term cell dimension height
             ..Default::default()
         };
 
@@ -149,14 +166,16 @@ mod tests {
     #[test]
     pub fn regular_table_pre() {
         let input = arr2(&[[9.0, 5.3, 1.4, 7.2]]);
-        let headers = vec!["A".to_string(), "B".to_string(), "C".to_string(), "D".to_string()];
+        let headers = vec![
+            "A".to_string(),
+            "B".to_string(),
+            "C".to_string(),
+            "D".to_string(),
+        ];
 
-        let t = Visualize::table_preview(
-            &input, Some(&headers),
-            false, None);
+        let t = Visualize::table_preview(&input, Some(&headers), false, None);
 
-        let out =
-"╭───┬─────┬─────┬─────╮
+        let out = "╭───┬─────┬─────┬─────╮
 │ A ┆ B   ┆ C   ┆ D   │
 ╞═══╪═════╪═════╪═════╡
 │ 9 ┆ 5.3 ┆ 1.4 ┆ 7.2 │
@@ -179,12 +198,9 @@ mod tests {
         ]);
 
         // view in regular table view (only prints first four rows)
-        let t = Visualize::table_preview(
-            &input, None::<Empty>,
-            false, None);
+        let t = Visualize::table_preview(&input, None::<Empty>, false, None);
 
-        let out1 =
-"╭───┬───┬─────┬──────┬──────┬──────┬─────┬───┬───╮
+        let out1 = "╭───┬───┬─────┬──────┬──────┬──────┬─────┬───┬───╮
 │ 0 ┆ 0 ┆ 0   ┆ 0    ┆ 0    ┆ 0    ┆ 0   ┆ 0 ┆ 0 │
 ├╌╌╌┼╌╌╌┼╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌┼╌╌╌┼╌╌╌┤
 │ 0 ┆ 0 ┆ 0   ┆ 0    ┆ 0    ┆ 0    ┆ 0   ┆ 0 ┆ 0 │
@@ -197,13 +213,10 @@ mod tests {
         assert_eq!(t.to_string(), out1.to_string());
 
         // view same data but in ascii table view
-        let t = Visualize::table_preview(
-            &input, None::<Empty>,
-            true, None);
+        let t = Visualize::table_preview(&input, None::<Empty>, true, None);
 
         // image of a hat
-        let out2 =
-            "╭───┬───┬───┬───┬───┬───┬───┬───┬───╮
+        let out2 = "╭───┬───┬───┬───┬───┬───┬───┬───┬───╮
 │   ┆   ┆   ┆   ┆   ┆   ┆   ┆   ┆   │
 ├╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┼╌╌╌┤
 │   ┆   ┆   ┆ % ┆ @ ┆ X ┆   ┆   ┆   │

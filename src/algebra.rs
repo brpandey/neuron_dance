@@ -5,7 +5,6 @@
 
 /// Array2<f64> is ArrayBase<OwnedRepr<f64>, Ix2>
 /// ArrayView2<f64> is ArrayBase<ViewRepr<&'a f64>, Ix2>>;
-
 use ndarray::{Array1, Array2, Axis, Zip};
 use ndarray_stats::QuantileExt;
 
@@ -36,13 +35,13 @@ impl AlgebraExt for Array2<f64> {
         let mut max_acc_index = 0;
 
         // if we have a single neuron output, return either 0 or 1
-        if self.shape() == &[1,1] {
-            return self[[0, 0]].round() as usize
+        if self.shape() == &[1, 1] {
+            return self[[0, 0]].round() as usize;
         }
 
         // start by comparing value from first column (0) of 2d array by index
         for (i, &v) in self.iter().enumerate() {
-            if v > self[[max_acc_index, 0]] { 
+            if v > self[[max_acc_index, 0]] {
                 max_acc_index = i;
             }
         }
@@ -64,7 +63,7 @@ impl AlgebraExt for Array2<f64> {
 
     #[inline]
     fn normalize(&self) -> f64 {
-        (self*self).sum().sqrt()
+        (self * self).sum().sqrt()
     }
 
     fn min(&self) -> f64 {
@@ -73,7 +72,7 @@ impl AlgebraExt for Array2<f64> {
 
     #[inline]
     fn min_axis(&self, axis: Axis) -> Self::Output1 {
-        self.map_axis(axis, |v| *v.iter().min_by(|a,b| a.total_cmp(b)).unwrap())
+        self.map_axis(axis, |v| *v.iter().min_by(|a, b| a.total_cmp(b)).unwrap())
     }
 
     fn max(&self) -> f64 {
@@ -82,7 +81,7 @@ impl AlgebraExt for Array2<f64> {
 
     #[inline]
     fn max_axis(&self, axis: Axis) -> Self::Output1 {
-        self.map_axis(axis, |v| *v.iter().max_by(|a,b| a.total_cmp(b)).unwrap())
+        self.map_axis(axis, |v| *v.iter().max_by(|a, b| a.total_cmp(b)).unwrap())
     }
 
     #[inline]
@@ -107,9 +106,9 @@ impl AlgebraExt for Array2<f64> {
             .and(value)
             .for_each(|o, &s, &v| {
                 if square_value {
-                    *o = decay_rate*s + (1.0-decay_rate)*v*v
+                    *o = decay_rate * s + (1.0 - decay_rate) * v * v
                 } else {
-                    *o = decay_rate*s + (1.0-decay_rate)*v
+                    *o = decay_rate * s + (1.0 - decay_rate) * v
                 }
             });
 

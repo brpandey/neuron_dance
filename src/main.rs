@@ -5,11 +5,11 @@ use neuron_dance::{
         idx::{MnistData, MnistType},
         DataSet, TrainTestSubsets,
     },
-    layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, Weit, SimpleError},
+    layers::{Act, Batch, Dense, Eval, Input1, Input2, Loss, Metr, Optim, SimpleError, Weit},
     network::Network,
 };
 
-fn main() -> Result<(), SimpleError>{
+fn main() -> Result<(), SimpleError> {
     let mut matches = Command::new("neuron_dance")
         .about("Neuron Dance")
         .arg(
@@ -38,12 +38,19 @@ fn main() -> Result<(), SimpleError>{
     dataset = match ntype {
         NetworkType::CSV1 => Box::new(CSVData::new(CSVType::RGB)),
         NetworkType::Diabetes => Box::new(CSVData::new(CSVType::Custom("diabetes", None))),
-        NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom("iris", Some(vec!["Setosa", "Virginica", "Versicolor"])))),
+        NetworkType::Iris => Box::new(CSVData::new(CSVType::Custom(
+            "iris",
+            Some(vec!["Setosa", "Virginica", "Versicolor"]),
+        ))),
         NetworkType::Mnist => Box::new(MnistData::new(MnistType::Regular)),
-        NetworkType::FashionMnist | NetworkType::Preload => Box::new(MnistData::new(MnistType::Fashion)),
+        NetworkType::FashionMnist | NetworkType::Preload => {
+            Box::new(MnistData::new(MnistType::Fashion))
+        }
     };
 
-    if let Err(e) = dataset.fetch() { e.print_and_exit() };
+    if let Err(e) = dataset.fetch() {
+        e.print_and_exit()
+    };
     dataset.shuffle();
     dataset.head();
 
@@ -58,7 +65,7 @@ fn main() -> Result<(), SimpleError>{
             model.add(Dense(1, Act::Sigmoid));
             model.compile(Loss::Quadratic, 0.2, 0.0, Metr(" accuracy , cost"));
             model.fit(&subsets, 10000, Batch::SGD, Eval::Train)?; // using SGD approach (doesn't have momentum supported)
-        },
+        }
         NetworkType::Diabetes => {
             subsets = subsets.min_max_scale(0.0, 1.0); // scale down the features to a 0..1 scale for better model performance
 
@@ -70,7 +77,7 @@ fn main() -> Result<(), SimpleError>{
             model.compile(Loss::BinaryCrossEntropy, 0.5, 0.0, Metr("accuracy, cost"));
             model.fit(&subsets, 50, Batch::Mini(10), Eval::Train)?;
             model.view();
-        },
+        }
         NetworkType::Iris => {
             model = Network::new();
             model.add(Input1(4));
@@ -82,7 +89,7 @@ fn main() -> Result<(), SimpleError>{
 
             // Now that model has been trained, make random selections
             random_predicts(&model, &subsets);
-        },
+        }
         NetworkType::Mnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
             model = Network::new();
@@ -93,8 +100,8 @@ fn main() -> Result<(), SimpleError>{
             model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test)?;
 
             random_predicts(&model, &subsets); // Now that model has been trained, make random selections
-            //            model.view();
-        },
+                                               //            model.view();
+        }
         NetworkType::FashionMnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
             model = Network::new();
@@ -103,7 +110,7 @@ fn main() -> Result<(), SimpleError>{
             model.add(Dense(10, Act::Softmax_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::CategoricalCrossEntropy, 0.1, 5.0, Metr("accuracy"));
             model.fit(&subsets, 10, Batch::Mini_(5, Optim::Default), Eval::Test)?;
-        },
+        }
         NetworkType::Preload => {
             let tok = NetworkType::FashionMnist.to_string();
 
@@ -115,9 +122,13 @@ fn main() -> Result<(), SimpleError>{
     model.eval(&subsets, Eval::Test);
 
     if ntype != NetworkType::Preload {
-        if let Err(e) = model.store(&token) { e.print_and_exit() };
+        if let Err(e) = model.store(&token) {
+            e.print_and_exit()
+        };
 
-        let mut newmodel = Network::load(&token).map_err(|e| e.print_and_exit()).unwrap();
+        let mut newmodel = Network::load(&token)
+            .map_err(|e| e.print_and_exit())
+            .unwrap();
         newmodel.eval(&subsets, Eval::Test);
     }
 

@@ -7,15 +7,14 @@
 /// Minimize target function T by updating parameters to opposite direction of
 /// derivative of the target function with respect to the params (e.g w, b)
 /// Hence w - η ⋅ dT/dw or b - η ⋅ dT/db)
-
 pub mod adam;
 pub mod amsgrad;
 pub mod nadam;
 
+use nanoserde::{DeBin, SerBin};
+use ndarray::Array2;
 use std::borrow::Cow;
 use std::default::Default;
-use ndarray::Array2;
-use nanoserde::{DeBin, SerBin};
 use strum_macros::{Display, EnumString};
 
 use crate::optimizer::{adam::Adam, amsgrad::AmsGrad, nadam::NAdam};
@@ -36,7 +35,8 @@ pub enum ParamKey {
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Copy, Clone)]
-pub enum HistType { // Historical Type
+pub enum HistType {
+    // Historical Type
     Mean,
     Variance,
     Vhat,
@@ -46,7 +46,12 @@ pub enum HistType { // Historical Type
 pub struct CompositeKey(ParamKey, HistType);
 
 pub trait Optimizer {
-    fn calculate<'a>(&mut self, _key: ParamKey, value: &'a Array2<f64>, _t: usize) -> Cow<'a, Array2<f64>> {
+    fn calculate<'a>(
+        &mut self,
+        _key: ParamKey,
+        value: &'a Array2<f64>,
+        _t: usize,
+    ) -> Cow<'a, Array2<f64>> {
         Cow::Borrowed(value)
     }
 }

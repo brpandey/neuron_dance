@@ -14,13 +14,12 @@
 /// The mean or velocity term borrows velocity from preceding revisions.  This is useful
 /// especially as we reach the trough of our loss function when the gradient contributions get smaller and smaller
 /// and the learning rate is still constant. It prevents the velocity from slowing down by slightly boosting it
-
 use ndarray::{Array2, Dim};
-use std::collections::HashMap;
 use std::borrow::Cow;
+use std::collections::HashMap;
 
-use crate::optimizer::{Optimizer, ParamKey, HistType, CompositeKey};
 use crate::algebra::AlgebraExt;
+use crate::optimizer::{CompositeKey, HistType, Optimizer, ParamKey};
 
 /***********************************************************************************************************
 Adam Optimizer implementation is currently not optimized and epoch training will take longer
@@ -33,8 +32,8 @@ will take more epochs but each epoch will be faster since there's less computati
 pub struct Adam {
     hist_types: Vec<HistType>,
     historical: HashMap<CompositeKey, Array2<f64>>, // stores first order mean and variances for param
-    beta1: f64, // first order moment beta
-    beta2: f64, // second order moment beta
+    beta1: f64,                                     // first order moment beta
+    beta2: f64,                                     // second order moment beta
     epsilon: f64, // stabilizer to ensure denominator is never zero, should sqrt of second moment be 0
 }
 
@@ -50,28 +49,36 @@ impl Adam {
     }
 
     // Initialize new historical values to be zero tensors
-    pub fn initialize(key: ParamKey, shape: Dim<[usize; 2]>, hist_types: &[HistType],
-                      store: &mut HashMap<CompositeKey, Array2<f64>>)
-    {
+    pub fn initialize(
+        key: ParamKey,
+        shape: Dim<[usize; 2]>,
+        hist_types: &[HistType],
+        store: &mut HashMap<CompositeKey, Array2<f64>>,
+    ) {
         hist_types.iter().fold(store, |acc, p_type| {
             // Generate composite keys in the form ParamKey, HistType
             let composite_key = CompositeKey(key, *p_type);
-            acc.entry(composite_key).or_insert_with(|| Array2::zeros(shape));
+            acc.entry(composite_key)
+                .or_insert_with(|| Array2::zeros(shape));
             acc
         });
-
     }
 
     #[inline]
     // Offset the cost of originally initializing value to 0
     pub fn bias_correct(value: &Array2<f64>, decay_rate: f64, t: usize) -> Array2<f64> {
-        value/(1.0-&decay_rate.powf(t as f64 + 1.0))
+        value / (1.0 - &decay_rate.powf(t as f64 + 1.0))
     }
 }
 
 impl Optimizer for Adam {
     // Produce adjustment value given specific param's key and value e.g. dw0, and gradient value dw
-    fn calculate<'a>(&mut self, key: ParamKey, value: &'a Array2<f64>, t: usize) -> Cow<'a, Array2<f64>> {
+    fn calculate<'a>(
+        &mut self,
+        key: ParamKey,
+        value: &'a Array2<f64>,
+        t: usize,
+    ) -> Cow<'a, Array2<f64>> {
         Adam::initialize(key, value.raw_dim(), &self.hist_types, &mut self.historical);
 
         // 1 Grab historical value
@@ -81,11 +88,17 @@ impl Optimizer for Adam {
 
         // 3 Account for errors/biases since mean and variance were initalized to 0's
 
-        let mean = self.historical.get_mut(&CompositeKey(key, HistType::Mean)).unwrap();
+        let mean = self
+            .historical
+            .get_mut(&CompositeKey(key, HistType::Mean))
+            .unwrap();
         *mean = mean.smooth(self.beta1, value, false);
         let m_hat = Self::bias_correct(mean, self.beta1, t);
 
-        let variance = self.historical.get_mut(&CompositeKey(key, HistType::Variance)).unwrap();
+        let variance = self
+            .historical
+            .get_mut(&CompositeKey(key, HistType::Variance))
+            .unwrap();
         *variance = variance.smooth(self.beta2, value, true);
         let v_hat = Self::bias_correct(variance, self.beta2, t);
 
@@ -100,7 +113,7 @@ impl Optimizer for Adam {
         // if the historical mean term is large => don't slow down the rate of change
         // keep the past "momentum" going
 
-        let momentum = m_hat/(v_hat.sqrt() + self.epsilon);
+        let momentum = m_hat / (v_hat.sqrt() + self.epsilon);
 
         // momentum describes the fraction of the velocity that is ultimately applied to the learning rate
         Cow::Owned(momentum)

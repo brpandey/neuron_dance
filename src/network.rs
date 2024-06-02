@@ -3,22 +3,26 @@
 /// In totality it represents an idealized function sculpted by its training data
 /// Through successive approximations the model minimizes the respective target or loss function
 /// increasing its accuracy and utility in predicting new unseen data
-
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
 
-use std::{iter::Iterator, default::Default, ops::Add};
 use ndarray::{Array2, ArrayView2, Axis};
-use rand::{Rng, seq::SliceRandom};
+use rand::{seq::SliceRandom, Rng};
+use std::{default::Default, iter::Iterator, ops::Add};
 
 use crate::{
-    activation::ActFp, algebra::AlgebraExt, // import local traits
-    gradient_cache::{GradientCache, GT},
-    hypers::Hypers, chain_rule::ChainRuleComputation,
+    activation::ActFp,
+    algebra::AlgebraExt, // import local traits
+    archive::NetworkArchive,
+    chain_rule::ChainRuleComputation,
+    cost::{Cost, Loss},
     dataset::TrainTestSubsets,
+    gradient_cache::{GradientCache, GT},
+    hypers::Hypers,
     layers::{Layer, LayerStack, LayerTerms},
-    cost::{Cost, Loss}, metrics::{Metrics, Tally},
-    types::{Batch, Eval, Metr, ModelState, SimpleError}, optimizer::{Optim, ParamKey},
-    save::Save, archive::NetworkArchive,
+    metrics::{Metrics, Tally},
+    optimizer::{Optim, ParamKey},
+    save::Save,
+    types::{Batch, Eval, Metr, ModelState, SimpleError},
 };
 
 const WRONG_ORDER: &str = "User error ~ wrong order of operations";
@@ -34,7 +38,6 @@ pub struct Network {
     cache: Option<GradientCache>,
     metrics: Option<Metrics>,
 }
-
 
 impl Network {
     pub fn new() -> Self {
@@ -52,10 +55,18 @@ impl Network {
         self.current_state = ModelState::Add;
     }
 
-    pub fn compile(&mut self, loss_type: Loss, learning_rate: f64, l2_rate: f64, metrics_type: Metr<'_>) {
-        self.check_valid_state(ModelState::Compile).expect(WRONG_ORDER);
+    pub fn compile(
+        &mut self,
+        loss_type: Loss,
+        learning_rate: f64,
+        l2_rate: f64,
+        metrics_type: Metr<'_>,
+    ) {
+        self.check_valid_state(ModelState::Compile)
+            .expect(WRONG_ORDER);
 
-        let (size_ends, weights, biases, forward, backward, acts) = self.layers.as_mut().unwrap().reduce();
+        let (size_ends, weights, biases, forward, backward, acts) =
+            self.layers.as_mut().unwrap().reduce();
         let output_act = *acts.last().unwrap();
         let (input_size, output_size) = size_ends;
 
@@ -63,33 +74,53 @@ impl Network {
         let (cost_fp, cost_deriv_fp, cost_comb_rule_fp) = loss.triple();
 
         let metrics = Some(Metrics::new(metrics_type, cost_fp, output_size, l2_rate));
-        let hypers = Hypers::new(learning_rate, l2_rate, input_size, output_size, acts, loss_type);
+        let hypers = Hypers::new(
+            learning_rate,
+            l2_rate,
+            input_size,
+            output_size,
+            acts,
+            loss_type,
+        );
 
         // initialize network properly
         let n = Network {
-            weights, biases, forward,
+            weights,
+            biases,
+            forward,
             layers: self.layers.take(),
-            cache: None, hypers, metrics,
+            cache: None,
+            hypers,
+            metrics,
             current_state: ModelState::Compile,
         };
 
         let _ = std::mem::replace(self, n); // replace empty network with new initialized network
 
         let gc = GradientCache::new(
-            backward, &self.biases, output_size,
+            backward,
+            &self.biases,
+            output_size,
             (cost_deriv_fp, cost_comb_rule_fp),
-            output_act
+            output_act,
         );
 
         self.cache = Some(gc);
     }
 
     /// Train model with relevant dataset given the specified hyperparameters
-    pub fn fit(&mut self, subsets: &TrainTestSubsets, epochs: usize, batch_type: Batch, eval: Eval) -> Result<(), SimpleError>{
+    pub fn fit(
+        &mut self,
+        subsets: &TrainTestSubsets,
+        epochs: usize,
+        batch_type: Batch,
+        eval: Eval,
+    ) -> Result<(), SimpleError> {
         self.check_valid_state(ModelState::Fit).expect(WRONG_ORDER);
         let (layer_size, n_features) = (self.hypers.input_size(), subsets.num_features());
 
-        if layer_size != n_features { // input layer size specified incorrectly
+        if layer_size != n_features {
+            // input layer size specified incorrectly
             let e = SimpleError::InputLayerSizeNoMatch(layer_size, n_features);
             eprintln!("Unrecoverable error: {}", &e);
             return Err(e);
@@ -142,22 +173,26 @@ impl Network {
         let y_pred = output.arg_max();
 
         // map y values to a class names value if one is provided
-        let y_pred_txt = class_names.map_or(
-            y_pred.to_string(),
-            |vec| vec.get(y_pred).map_or("?".to_string(), |v| v.clone())
-        );
+        let y_pred_txt = class_names.map_or(y_pred.to_string(), |vec| {
+            vec.get(y_pred).map_or("?".to_string(), |v| v.clone())
+        });
 
-        let y_label = y[(0,0)] as usize;
+        let y_label = y[(0, 0)] as usize;
 
-        let y_label_txt = class_names.map_or(
-            y_label.to_string(),
-            |vec| vec.get(y_label).map_or("?".to_string(), |v| v.clone())
-        );
+        let y_label_txt = class_names.map_or(y_label.to_string(), |vec| {
+            vec.get(y_label).map_or("?".to_string(), |v| v.clone())
+        });
 
         let s_txt = format!("[Successful y prediction] correct label is {y_pred_txt}");
-        let f_txt = format!("[No match!] y prediction {y_pred_txt} is different from correct y label {y_label_txt}");
+        let f_txt = format!(
+            "[No match!] y prediction {y_pred_txt} is different from correct y label {y_label_txt}"
+        );
 
-        if y_label == y_pred { println!("{s_txt}") } else { println!("{f_txt}") }
+        if y_label == y_pred {
+            println!("{s_txt}")
+        } else {
+            println!("{f_txt}")
+        }
 
         subset_ref.features_peek(&x);
 
@@ -188,23 +223,36 @@ impl Network {
         Ok(net + hypers)
     }
 
-    pub fn view(&self) { println!("{:#?}", &self); }
+    pub fn view(&self) {
+        println!("{:#?}", &self);
+    }
 
     /**** Pub crate associated methods ****/
 
-    pub(crate) fn weights(&self) -> &Vec<Array2<f64>> { self.weights.as_ref() }
-    pub(crate) fn biases(&self) -> &Vec<Array2<f64>> { self.biases.as_ref()  }
+    pub(crate) fn weights(&self) -> &Vec<Array2<f64>> {
+        self.weights.as_ref()
+    }
+    pub(crate) fn biases(&self) -> &Vec<Array2<f64>> {
+        self.biases.as_ref()
+    }
 
     /**** Private associated methods ****/
 
     /// Sgd employs 1 sample chosen at random from the data set for gradient descent
-    fn train_sgd(&mut self, subsets: &TrainTestSubsets, epochs: usize, gc: &mut GradientCache, eval: Eval) {
+    fn train_sgd(
+        &mut self,
+        subsets: &TrainTestSubsets,
+        epochs: usize,
+        gc: &mut GradientCache,
+        eval: Eval,
+    ) {
         let (mut rng, mut random_index);
         let (mut x_single, mut y_single);
         let train = subsets.train();
 
         rng = rand::thread_rng();
-        for _ in 0..epochs { // SGD_EPOCHS { // train and update network based on single observation sample
+        for _ in 0..epochs {
+            // SGD_EPOCHS { // train and update network based on single observation sample
             random_index = rng.gen_range(0..train.size);
             x_single = train.x.select(Axis(0), &[random_index]); // arr2(&[[0.93333333, 0.93333333, 0.81960784]])
             y_single = train.y.select(Axis(0), &[random_index]); // arr2(&[[1.0]])
@@ -221,8 +269,14 @@ impl Network {
     /// until it has covered all of the data set to form a single epoch out of a handful of epochs.
 
     /// Note: Probably more accurate to call it train stochastic mini batch
-    fn train_minibatch(&mut self, subsets: &TrainTestSubsets, epochs: usize,
-                       batch_size: usize, gc: &mut GradientCache, eval: Eval) {
+    fn train_minibatch(
+        &mut self,
+        subsets: &TrainTestSubsets,
+        epochs: usize,
+        batch_size: usize,
+        gc: &mut GradientCache,
+        eval: Eval,
+    ) {
         let (mut x_minibatch, mut y_minibatch);
         let optimizer_type = self.hypers.optimizer_type();
         let train = subsets.train();
@@ -235,7 +289,8 @@ impl Network {
         for e in 0..epochs {
             row_indices.shuffle(&mut r);
 
-            for chunk_ref in row_indices.chunks(batch_size) { //train and update network after each batch size of observation samples
+            for chunk_ref in row_indices.chunks(batch_size) {
+                //train and update network after each batch size of observation samples
                 x_minibatch = train.x.select(Axis(0), chunk_ref);
                 y_minibatch = train.y.select(Axis(0), chunk_ref);
 
@@ -243,15 +298,24 @@ impl Network {
                 self.train_iteration(x_minibatch.t(), &y_minibatch, gc, train.size, e);
             }
 
-            tally = self.metrics.as_mut().unwrap().create_tally(b, (e+1, epochs));
+            tally = self
+                .metrics
+                .as_mut()
+                .unwrap()
+                .create_tally(b, (e + 1, epochs));
             self.evaluate(subsets, &eval, &mut tally);
         }
     }
 
     // Note - Consider grouping parameters into subtype?
-    fn train_iteration(&mut self, x_iteration: ArrayView2<f64>, y_iteration: &Array2<f64>,
-                       gc: &mut GradientCache, total_size: usize, t: usize) {
-
+    fn train_iteration(
+        &mut self,
+        x_iteration: ArrayView2<f64>,
+        y_iteration: &Array2<f64>,
+        gc: &mut GradientCache,
+        total_size: usize,
+        t: usize,
+    ) {
         gc.add(GT::Features, x_iteration.to_owned());
         self.forward_pass(x_iteration, gc);
         let chain_rule_compute = self.backward_pass(y_iteration, gc);
@@ -266,7 +330,11 @@ impl Network {
 
     /// After model has been trained, apply new data on the model and its inherent
     /// parameters (weights, biases) to generate the output classes
-    fn predict_(&self, x: ArrayView2<f64>, wrapped: &mut Option<&mut GradientCache>) -> Array2<f64> {
+    fn predict_(
+        &self,
+        x: ArrayView2<f64>,
+        wrapped: &mut Option<&mut GradientCache>,
+    ) -> Array2<f64> {
         let mut z: Array2<f64>;
         let mut a: Array2<f64>;
         let mut acc = x.to_owned();
@@ -277,7 +345,12 @@ impl Network {
         // Compute and store the linear Z values and nonlinear A (activation) values
         // Z = W*A0 + B, A1 = RELU(Z) or A2 = Sigmoid(Z)
 
-        for ((w, b), act_fun) in self.weights.iter().zip(self.biases.iter()).zip(self.forward.iter()) {
+        for ((w, b), act_fun) in self
+            .weights
+            .iter()
+            .zip(self.biases.iter())
+            .zip(self.forward.iter())
+        {
             z = acc.weighted_sum(w, b); // linear, z = w.dot(&acc) + b
             a = (act_fun)(&z); // non-linear,  σ(z)
 
@@ -292,8 +365,13 @@ impl Network {
         acc // return last computed activation values
     }
 
-    fn backward_pass<'a, 'b>(&self, y: &Array2<f64>, gc: &'a mut GradientCache) -> ChainRuleComputation<'b>
-    where 'a: 'b // tc is around longer than crc
+    fn backward_pass<'a, 'b>(
+        &self,
+        y: &Array2<f64>,
+        gc: &'a mut GradientCache,
+    ) -> ChainRuleComputation<'b>
+    where
+        'a: 'b, // tc is around longer than crc
     {
         // Compute the chain rule values for each layer
         // Store the partial cost derivative for biases and weights from each layer,
@@ -304,10 +382,8 @@ impl Network {
         let acc0: Array2<f64> = crc.init(y);
 
         // zip number of iterations with corresponding weight (start from back to front layer)
-        let zipped = (0..total_layers-2).zip(self.weights.iter().rev());
-        zipped.fold(acc0, |acc: Array2<f64>, (_, w)| {
-            crc.fold_layer(acc, w)
-        });
+        let zipped = (0..total_layers - 2).zip(self.weights.iter().rev());
+        zipped.fold(acc0, |acc: Array2<f64>, (_, w)| crc.fold_layer(acc, w));
 
         crc
     }
@@ -336,7 +412,7 @@ impl Network {
         }
 
         //  weight_decay factor is 1−ηλ/n
-        let weight_decay = 1.0-learning_rate*(l2_rate/n_total as f64);
+        let weight_decay = 1.0 - learning_rate * (l2_rate / n_total as f64);
 
         for (i, (w, dw)) in self.weights.iter_mut().zip(w_deltas).enumerate() {
             // optimizer, if enabled, is used to calibrate the constant learning rate
@@ -345,18 +421,16 @@ impl Network {
             adj = optimizer.calculate(key, dw, t);
             velocity = adj.mapv(|x| x * learning_rate);
 
-            *w = &*w*weight_decay - velocity;
+            *w = &*w * weight_decay - velocity;
         }
     }
 
     /// Compare the classes represented by the prediction output with the known classes
     /// represented by the data set's test y data. Upon match, increase the model's accuracy
-    fn evaluate(&self, subsets: &TrainTestSubsets, eval: &Eval,
-                tally: &mut Tally) {
-
+    fn evaluate(&self, subsets: &TrainTestSubsets, eval: &Eval, tally: &mut Tally) {
         let s = subsets.subset_ref(eval);
         // retrieve eval data, labels, and size
-        let (x_data, y_data, n_data) : (&Array2<f64>, &Array2<f64>, usize) = (&s.x, &s.y, s.size);
+        let (x_data, y_data, n_data): (&Array2<f64>, &Array2<f64>, usize) = (&s.x, &s.y, s.size);
 
         // run forward pass with no caching of intermediate values on each observation data
         let mut output: Array2<f64>;
@@ -397,14 +471,15 @@ impl From<NetworkArchive> for Network {
         Network {
             layers: None,
             current_state: ModelState::Fit, // set as a fitted model
-            weights: w_a.into(), 
-            biases: b_a.into(), 
+            weights: w_a.into(),
+            biases: b_a.into(),
             ..Default::default()
         }
     }
 }
 
-impl Save for Network { // select NetworkArcihve as intermediate structure
+impl Save for Network {
+    // select NetworkArcihve as intermediate structure
     type Proxy = NetworkArchive;
 }
 
@@ -426,14 +501,13 @@ impl Add<Hypers> for Network {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layers::{Act, Dense, Input1};
-    use std::sync::OnceLock;
     use crate::dataset::DataSet;
+    use crate::layers::{Act, Dense, Input1};
     use crate::types::SimpleError;
+    use std::sync::OnceLock;
 
     static TTS: OnceLock<TrainTestSubsets> = OnceLock::new();
 
@@ -444,22 +518,25 @@ mod tests {
             println!("Initializing subsets once (Should only see once)");
             let mut data = CSVData::new(CSVType::RGB);
             data.fetch().unwrap();
-            data.train_test_split(2.0/3.0)
+            data.train_test_split(2.0 / 3.0)
         })
     }
 
     #[test]
-    fn model_check_compile_before_add() { // can't compile a model until layers have been added
+    fn model_check_compile_before_add() {
+        // can't compile a model until layers have been added
         std::panic::set_hook(Box::new(|_| {})); // suppress panic output
 
-        let result = std::panic::catch_unwind(|| { // compile before add
+        let result = std::panic::catch_unwind(|| {
+            // compile before add
             let mut model = Network::new();
             model.compile(Loss::Quadratic, 0.1, 0.2, Metr("accuracy"));
         });
 
         assert!(&result.is_err());
 
-        let result = std::panic::catch_unwind(|| { // compile after add
+        let result = std::panic::catch_unwind(|| {
+            // compile after add
             let mut model = Network::new();
             Network::add(&mut model, Input1(3)); // qualified syntax for disambiguation
             Network::add(&mut model, Dense(3, Act::Relu));
@@ -470,7 +547,8 @@ mod tests {
     }
 
     #[test]
-    fn model_check_store_before_fit() { // can't store a model until it has been fitted
+    fn model_check_store_before_fit() {
+        // can't store a model until it has been fitted
         std::panic::set_hook(Box::new(|_| {})); // suppress panic output
 
         // incorrect model construction pass
@@ -487,7 +565,10 @@ mod tests {
 
         let err = result.unwrap_err();
         dbg!(err.downcast_ref::<&str>().unwrap());
-        assert_eq!(*err.downcast_ref::<&str>().unwrap(), "Unable to store model since it hasn't been properly fitted");
+        assert_eq!(
+            *err.downcast_ref::<&str>().unwrap(),
+            "Unable to store model since it hasn't been properly fitted"
+        );
 
         let subsets = subsets_init();
 
@@ -506,7 +587,8 @@ mod tests {
     }
 
     #[test]
-    fn model_load_before_store() { // can't store a model until it has been fitted
+    fn model_load_before_store() {
+        // can't store a model until it has been fitted
         let subsets = subsets_init();
 
         let mut model = Network::new();
@@ -522,7 +604,10 @@ mod tests {
 
         assert!(&result.is_err());
         let error_str = &result.unwrap_err().to_string();
-        assert_eq!(error_str, "Unable to perform IO -- No such file or directory (os error 2)");
+        assert_eq!(
+            error_str,
+            "Unable to perform IO -- No such file or directory (os error 2)"
+        );
     }
 
     #[allow(unused_variables)]
@@ -543,6 +628,9 @@ mod tests {
 
         let e = model.fit(subsets, 1, Batch::SGD, Eval::Train).unwrap_err();
 
-        assert!(matches!(e, SimpleError::InputLayerSizeNoMatch(input_layer_size, n_features)));
+        assert!(matches!(
+            e,
+            SimpleError::InputLayerSizeNoMatch(input_layer_size, n_features)
+        ));
     }
 }
