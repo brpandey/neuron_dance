@@ -1,3 +1,7 @@
+/// Main
+/// Demonstrate easy model generation with differing models
+/// Different types of data, layers, hyperparameters along with de/serialization
+
 use clap::{Arg, ArgAction, Command};
 use neuron_dance::{
     dataset::{
@@ -100,7 +104,6 @@ fn main() -> Result<(), SimpleError> {
             model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test)?;
 
             random_predicts(&model, &subsets); // Now that model has been trained, make random selections
-                                               //            model.view();
         }
         NetworkType::FashionMnist => {
             // Layers near input learn more basic qualities of the dataset thus bigger size
@@ -121,6 +124,8 @@ fn main() -> Result<(), SimpleError> {
 
     model.eval(&subsets, Eval::Test);
 
+    // if not already preloaded, demonstrate model store and load
+    // along with quick evaluation
     if ntype != NetworkType::Preload {
         if let Err(e) = model.store(&token) {
             e.print_and_exit()
