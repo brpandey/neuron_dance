@@ -1,8 +1,3 @@
-use either::*;
-use nanoserde::{DeBin, SerBin};
-use ndarray::Array2;
-use ndarray_rand::RandomExt;
-use statrs::distribution::{Normal, Uniform};
 /// Weit or Weight Initialization Types
 /// Provides layer specific initialization strategies to avoid vanishing or
 /// exploding gradients from too large of weights or too small weights that
@@ -27,6 +22,11 @@ use statrs::distribution::{Normal, Uniform};
 /// Normal distributions have a bell shape with values near the center more likely
 /// than at the edges (e.g. shoe sizes). Whereas Uniform distributions are equally
 /// spread out the data in more of a rectangular shape (e.g. rolling a dice)
+use either::*;
+use nanoserde::{DeBin, SerBin};
+use ndarray::Array2;
+use ndarray_rand::RandomExt;
+use statrs::distribution::{Normal, Uniform};
 use std::default::Default;
 
 // Weight Initialization Types

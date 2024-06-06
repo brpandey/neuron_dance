@@ -1,5 +1,4 @@
-pub mod leaky_relu;
-/// Groups the common library of simple units or activation functions
+/// Groups activation units
 /// which when used in totality help model more complex target functions
 
 /// Defines activation trait object interface allowing us
@@ -13,8 +12,7 @@ pub mod leaky_relu;
 
 /// The simple units make micro decisions given their params and forward
 /// their answer in their output
-// To add new activation type update 3 places:
-// Add new activation module type here - Start (1)
+pub mod leaky_relu;
 pub mod relu;
 pub mod sigmoid;
 pub mod softmax;
@@ -27,7 +25,7 @@ use strum_macros::{Display, EnumString};
 
 use crate::activation::{
     leaky_relu::LeakyRelu, relu::Relu, sigmoid::Sigmoid, softmax::Softmax, tanh::Tanh,
-}; // Update (2)
+};
 
 use crate::weight::Weit;
 
@@ -72,7 +70,6 @@ impl FromStr for Box<dyn Activation> {
     type Err = ActivationParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Add new activation type here - Start (3)
         match s {
             "relu" => Ok(Box::new(Relu)),
             "sigmoid" => Ok(Box::new(Sigmoid)),
@@ -81,7 +78,6 @@ impl FromStr for Box<dyn Activation> {
             "leaky_relu" => Ok(Box::new(LeakyRelu)),
             _ => Err(ActivationParseError),
         }
-        // End Finish (3)
     }
 }
 

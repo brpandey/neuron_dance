@@ -1,6 +1,3 @@
-use crate::archive::Archive;
-use crate::dataset::sanitize_token;
-use crate::types::SimpleError;
 /// Save trait
 /// Defines a simple interface for binary file serialization and deserialization
 /// using nanoserde instead of other libraries for its tiny dependency
@@ -14,6 +11,10 @@ use std::{
     fs::File,
     io::{Read, Write},
 };
+
+use crate::archive::Archive;
+use crate::dataset::sanitize_token;
+use crate::types::SimpleError;
 
 pub const ROOT_DIR: &str = env!("CARGO_MANIFEST_DIR");
 

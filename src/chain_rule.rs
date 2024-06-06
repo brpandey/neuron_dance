@@ -1,6 +1,6 @@
-use ndarray::Array2;
 /// Chain rule
 /// Aggregates gradients of each layer into a reduction
+use ndarray::Array2;
 use std::collections::VecDeque;
 
 use crate::chain_layer::{ComputeLayer, HiddenLayerTerms, OutputLayerTerms, SharedHiddenTerms};

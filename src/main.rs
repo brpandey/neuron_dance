@@ -1,7 +1,6 @@
 /// Main
 /// Demonstrate easy model generation with differing models
 /// Different types of data, layers, hyperparameters along with de/serialization
-
 use clap::{Arg, ArgAction, Command};
 use neuron_dance::{
     dataset::{
