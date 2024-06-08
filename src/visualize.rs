@@ -1,3 +1,10 @@
+/// Visualize
+/// Generates a table preview of the data, either as a literal data
+/// table of csv values, or as ascii art depicted with a table structure
+
+/// Also generates a heatmap of image data saving locally to a /tmp path
+/// and displaying as well
+
 use colorous::{GREYS, PLASMA, TURBO};
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL};
 use comfy_table::{ContentArrangement, Table};

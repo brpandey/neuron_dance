@@ -1,3 +1,8 @@
+/// Pool
+/// Pool downsamples input matrix given pool size and stride size generating kernel matrixes
+/// These kernels are reduced (e.g. via max function) into a single value.
+/// These resulting values serve to represent a reduction of the original input matrix
+
 use ndarray::{s, Array, Array2, ArrayBase, Data, Ix2};
 use ndarray_stats::QuantileExt;
 
