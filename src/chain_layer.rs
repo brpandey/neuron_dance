@@ -70,7 +70,7 @@ impl ChainRule for OutputLayerTerms {
         // Note: Z2 = W2A1 + B, dz_db is just the constant 1 that is multiplying B
         let dc_dz_ref = self.dc_dz.as_ref().unwrap();
         let dc_db_raw = (dc_dz_ref * self.dz_db).sum_axis(Axis(1)); // e.g. fold 1x32 into 1x1
-        let dc_db = dc_db_raw.into_shape(self.bias_shape).unwrap(); // match bias shape in order to add/sub easily during update iteration
+        let dc_db = dc_db_raw.into_shape_with_order(self.bias_shape).unwrap(); // match bias shape in order to add/sub easily during update iteration
 
         // Z2 = W2A1 + B, dz_dw is just the constant A1 which is multiplying W2
         let dc_dw = dc_dz_ref.dot(&self.dz_dw.t());
@@ -92,7 +92,7 @@ impl ChainRule for HiddenLayerTerms {
         // for example - if running with minibatches, suppose bias delta has 3x32 shape,
         // sum all the 32 (batch size) dc_db1 value contributions into one aggregate, making it 3x1 shape
         let dc_db1_raw = (&dc_dz1 * self.dz1_db1).sum_axis(Axis(1));
-        let dc_db1 = dc_db1_raw.into_shape(self.bias_shape).unwrap(); // cost derivative with respect to bias
+        let dc_db1 = dc_db1_raw.into_shape_with_order(self.bias_shape).unwrap(); // cost derivative with respect to bias
 
         let dc_dw1 = dc_dz1.dot(&self.dz1_dw1.t()); // cost derivative with respect to weight
 

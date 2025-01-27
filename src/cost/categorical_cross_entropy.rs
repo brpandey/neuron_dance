@@ -1,7 +1,6 @@
 use ndarray::{Array2, ArrayView2};
 
 use crate::activation::{softmax::Softmax, Act, ActFp};
-use crate::algebra::AlgebraExt;
 use crate::cost::{CostDFp, Objective};
 use crate::gradient::CombinateRule;
 

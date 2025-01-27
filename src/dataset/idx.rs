@@ -91,7 +91,7 @@ impl DataSet for MnistData {
 
         for i in 0..num_heatmaps {
             let x_row = x_train.row(i);
-            let image_view = x_row.into_shape(Self::SHAPE).unwrap();
+            let image_view = x_row.into_shape_with_order(Self::SHAPE).unwrap();
             Visualize::heatmap_row(&image_view, i as u8);
         }
     }

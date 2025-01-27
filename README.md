@@ -472,9 +472,8 @@ Accuracy 0.8409 8409/10000
 
 ```bash
 
-// for blas - optimized matrix compute
-sudo apt install cmake
-sudo apt install gfortran
+// (required) for blas - optimized matrix compute
+sudo apt-get install libopenblas-dev
 
 // for flamegraph / perf
 sudo apt install linux-tools-common linux-tools-generic
@@ -492,6 +491,7 @@ perf report -n
 // for plotters (heatmaps)
 sudo apt-get install libfontconfig libfontconfig1-dev
 
+// export RUST_FONTCONFIG_DLOPEN=on
 ```
 
 [TODO](TODO.md)

@@ -1,7 +1,6 @@
 use ndarray::{Array2, ArrayView2};
 
 use crate::activation::{Act, ActFp};
-use crate::algebra::AlgebraExt;
 use crate::cost::{CostDFp, Objective};
 use crate::gradient::CombinateRule;
 
@@ -14,7 +13,7 @@ impl Objective for BinaryCrossEntropy {
         // C = 1/n ∑(-y * ln(a)-(1−y)ln(1−a))
 
         let term1 = -y * (&a.ln());
-        let term2 = (1.0 as f64 - y) * (&(1.0 - a).ln());
+        let term2 = (1.0 - y) * (&(1.0 - a).ln());
         let mut diff = term1 - term2;
         diff.mapv_inplace(|v| v.max(0.0)); // replace NaN with 0.0
         diff.mean().unwrap()

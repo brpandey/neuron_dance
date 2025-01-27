@@ -52,7 +52,10 @@ impl Softmax {
         dc_dz = c_iter
             .zip(z_iter)
             .fold(dc_dz, |mut acc, (cost_grad_single, z_col)| {
-                let z_single = z_col.to_owned().into_shape((output_size, 1)).unwrap(); // put z into array2
+                let z_single = z_col
+                    .to_owned()
+                    .into_shape_with_order((output_size, 1))
+                    .unwrap(); // put z into array2
                 let softmax_grad_single = Softmax::derivative(&z_single); // get da_dz single - jacobian matrix
                 let dc_dz_single = softmax_grad_single.dot(&cost_grad_single); // e.g. da_dz - jacobian matrix (10x10) dot 10x1 dc_da
                 let _ = acc.push_column(dc_dz_single.view());

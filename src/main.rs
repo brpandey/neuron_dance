@@ -100,7 +100,7 @@ fn main() -> Result<(), SimpleError> {
             model.add(Dense(100, Act::Sigmoid_(Weit::GlorotN)));
             model.add(Dense(10, Act::Sigmoid_(Weit::GlorotN))); // Layers near output learn more advanced qualities
             model.compile(Loss::BinaryCrossEntropy, 0.1, 5.0, Metr("accuracy"));
-            model.fit(&subsets, 3, Batch::Mini_(10, Optim::Adam), Eval::Test)?;
+            model.fit(&subsets, 8, Batch::Mini_(10, Optim::Adam), Eval::Test)?;
 
             random_predicts(&model, &subsets); // Now that model has been trained, make random selections
         }

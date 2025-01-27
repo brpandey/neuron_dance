@@ -12,12 +12,13 @@ flate2 = "1.0.28"
 
 # For faster matrix compute, include optional feature blas
 # Installing blas required cmake and gfortran
-# e.g. sudo apt install cmake,  sudo apt install gfortran
-ndarray = { version = "0.15.6", features = ["blas"] }
-blas-src = { version = "0.8.0", default-features = false, features = ["netlib"] }
 
-ndarray-csv = "0.5.2"
-ndarray-rand = "0.14.0"
+ndarray = { version = "0.16.0", features = ["blas"] }
+blas-src = { version = "0.10", features = ["openblas"] }
+openblas-src = { version = "0.10", features = ["cblas", "system"] }
+
+ndarray-csv = "0.5.3"
+ndarray-rand = "0.15.0"
 rand = "0.8.5"
 rand_isaac = "0.3.0"
 statrs = "0.16"
@@ -28,7 +29,7 @@ comfy-table = "7.1.1"
 colorous = "1.0.13"
 plotters = "0.3.5"
 viuer = "0.7.1"
-ndarray-stats = "0.5.1"
+ndarray-stats = "0.6.0" # ndarray-stats = "0.5.1"
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
 nanoserde = "0.1.37"

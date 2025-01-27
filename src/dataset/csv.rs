@@ -141,7 +141,7 @@ impl<'b> DataSet for CSVData<'b> {
         let n1 = (n_size as f32 * split_ratio).ceil() as usize;
         let n2 = n_size - n1;
 
-        let mut first_raw_vec = data.clone().into_raw_vec();
+        let (mut first_raw_vec, mut _off) = data.clone().into_raw_vec_and_offset();
 
         // hence the first_raw_vec is now size n1 * n_features, leaving second_raw_vec with remainder
         let second_raw_vec = first_raw_vec.split_off(n1 * n_columns);

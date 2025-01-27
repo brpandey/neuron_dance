@@ -36,7 +36,7 @@ impl From<&Vec<Array2<f64>>> for VecArray2Archive<f64> {
         let (mut values, mut shapes) = (vec![], vec![]);
 
         for v in vec.iter() {
-            values.push((*v).clone().into_raw_vec());
+            values.push((*v).clone().into_raw_vec_and_offset().0);
             shapes.push(v.dim());
         }
 

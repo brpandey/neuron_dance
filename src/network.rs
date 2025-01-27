@@ -4,7 +4,6 @@
 /// Through successive approximations the model minimizes the respective target or loss function
 /// increasing its accuracy and utility in predicting new unseen data
 extern crate blas_src; // C & Fortran linear algebra library for optimized matrix compute
-
 use ndarray::{Array2, ArrayView2, Axis};
 use rand::{seq::SliceRandom, Rng};
 use std::{default::Default, iter::Iterator, ops::Add};

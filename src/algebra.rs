@@ -8,21 +8,19 @@
 use ndarray::{Array1, Array2, Axis, Zip};
 use ndarray_stats::QuantileExt;
 
+#[allow(dead_code)]
 pub trait AlgebraExt<W = Self, B = Self> {
     type Output;
     type Output1;
 
     fn arg_max(&self) -> usize;
     fn weighted_sum(&self, w: &W, b: &B) -> Self::Output;
-    fn exp(&self) -> Self::Output;
-    fn ln(&self) -> Self::Output;
     fn normalize(&self) -> f64;
     fn min(&self) -> f64;
     fn max(&self) -> f64;
     fn min_axis(&self, axis: Axis) -> Self::Output1;
     fn max_axis(&self, axis: Axis) -> Self::Output1;
     fn maximum(&self, other: &Self) -> Self::Output;
-    fn sqrt(&self) -> Self::Output;
     fn smooth(&self, decay_rate: f64, value: &Array2<f64>, square_value: bool) -> Self::Output;
 }
 
@@ -56,12 +54,6 @@ impl AlgebraExt for Array2<f64> {
     }
 
     #[inline]
-    // perform natural logarithm - ln
-    fn ln(&self) -> Self::Output {
-        self.mapv(|v| v.log(std::f64::consts::E))
-    }
-
-    #[inline]
     fn normalize(&self) -> f64 {
         (self * self).sum().sqrt()
     }
@@ -82,16 +74,6 @@ impl AlgebraExt for Array2<f64> {
     #[inline]
     fn max_axis(&self, axis: Axis) -> Self::Output1 {
         self.map_axis(axis, |v| *v.iter().max_by(|a, b| a.total_cmp(b)).unwrap())
-    }
-
-    #[inline]
-    fn sqrt(&self) -> Self::Output {
-        self.mapv(|v| v.sqrt())
-    }
-
-    #[inline]
-    fn exp(&self) -> Self::Output {
-        self.mapv(|v| v.exp())
     }
 
     // Smooth out the value using the past historical average (self), to get a blend of
